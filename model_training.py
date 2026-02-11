@@ -13,7 +13,6 @@ print("\n========== MODEL TRAINING STARTED ==========\n")
 
 df = pd.read_csv("dataset/cleaned_reviews.csv")
 
-# Safety cleaning
 df["cleaned_review"] = df["cleaned_review"].fillna("").astype(str)
 df = df[df["cleaned_review"].str.strip() != ""]
 
@@ -36,7 +35,6 @@ y = df["sentiment"]
 print("Loading TF-IDF features...")
 X_tfidf = joblib.load("dataset/X_tfidf.pkl")
 
-# Split dataset
 print("Splitting dataset...")
 X_train, X_test, y_train, y_test = train_test_split(
     X_tfidf,
