@@ -11,16 +11,12 @@ warnings.filterwarnings("ignore", category=UndefinedMetricWarning)
 
 print("\n========== MODEL TRAINING STARTED ==========\n")
 
-# Load cleaned dataset
 df = pd.read_csv("dataset/cleaned_reviews.csv")
 
 # Safety cleaning
 df["cleaned_review"] = df["cleaned_review"].fillna("").astype(str)
 df = df[df["cleaned_review"].str.strip() != ""]
 
-# --------------------------------------------------
-# AUTO CREATE SENTIMENT FROM RATING (if missing)
-# --------------------------------------------------
 if "sentiment" not in df.columns:
 
     print("Sentiment column not found → generating from rating...")
@@ -35,10 +31,8 @@ if "sentiment" not in df.columns:
 
     df["sentiment"] = df["rating"].apply(convert_sentiment)
 
-# Labels
 y = df["sentiment"]
 
-# Load TF-IDF features
 print("Loading TF-IDF features...")
 X_tfidf = joblib.load("dataset/X_tfidf.pkl")
 
@@ -52,12 +46,10 @@ X_train, X_test, y_train, y_test = train_test_split(
     stratify=y
 )
 
-# Train model
 print("Training Logistic Regression...")
 model = LogisticRegression(max_iter=300, class_weight="balanced")
 model.fit(X_train, y_train)
 
-# Evaluation
 print("\n========== MODEL RESULTS ==========")
 
 y_pred = model.predict(X_test)
@@ -68,7 +60,6 @@ report = classification_report(y_test, y_pred, zero_division=0)
 print(f"\nAccuracy: {accuracy * 100:.2f}%\n")
 print("Classification report:\n\n ", report)
 
-# Save model + report
 joblib.dump(model, "dataset/sentiment_model.pkl")
 
 with open("dataset/model_report.txt", "w") as f:
