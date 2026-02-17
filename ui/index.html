@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Brand Review Dashboard</title>
+  <style>
+    :root {
+      --card: #ffffff;
+      --text: #1c2431;
+      --muted: #667085;
+      --border: #d8dee9;
+      --accent: #0f6cbd;
+      --ok: #117a37;
+      --warn: #b45309;
+      --bad: #b42318;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Segoe UI, Arial, sans-serif;
+      background: linear-gradient(150deg, #eef4ff 0%, #f8fbff 45%, #f6f8fb 100%);
+      color: var(--text);
+    }
+    .wrap { max-width: 1080px; margin: 24px auto; padding: 0 16px; }
+    h1 { margin: 0 0 8px; font-size: 28px; }
+    .sub { color: var(--muted); margin-bottom: 18px; }
+    .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 14px; }
+    .card h2 { margin: 0 0 10px; font-size: 18px; }
+    label { display: block; font-size: 13px; margin: 8px 0 4px; color: var(--muted); }
+    input, textarea, button {
+      width: 100%; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; padding: 10px; background: #fff;
+    }
+    textarea { min-height: 86px; resize: vertical; }
+    button { margin-top: 10px; border: none; background: var(--accent); color: white; font-weight: 600; cursor: pointer; }
+    .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    .metric { border: 1px solid var(--border); border-radius: 10px; padding: 10px; background: #fff; }
+    .metric .k { color: var(--muted); font-size: 12px; }
+    .metric .v { font-size: 18px; font-weight: 700; margin-top: 4px; }
+    .score-pos { color: var(--ok); }
+    .score-neu { color: var(--warn); }
+    .score-neg { color: var(--bad); }
+    .notice { margin-top: 10px; border-radius: 8px; padding: 10px; font-size: 14px; border: 1px solid transparent; display: none; }
+    .notice.show { display: block; }
+    .notice.warn { background: #fff7ed; border-color: #fdba74; color: #9a3412; }
+    .notice.bad { background: #fff1f2; border-color: #fda4af; color: #9f1239; }
+    .notice.ok { background: #f0fdf4; border-color: #86efac; color: #166534; }
+    .row { display: flex; gap: 10px; }
+    .row > * { flex: 1; }
+    .tech { margin-top: 14px; }
+    .tech pre { margin: 0; overflow: auto; max-height: 280px; background: #111827; color: #e5e7eb; border-radius: 10px; padding: 12px; font-size: 12px; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Brand Review Dashboard</h1>
+    <div class="sub">Simple mode: final sentiment + confidence. Technical details are optional.</div>
+
+    <div class="card" style="margin-bottom:14px;">
+      <h2>Current Brand Score</h2>
+      <div class="metrics">
+        <div class="metric"><div class="k">Total Reviews</div><div class="v" id="m-total">-</div></div>
+        <div class="metric"><div class="k">Positive %</div><div class="v" id="m-pos">-</div></div>
+        <div class="metric"><div class="k">Negative %</div><div class="v" id="m-neg">-</div></div>
+        <div class="metric"><div class="k">Brand Score</div><div class="v" id="m-score">-</div></div>
+      </div>
+      <button id="refresh-score">Refresh Brand Score</button>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Single Review Prediction</h2>
+        <label>Review Text</label>
+        <textarea id="single-review">Great build quality and fast delivery.</textarea>
+        <div class="row">
+          <div>
+            <label>Rating (optional, 1-5)</label>
+            <input id="single-rating" type="number" step="0.1" min="1" max="5" value="5" />
+          </div>
+          <div>
+            <label>Platform (optional)</label>
+            <input id="single-platform" type="text" value="Amazon" />
+          </div>
+        </div>
+        <button id="predict-one">Predict</button>
+        <div id="single-notice" class="notice"></div>
+      </div>
+
+      <div class="card">
+        <h2>Batch Prediction</h2>
+        <label>Reviews (one per line)</label>
+        <textarea id="batch-reviews">excellent product
+bad quality item
+average performance</textarea>
+        <label><input id="save-dataset" type="checkbox" checked style="width:auto; margin-right:6px;"> Save to dataset/final_predictions.csv</label>
+        <button id="predict-batch">Run Batch</button>
+        <div id="batch-notice" class="notice"></div>
+      </div>
+    </div>
+
+    <div class="card tech" style="margin-top:14px;">
+      <label><input id="toggle-tech" type="checkbox" style="width:auto; margin-right:6px;"> Show Technical Details (JSON)</label>
+      <div id="tech-block" class="hidden">
+        <div class="grid" style="margin-top:10px;">
+          <div>
+            <h2 style="margin:0 0 8px; font-size:16px;">Single JSON</h2>
+            <pre id="single-output">{}</pre>
+          </div>
+          <div>
+            <h2 style="margin:0 0 8px; font-size:16px;">Batch JSON</h2>
+            <pre id="batch-output">{}</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    async function callApi(url, method = "GET", body = null) {
+      const opts = { method, headers: { "Content-Type": "application/json" } };
+      if (body) opts.body = JSON.stringify(body);
+      const res = await fetch(url, opts);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        let msg = data.detail || "Request failed";
+        if (Array.isArray(msg)) msg = msg.map((e) => `${e.loc?.join('.')}: ${e.msg}`).join('; ');
+        throw new Error(msg);
+      }
+      return data;
+    }
+
+    function setNotice(id, message, type) {
+      const el = $(id);
+      el.className = `notice show ${type}`;
+      el.textContent = message;
+    }
+
+    function clearNotice(id) {
+      const el = $(id);
+      el.className = "notice";
+      el.textContent = "";
+    }
+
+    function renderScore(metrics) {
+      const score = metrics.brand_reputation_score ?? 0;
+      $("m-total").textContent = metrics.total_reviews ?? 0;
+      $("m-pos").textContent = `${metrics.percentages?.Positive ?? 0}%`;
+      $("m-neg").textContent = `${metrics.percentages?.Negative ?? 0}%`;
+      $("m-score").textContent = `${score}`;
+      $("m-score").classList.remove("score-pos", "score-neu", "score-neg");
+      $("m-score").classList.add(score > 20 ? "score-pos" : score < 0 ? "score-neg" : "score-neu");
+    }
+
+    async function refreshScore() {
+      try {
+        const data = await callApi("/brand-score");
+        renderScore(data);
+      } catch (e) {
+        $("m-score").textContent = e.message;
+      }
+    }
+
+    $("refresh-score").addEventListener("click", refreshScore);
+
+    $("toggle-tech").addEventListener("change", (e) => {
+      $("tech-block").className = e.target.checked ? "" : "hidden";
+    });
+
+    $("predict-one").addEventListener("click", async () => {
+      clearNotice("single-notice");
+      const payload = {
+        review_text: $("single-review").value,
+        platform: $("single-platform").value || null,
+      };
+      const ratingVal = $("single-rating").value;
+      if (ratingVal !== "") payload.rating = Number(ratingVal);
+
+      try {
+        const data = await callApi("/predict", "POST", payload);
+        $("single-output").textContent = JSON.stringify(data, null, 2);
+
+        const conf = data.final_class_probabilities?.[data.final_sentiment] ?? data.prediction_confidence;
+        const confText = conf === undefined || conf === null ? "n/a" : `${(conf * 100).toFixed(2)}%`;
+
+        if (data.is_mismatch_with_rating) {
+          setNotice("single-notice", `Sentiment: ${data.final_sentiment}. Rating suggests ${data.expected_sentiment_from_rating}. Confidence: ${confText}`, "warn");
+        } else {
+          setNotice("single-notice", `Sentiment: ${data.final_sentiment}. Confidence: ${confText}`, "ok");
+        }
+      } catch (e) {
+        setNotice("single-notice", e.message, "bad");
+        $("single-output").textContent = JSON.stringify({ error: e.message }, null, 2);
+      }
+    });
+
+    $("predict-batch").addEventListener("click", async () => {
+      clearNotice("batch-notice");
+      const lines = $("batch-reviews").value.split("\n").map((s) => s.trim()).filter(Boolean);
+      const payload = {
+        save_to_dataset: $("save-dataset").checked,
+        reviews: lines.map((text, i) => ({ review_id: i + 1, review_text: text, rating: null, platform: "Unknown" })),
+      };
+
+      try {
+        const data = await callApi("/predict/batch", "POST", payload);
+        $("batch-output").textContent = JSON.stringify(data, null, 2);
+        renderScore(data.metrics);
+        setNotice("batch-notice", `Batch complete. ${data.metrics.total_reviews} reviews processed.`, "ok");
+      } catch (e) {
+        setNotice("batch-notice", e.message, "bad");
+        $("batch-output").textContent = JSON.stringify({ error: e.message }, null, 2);
+      }
+    });
+
+    refreshScore();
+  </script>
+</body>
+</html>

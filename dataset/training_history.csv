@@ -1,0 +1,11 @@
+accuracy,previous_accuracy,delta,trend,macro_f1,best_c,best_cv_macro_f1
+91.53,91.53,0.0,NO CHANGE,,,
+91.53,91.53,0.0,NO CHANGE,,,
+91.53,91.53,0.0,NO CHANGE,,,
+91.53,91.53,0.0,NO CHANGE,,,
+89.83,91.53,-1.7,LOSS,,,
+89.83,89.83,0.0,NO CHANGE,,,
+89.83,89.83,0.0,NO CHANGE,0.7394,0.5,0.6835
+91.53,89.83,1.7,GAIN,0.776,1.0,
+91.53,91.53,0.0,NO CHANGE,0.776,1.0,
+91.53,91.53,0.0,NO CHANGE,0.776,1.0,
