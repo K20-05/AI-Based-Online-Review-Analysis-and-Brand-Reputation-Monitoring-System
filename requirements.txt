@@ -1,6 +1,19 @@
+<<<<<<< HEAD
 fastapi
 uvicorn[standard]
 pandas
 scikit-learn
 joblib
 pydantic
+=======
+Flask
+Flask-Cors
+pandas
+numpy
+scikit-learn
+joblib
+matplotlib
+seaborn
+pymongo
+nltk
+>>>>>>> 98618ec (Update project files)

@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+
+backend/dataset/cleaned_reviews.csv
+backend/dataset/feature_dataset.csv
+backend/dataset/*.pkl
+backend/dataset/*.png
+backend/dataset/model_report.txt
+backend/dataset/training_history.csv
+backend/dataset/model_metrics.csv
+backend/dataset/final_predictions.csv
+backend/dataset/brand_score.json
+backend/dataset/brand_reputation_by_brand.csv

@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BrandPulse Admin</title>
+  <style>
+    :root{--bg:#f6efe4;--card:rgba(255,250,243,.84);--line:rgba(92,78,60,.12);--ink:#1d2220;--muted:#67716c;--brand:#0f766e;--blue:#1d4ed8;--good:#15803d;--warn:#ca8a04;--bad:#b91c1c;--shadow:0 24px 60px rgba(29,34,32,.12)}
+    *{box-sizing:border-box} body{margin:0;font-family:"Segoe UI","Trebuchet MS",sans-serif;color:var(--ink);background:radial-gradient(circle at 10% 20%,rgba(15,118,110,.18),transparent 24rem),radial-gradient(circle at 88% 12%,rgba(29,78,216,.12),transparent 20rem),linear-gradient(180deg,#fbf8f2 0%,var(--bg) 100%)}
+    h1,h2,h3{margin:0;font-family:Georgia,serif} p{margin:0;line-height:1.6;color:var(--muted)} button,input,textarea{font:inherit}
+    .overlay{position:fixed;inset:0;display:grid;place-items:center;padding:20px;background:rgba(247,241,232,.8);backdrop-filter:blur(12px);z-index:20;transition:.25s}.overlay.hidden{opacity:0;visibility:hidden;pointer-events:none}
+    .login{width:min(920px,100%);display:grid;grid-template-columns:1.1fr .9fr;gap:18px}.art,.panel,.sidebar,.card{background:var(--card);border:1px solid var(--line);border-radius:26px;box-shadow:var(--shadow);backdrop-filter:blur(12px)}
+    .art{padding:28px;background:linear-gradient(145deg,#123c38,#1d3557);color:#eef7f5;display:grid;align-content:space-between}.art p{color:rgba(238,247,245,.82)} .eyebrow{margin-bottom:10px;font-size:.76rem;letter-spacing:.18em;text-transform:uppercase}
+    .badges{display:flex;flex-wrap:wrap;gap:10px}.badges span{padding:8px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.08);font-size:.82rem}
+    .panel{padding:24px;display:grid;gap:16px;align-content:center}.form,.stack{display:grid;gap:12px}.field{display:grid;gap:8px}
+    input,textarea{width:100%;padding:13px 14px;border-radius:16px;border:1px solid var(--line);background:rgba(255,255,255,.82);color:var(--ink)} textarea{min-height:110px;resize:vertical}
+    .primary,.secondary,.nav button,.action{border:0;cursor:pointer;transition:.18s}.primary:hover,.secondary:hover,.nav button:hover,.action:hover{transform:translateY(-1px)}
+    .primary{padding:13px 18px;border-radius:999px;color:#fff;background:linear-gradient(90deg,var(--brand),var(--blue))}.secondary{padding:13px 18px;border-radius:999px;background:rgba(255,255,255,.74);border:1px solid var(--line)}
+    .app{width:min(1400px,calc(100% - 32px));margin:20px auto 36px;display:grid;grid-template-columns:260px 1fr;gap:18px}
+    .sidebar{padding:20px 18px;display:flex;flex-direction:column;gap:18px;position:sticky;top:20px;height:calc(100vh - 40px)} .brandbox,.foot{padding:16px;border-radius:20px;background:rgba(255,255,255,.52)}
+    .nav{display:grid;gap:10px}.nav button{padding:14px 16px;border-radius:18px;text-align:left;background:rgba(255,255,255,.62)} .nav button.active{background:linear-gradient(90deg,rgba(15,118,110,.14),rgba(29,78,216,.1));border:1px solid rgba(15,118,110,.14)}
+    .content{display:grid;gap:18px}.hero{padding:26px;display:grid;grid-template-columns:1.3fr .9fr;gap:18px}.hero h1{font-size:clamp(2.2rem,4vw,4rem);line-height:.95;margin-bottom:14px}
+    .toolbar{margin-top:18px;display:flex;flex-wrap:wrap;gap:12px}.score{padding:22px;border-radius:24px;background:linear-gradient(160deg,rgba(15,118,110,.14),rgba(29,78,216,.1)),rgba(255,255,255,.78);border:1px solid rgba(15,118,110,.14)} .score strong{display:block;font-size:clamp(3.2rem,5vw,5rem);line-height:.9;margin:10px 0 12px}
+    .stats,.grid,.actions{display:grid;gap:18px}.stats{grid-template-columns:repeat(4,minmax(0,1fr))}.grid{grid-template-columns:1.2fr .9fr}.actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .card{padding:22px}.head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:18px}.label{color:var(--muted);font-size:.74rem;letter-spacing:.14em;text-transform:uppercase}.value{margin-top:10px;font-size:2rem;font-weight:700}.pill{padding:7px 12px;border-radius:999px;background:rgba(15,118,110,.12);color:var(--brand);font-size:.76rem;font-weight:600}
+    .trend{display:flex;align-items:end;gap:14px;min-height:300px}.group{flex:1;display:flex;flex-direction:column;align-items:center;gap:10px}.cols{width:100%;height:230px;display:flex;align-items:end;justify-content:center;gap:8px}.bar{width:24%;min-height:6px;border-radius:14px 14px 4px 4px}.positive{background:linear-gradient(180deg,#34d399,#15803d)}.neutral{background:linear-gradient(180deg,#facc15,#ca8a04)}.negative{background:linear-gradient(180deg,#fb7185,#b91c1c)}
+    .keywords,.health,.activity{display:grid;gap:12px}.keyword,.health-row,.activity-row{display:grid;gap:12px;align-items:center;padding:12px 14px;border-radius:18px;background:rgba(255,255,255,.64);border:1px solid rgba(92,78,60,.08)}.keyword{grid-template-columns:120px 1fr 42px}.health-row{grid-template-columns:1fr auto}
+    .track{height:12px;border-radius:999px;overflow:hidden;background:rgba(92,78,60,.12)}.fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--blue),var(--brand))}
+    .dot{width:12px;height:12px;border-radius:50%;background:var(--warn);box-shadow:0 0 0 7px rgba(202,138,4,.12)}.dot.good{background:var(--good);box-shadow:0 0 0 7px rgba(21,128,61,.12)}.dot.bad{background:var(--bad);box-shadow:0 0 0 7px rgba(185,28,28,.12)}
+    .tablewrap{overflow:auto;border-radius:18px;border:1px solid rgba(92,78,60,.08)} table{width:100%;border-collapse:collapse;background:rgba(255,255,255,.64)} th,td{text-align:left;padding:12px 14px;border-bottom:1px solid rgba(92,78,60,.08)} th{font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);background:rgba(255,255,255,.74)}
+    .action{padding:16px;border-radius:20px;text-align:left;background:linear-gradient(160deg,rgba(255,255,255,.86),rgba(245,237,225,.92));border:1px solid rgba(92,78,60,.08)} .action strong{display:block;margin-bottom:6px}
+    .status,.output{padding:16px;border-radius:20px;background:rgba(255,255,255,.62);border:1px solid rgba(92,78,60,.08)} .output{margin-top:14px;min-height:72px}
+    .section{display:none}.section.active{display:grid;gap:18px}
+    @media (max-width:1100px){.app,.hero,.grid,.login{grid-template-columns:1fr}.sidebar{position:static;height:auto}}
+    @media (max-width:760px){.stats,.actions{grid-template-columns:1fr 1fr}.keyword{grid-template-columns:90px 1fr 40px}}
+    @media (max-width:560px){.app{width:min(100% - 18px,1400px)}.stats,.actions{grid-template-columns:1fr}.toolbar{flex-direction:column}}
+  </style>
+</head>
+<body>
+  <div class="overlay" id="authOverlay">
+    <section class="login">
+      <div class="art">
+        <div>
+          <div class="eyebrow">BrandPulse Control Room</div>
+          <h1>Admin login for live brand reputation monitoring.</h1>
+          <p>Run preprocessing, train the model, generate predictions, inspect trends, and test reviews from one stronger interface.</p>
+        </div>
+        <div class="badges">
+          <span>Sentiment Ops</span><span>Review Audit</span><span>Platform Monitoring</span><span>Admin Access</span>
+        </div>
+      </div>
+      <div class="panel">
+        <div>
+          <div class="eyebrow">Secure Entry</div>
+          <h2>Sign in</h2>
+          <p>Frontend-only demo login. Use any email and a password with at least 6 characters.</p>
+        </div>
+        <form class="form" id="loginForm">
+          <label class="field"><span>Email</span><input id="loginEmail" type="email" placeholder="admin@brandpulse.ai" required></label>
+          <label class="field"><span>Password</span><input id="loginPassword" type="password" placeholder="Minimum 6 characters" required></label>
+          <button class="primary" type="submit">Enter Dashboard</button>
+        </form>
+      </div>
+    </section>
+  </div>
+
+  <main class="app">
+    <aside class="sidebar">
+      <section class="brandbox">
+        <div class="eyebrow">Admin Dashboard</div>
+        <h2>BrandPulse</h2>
+        <p>AI-based review analysis and reputation monitoring.</p>
+      </section>
+      <nav class="nav">
+        <button class="active" data-section="overview">Overview</button>
+        <button data-section="operations">Operations</button>
+        <button data-section="admin">Admin</button>
+      </nav>
+      <section class="foot">
+        <div class="label">Signed in as</div>
+        <div id="sessionUser" style="margin-top:8px;font-weight:700;">Guest</div>
+        <div style="margin-top:14px"><button class="secondary" id="logoutBtn">Log out</button></div>
+      </section>
+    </aside>
+
+    <section class="content">
+      <section class="hero card">
+        <div>
+          <div class="eyebrow">Realtime Reputation Intelligence</div>
+          <h1>Read the customer mood before it shapes the market story.</h1>
+          <p>Monitor trends, inspect source platforms, trigger the ML pipeline, and validate manual predictions from an admin-grade dashboard.</p>
+          <div class="toolbar">
+            <button class="primary" id="preprocessBtn">Run Preprocessing</button>
+            <button class="primary" id="trainBtn">Train Model</button>
+            <button class="primary" id="predictBtn">Generate Predictions</button>
+            <button class="secondary" id="refreshBtn">Refresh Dashboard</button>
+          </div>
+        </div>
+        <aside class="score">
+          <div class="label">Brand Reputation Score</div>
+          <strong id="brandScore">-</strong>
+          <p id="scoreNarrative">Waiting for backend metrics.</p>
+        </aside>
+      </section>
+
+      <section class="stats">
+        <article class="card"><div class="label">Total Reviews</div><div class="value" id="totalReviews">-</div></article>
+        <article class="card"><div class="label">Positive Share</div><div class="value" id="positivePct">-</div></article>
+        <article class="card"><div class="label">Neutral Share</div><div class="value" id="neutralPct">-</div></article>
+        <article class="card"><div class="label">Negative Share</div><div class="value" id="negativePct">-</div></article>
+      </section>
+
+      <section class="section active" id="overviewSection">
+        <section class="grid">
+          <article class="card">
+            <div class="head"><div><h3>Sentiment Trend Timeline</h3><p>Monthly movement of positive, neutral, and negative review volume.</p></div><span class="pill">Live API</span></div>
+            <div class="trend" id="trendChart"></div>
+          </article>
+          <div class="stack">
+            <article class="card">
+              <div class="head"><div><h3>Keyword Pressure Points</h3><p>Most repeated terms in processed reviews.</p></div></div>
+              <div class="keywords" id="keywordList"></div>
+            </article>
+            <article class="card">
+              <div class="head"><div><h3>System Health</h3><p>Current backend and artifact availability.</p></div></div>
+              <div class="health" id="healthList"></div>
+            </article>
+          </div>
+        </section>
+        <section class="grid">
+          <article class="card">
+            <div class="head"><div><h3>Platform Monitoring</h3><p>Sentiment split across each source platform.</p></div></div>
+            <div class="tablewrap">
+              <table>
+                <thead><tr><th>Platform</th><th>Positive</th><th>Neutral</th><th>Negative</th></tr></thead>
+                <tbody id="platformTableBody"></tbody>
+              </table>
+            </div>
+          </article>
+          <article class="card">
+            <div class="head"><div><h3>Activity Feed</h3><p>Latest workflow and dashboard events.</p></div></div>
+            <div class="activity" id="activityList"></div>
+          </article>
+        </section>
+      </section>
+
+      <section class="section" id="operationsSection">
+        <section class="grid">
+          <article class="card">
+            <div class="head"><div><h3>Pipeline Actions</h3><p>Trigger each backend stage from the dashboard.</p></div></div>
+            <div class="actions">
+              <button class="action" data-action="preprocess"><strong>Preprocess Reviews</strong><span>Clean, normalize, and deduplicate review data.</span></button>
+              <button class="action" data-action="train"><strong>Train Model</strong><span>Run logistic regression training and refresh artifacts.</span></button>
+              <button class="action" data-action="predict"><strong>Batch Prediction</strong><span>Generate predicted sentiments and brand score.</span></button>
+              <button class="action" data-action="refresh"><strong>Refresh Dashboard</strong><span>Reload summary, trends, keywords, and platform data.</span></button>
+            </div>
+          </article>
+          <article class="card">
+            <div class="head"><div><h3>Status Console</h3><p>Operational messages from the backend workflow.</p></div></div>
+            <div class="status" id="statusBox">Waiting for backend at http://127.0.0.1:5000.</div>
+          </article>
+        </section>
+        <section class="grid">
+          <article class="card">
+            <div class="head"><div><h3>Single Review Prediction</h3><p>Test one review directly against the trained model.</p></div></div>
+            <form class="form" id="predictionForm">
+              <label class="field"><span>Review Text</span><textarea id="reviewText" placeholder="Paste a customer review here..."></textarea></label>
+              <label class="field"><span>Platform</span><input id="reviewPlatform" type="text" value="Manual Input"></label>
+              <label class="field"><span>Brand</span><input id="reviewBrand" type="text" value="Manual Input"></label>
+              <button class="primary" type="submit">Predict Sentiment</button>
+            </form>
+            <div class="output" id="predictionOutput">No manual prediction yet.</div>
+          </article>
+          <article class="card">
+            <div class="head"><div><h3>Workflow Notes</h3><p>What this admin workspace controls.</p></div></div>
+            <div class="activity">
+              <div class="activity-row"><strong>Data collection</strong><span>Aggregates review CSVs from multiple platforms into one analysis stream.</span></div>
+              <div class="activity-row"><strong>Preprocessing</strong><span>Lowercases, tokenizes, removes stopwords, strips noise, and drops duplicates.</span></div>
+              <div class="activity-row"><strong>Inference</strong><span>Runs logistic regression on cleaned review text for sentiment prediction.</span></div>
+            </div>
+          </article>
+        </section>
+      </section>
+
+      <section class="section" id="adminSection">
+        <section class="grid">
+          <article class="card">
+            <div class="head"><div><h3>Admin Policy</h3><p>Frontend controls and session behavior.</p></div></div>
+            <div class="activity">
+              <div class="activity-row"><strong>Access mode</strong><span>Frontend-only demo login stored in browser local storage.</span></div>
+              <div class="activity-row"><strong>Role</strong><span>Administrator session with workflow and monitoring access.</span></div>
+              <div class="activity-row"><strong>Scope</strong><span>Summary metrics, platform analysis, keyword view, health state, and prediction testing.</span></div>
+            </div>
+          </article>
+          <article class="card">
+            <div class="head"><div><h3>Analyst Snapshot</h3><p>Current reporting summary.</p></div></div>
+            <div class="activity" id="snapshotList"></div>
+          </article>
+        </section>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    const API_BASE = "http://127.0.0.1:5000/api";
+    const authOverlay = document.getElementById("authOverlay");
+    const statusBox = document.getElementById("statusBox");
+    const sessionUser = document.getElementById("sessionUser");
+    const activityList = document.getElementById("activityList");
+    const healthList = document.getElementById("healthList");
+    const snapshotList = document.getElementById("snapshotList");
+    const activityFeed = [];
+
+    function text(id, value) { document.getElementById(id).textContent = value; }
+    function addActivity(title, detail) {
+      activityFeed.unshift({ title, detail, time: new Date().toLocaleTimeString() });
+      activityFeed.splice(6);
+      activityList.innerHTML = activityFeed.map((item) => `<div class="activity-row"><strong>${item.title}</strong><span>${item.detail} | ${item.time}</span></div>`).join("");
+    }
+    function setStatus(message) { statusBox.textContent = message; addActivity("System update", message); }
+    function narrative(score) {
+      if (score >= 60) return "Brand sentiment is strongly favorable across recent reviews.";
+      if (score >= 20) return "Brand sentiment is positive, but visible friction still exists.";
+      if (score >= 0) return "Brand sentiment is balanced. Monitor negative movement closely.";
+      return "Brand sentiment is under pressure and needs attention.";
+    }
+    function renderTrends(rows) {
+      const box = document.getElementById("trendChart"); box.innerHTML = "";
+      if (!rows.length) { box.textContent = "No trend data available."; return; }
+      const max = Math.max(...rows.flatMap((r) => [r.Positive, r.Neutral, r.Negative]), 1);
+      rows.forEach((row) => {
+        const group = document.createElement("div");
+        group.className = "group";
+        group.innerHTML = `<div class="cols"><div class="bar positive" style="height:${row.Positive / max * 100}%"></div><div class="bar neutral" style="height:${row.Neutral / max * 100}%"></div><div class="bar negative" style="height:${row.Negative / max * 100}%"></div></div><div>${row.period}</div>`;
+        box.appendChild(group);
+      });
+    }
+    function renderKeywords(rows) {
+      const box = document.getElementById("keywordList"); box.innerHTML = "";
+      if (!rows.length) { box.textContent = "No keyword data available."; return; }
+      const max = Math.max(...rows.map((r) => r.count), 1);
+      rows.forEach((row) => {
+        const item = document.createElement("div");
+        item.className = "keyword";
+        item.innerHTML = `<strong>${row.word}</strong><div class="track"><div class="fill" style="width:${row.count / max * 100}%"></div></div><span>${row.count}</span>`;
+        box.appendChild(item);
+      });
+    }
+    function renderPlatforms(rows) {
+      const body = document.getElementById("platformTableBody"); body.innerHTML = "";
+      if (!rows.length) { body.innerHTML = "<tr><td colspan='4'>No platform data available.</td></tr>"; return; }
+      rows.forEach((row) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${row.platform || "-"}</td><td>${row.Positive || 0}</td><td>${row.Neutral || 0}</td><td>${row.Negative || 0}</td>`;
+        body.appendChild(tr);
+      });
+    }
+    function renderHealth(payload) {
+      const items = [["Backend status", payload.status === "ok"], ["Model artifact", payload.model_exists], ["Vectorizer artifact", payload.vectorizer_exists], ["Predictions dataset", payload.predictions_exist], ["Report file", payload.report_exists]];
+      healthList.innerHTML = items.map(([label, ok]) => `<div class="health-row"><div>${label}</div><div class="dot ${ok ? "good" : "bad"}"></div></div>`).join("");
+    }
+    function renderSnapshot(summary) {
+      snapshotList.innerHTML = `<div class="activity-row"><strong>Total reviews</strong><span>${summary.total_reviews ?? "-"} reviews currently included in scoring.</span></div><div class="activity-row"><strong>Positive share</strong><span>${summary.positive_pct ?? "-"}% of processed sentiment is positive.</span></div><div class="activity-row"><strong>Negative share</strong><span>${summary.negative_pct ?? "-"}% of processed sentiment is negative.</span></div><div class="activity-row"><strong>Brand score</strong><span>${summary.brand_reputation_score ?? "-"} overall reputation score.</span></div>`;
+    }
+    async function postAction(path, message) {
+      setStatus(message);
+      const response = await fetch(`${API_BASE}${path}`, { method: "POST" });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || payload.message || "Request failed");
+      return payload;
+    }
+    async function loadHealth() {
+      const response = await fetch(`${API_BASE}/health`);
+      const payload = await response.json();
+      renderHealth(payload);
+      return payload;
+    }
+    async function loadDashboard() {
+      try {
+        const [summaryRes, trendsRes, keywordsRes, platformsRes, health] = await Promise.all([fetch(`${API_BASE}/dashboard/summary`), fetch(`${API_BASE}/dashboard/trends`), fetch(`${API_BASE}/dashboard/keywords`), fetch(`${API_BASE}/dashboard/platforms`), loadHealth()]);
+        const summary = await summaryRes.json();
+        const trends = await trendsRes.json();
+        const keywords = await keywordsRes.json();
+        const platforms = await platformsRes.json();
+        if (!summaryRes.ok) throw new Error(summary.error || "Dashboard summary is not ready");
+        text("brandScore", summary.brand_reputation_score);
+        text("totalReviews", summary.total_reviews);
+        text("positivePct", `${summary.positive_pct}%`);
+        text("neutralPct", `${summary.neutral_pct}%`);
+        text("negativePct", `${summary.negative_pct}%`);
+        document.getElementById("scoreNarrative").textContent = narrative(Number(summary.brand_reputation_score || 0));
+        renderTrends(trends.trends || []);
+        renderKeywords(keywords.keywords || []);
+        renderPlatforms(platforms.platforms || []);
+        renderSnapshot(summary);
+        setStatus(`Loaded ${summary.total_reviews} processed reviews. Health status: ${health.status}.`);
+      } catch (error) {
+        setStatus(`Dashboard unavailable: ${error.message}`);
+      }
+    }
+    async function runAction(action) {
+      try {
+        if (action === "refresh") { await loadDashboard(); return; }
+        const pathMap = { preprocess: "/preprocess", train: "/train", predict: "/predict/batch" };
+        const msgMap = { preprocess: "Running preprocessing...", train: "Training logistic regression model...", predict: "Generating predictions and refreshing brand score..." };
+        const payload = await postAction(pathMap[action], msgMap[action]);
+        if (action === "preprocess") setStatus(`Preprocessing completed for ${payload.rows} reviews.`);
+        else if (action === "train") setStatus("Training completed. Metrics and charts were refreshed.");
+        else setStatus(`Prediction completed for ${payload.rows} reviews.`);
+        await loadDashboard();
+      } catch (error) {
+        setStatus(`${action} failed: ${error.message}`);
+      }
+    }
+    function switchSection(section) {
+      document.querySelectorAll(".nav button").forEach((button) => button.classList.toggle("active", button.dataset.section === section));
+      document.querySelectorAll(".section").forEach((panel) => panel.classList.toggle("active", panel.id === `${section}Section`));
+    }
+    function setSession(email) {
+      localStorage.setItem("brandpulse_user", email);
+      sessionUser.textContent = email;
+      authOverlay.classList.add("hidden");
+      addActivity("Login", `${email} entered the admin dashboard.`);
+    }
+    document.getElementById("loginForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const email = document.getElementById("loginEmail").value.trim();
+      const password = document.getElementById("loginPassword").value;
+      if (!email || password.length < 6) return;
+      setSession(email);
+      loadDashboard();
+    });
+    document.getElementById("logoutBtn").addEventListener("click", () => {
+      localStorage.removeItem("brandpulse_user");
+      sessionUser.textContent = "Guest";
+      authOverlay.classList.remove("hidden");
+      addActivity("Logout", "Admin session ended.");
+    });
+    document.querySelectorAll(".nav button").forEach((button) => button.addEventListener("click", () => switchSection(button.dataset.section)));
+    document.querySelectorAll(".action").forEach((button) => button.addEventListener("click", () => runAction(button.dataset.action)));
+    document.getElementById("preprocessBtn").addEventListener("click", () => runAction("preprocess"));
+    document.getElementById("trainBtn").addEventListener("click", () => runAction("train"));
+    document.getElementById("predictBtn").addEventListener("click", () => runAction("predict"));
+    document.getElementById("refreshBtn").addEventListener("click", () => runAction("refresh"));
+    document.getElementById("predictionForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const reviewText = document.getElementById("reviewText").value.trim();
+      const platform = document.getElementById("reviewPlatform").value.trim() || "Manual Input";
+      const brand = document.getElementById("reviewBrand").value.trim() || platform;
+      const output = document.getElementById("predictionOutput");
+      if (!reviewText) return;
+      output.textContent = "Predicting sentiment...";
+      try {
+        const response = await fetch(`${API_BASE}/predict`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ review_text: reviewText, platform, brand }) });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || "Prediction failed");
+        output.innerHTML = `<strong>Predicted Sentiment:</strong> ${payload.predicted_sentiment}<br><strong>Platform:</strong> ${payload.platform}<br><strong>Cleaned Review:</strong> ${payload.cleaned_review}`;
+        addActivity("Manual prediction", `Predicted ${payload.predicted_sentiment} for ${platform}.`);
+      } catch (error) {
+        output.textContent = error.message;
+      }
+    });
+    const storedUser = localStorage.getItem("brandpulse_user");
+    if (storedUser) {
+      setSession(storedUser);
+      loadDashboard();
+    } else {
+      renderHealth({ status: "waiting", model_exists: false, vectorizer_exists: false, predictions_exist: false, report_exists: false });
+      renderSnapshot({});
+    }
+  </script>
+</body>
+</html>
