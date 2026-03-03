@@ -1,373 +1,2566 @@
-<!DOCTYPE html>
+﻿<!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BrandPulse Admin</title>
+  <title>BrandPulse Control Room</title>
   <style>
-    :root{--bg:#f6efe4;--card:rgba(255,250,243,.84);--line:rgba(92,78,60,.12);--ink:#1d2220;--muted:#67716c;--brand:#0f766e;--blue:#1d4ed8;--good:#15803d;--warn:#ca8a04;--bad:#b91c1c;--shadow:0 24px 60px rgba(29,34,32,.12)}
-    *{box-sizing:border-box} body{margin:0;font-family:"Segoe UI","Trebuchet MS",sans-serif;color:var(--ink);background:radial-gradient(circle at 10% 20%,rgba(15,118,110,.18),transparent 24rem),radial-gradient(circle at 88% 12%,rgba(29,78,216,.12),transparent 20rem),linear-gradient(180deg,#fbf8f2 0%,var(--bg) 100%)}
-    h1,h2,h3{margin:0;font-family:Georgia,serif} p{margin:0;line-height:1.6;color:var(--muted)} button,input,textarea{font:inherit}
-    .overlay{position:fixed;inset:0;display:grid;place-items:center;padding:20px;background:rgba(247,241,232,.8);backdrop-filter:blur(12px);z-index:20;transition:.25s}.overlay.hidden{opacity:0;visibility:hidden;pointer-events:none}
-    .login{width:min(920px,100%);display:grid;grid-template-columns:1.1fr .9fr;gap:18px}.art,.panel,.sidebar,.card{background:var(--card);border:1px solid var(--line);border-radius:26px;box-shadow:var(--shadow);backdrop-filter:blur(12px)}
-    .art{padding:28px;background:linear-gradient(145deg,#123c38,#1d3557);color:#eef7f5;display:grid;align-content:space-between}.art p{color:rgba(238,247,245,.82)} .eyebrow{margin-bottom:10px;font-size:.76rem;letter-spacing:.18em;text-transform:uppercase}
-    .badges{display:flex;flex-wrap:wrap;gap:10px}.badges span{padding:8px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.08);font-size:.82rem}
-    .panel{padding:24px;display:grid;gap:16px;align-content:center}.form,.stack{display:grid;gap:12px}.field{display:grid;gap:8px}
-    input,textarea{width:100%;padding:13px 14px;border-radius:16px;border:1px solid var(--line);background:rgba(255,255,255,.82);color:var(--ink)} textarea{min-height:110px;resize:vertical}
-    .primary,.secondary,.nav button,.action{border:0;cursor:pointer;transition:.18s}.primary:hover,.secondary:hover,.nav button:hover,.action:hover{transform:translateY(-1px)}
-    .primary{padding:13px 18px;border-radius:999px;color:#fff;background:linear-gradient(90deg,var(--brand),var(--blue))}.secondary{padding:13px 18px;border-radius:999px;background:rgba(255,255,255,.74);border:1px solid var(--line)}
-    .app{width:min(1400px,calc(100% - 32px));margin:20px auto 36px;display:grid;grid-template-columns:260px 1fr;gap:18px}
-    .sidebar{padding:20px 18px;display:flex;flex-direction:column;gap:18px;position:sticky;top:20px;height:calc(100vh - 40px)} .brandbox,.foot{padding:16px;border-radius:20px;background:rgba(255,255,255,.52)}
-    .nav{display:grid;gap:10px}.nav button{padding:14px 16px;border-radius:18px;text-align:left;background:rgba(255,255,255,.62)} .nav button.active{background:linear-gradient(90deg,rgba(15,118,110,.14),rgba(29,78,216,.1));border:1px solid rgba(15,118,110,.14)}
-    .content{display:grid;gap:18px}.hero{padding:26px;display:grid;grid-template-columns:1.3fr .9fr;gap:18px}.hero h1{font-size:clamp(2.2rem,4vw,4rem);line-height:.95;margin-bottom:14px}
-    .toolbar{margin-top:18px;display:flex;flex-wrap:wrap;gap:12px}.score{padding:22px;border-radius:24px;background:linear-gradient(160deg,rgba(15,118,110,.14),rgba(29,78,216,.1)),rgba(255,255,255,.78);border:1px solid rgba(15,118,110,.14)} .score strong{display:block;font-size:clamp(3.2rem,5vw,5rem);line-height:.9;margin:10px 0 12px}
-    .stats,.grid,.actions{display:grid;gap:18px}.stats{grid-template-columns:repeat(4,minmax(0,1fr))}.grid{grid-template-columns:1.2fr .9fr}.actions{grid-template-columns:repeat(2,minmax(0,1fr))}
-    .card{padding:22px}.head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:18px}.label{color:var(--muted);font-size:.74rem;letter-spacing:.14em;text-transform:uppercase}.value{margin-top:10px;font-size:2rem;font-weight:700}.pill{padding:7px 12px;border-radius:999px;background:rgba(15,118,110,.12);color:var(--brand);font-size:.76rem;font-weight:600}
-    .trend{display:flex;align-items:end;gap:14px;min-height:300px}.group{flex:1;display:flex;flex-direction:column;align-items:center;gap:10px}.cols{width:100%;height:230px;display:flex;align-items:end;justify-content:center;gap:8px}.bar{width:24%;min-height:6px;border-radius:14px 14px 4px 4px}.positive{background:linear-gradient(180deg,#34d399,#15803d)}.neutral{background:linear-gradient(180deg,#facc15,#ca8a04)}.negative{background:linear-gradient(180deg,#fb7185,#b91c1c)}
-    .keywords,.health,.activity{display:grid;gap:12px}.keyword,.health-row,.activity-row{display:grid;gap:12px;align-items:center;padding:12px 14px;border-radius:18px;background:rgba(255,255,255,.64);border:1px solid rgba(92,78,60,.08)}.keyword{grid-template-columns:120px 1fr 42px}.health-row{grid-template-columns:1fr auto}
-    .track{height:12px;border-radius:999px;overflow:hidden;background:rgba(92,78,60,.12)}.fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--blue),var(--brand))}
-    .dot{width:12px;height:12px;border-radius:50%;background:var(--warn);box-shadow:0 0 0 7px rgba(202,138,4,.12)}.dot.good{background:var(--good);box-shadow:0 0 0 7px rgba(21,128,61,.12)}.dot.bad{background:var(--bad);box-shadow:0 0 0 7px rgba(185,28,28,.12)}
-    .tablewrap{overflow:auto;border-radius:18px;border:1px solid rgba(92,78,60,.08)} table{width:100%;border-collapse:collapse;background:rgba(255,255,255,.64)} th,td{text-align:left;padding:12px 14px;border-bottom:1px solid rgba(92,78,60,.08)} th{font-size:.72rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);background:rgba(255,255,255,.74)}
-    .action{padding:16px;border-radius:20px;text-align:left;background:linear-gradient(160deg,rgba(255,255,255,.86),rgba(245,237,225,.92));border:1px solid rgba(92,78,60,.08)} .action strong{display:block;margin-bottom:6px}
-    .status,.output{padding:16px;border-radius:20px;background:rgba(255,255,255,.62);border:1px solid rgba(92,78,60,.08)} .output{margin-top:14px;min-height:72px}
-    .section{display:none}.section.active{display:grid;gap:18px}
-    @media (max-width:1100px){.app,.hero,.grid,.login{grid-template-columns:1fr}.sidebar{position:static;height:auto}}
-    @media (max-width:760px){.stats,.actions{grid-template-columns:1fr 1fr}.keyword{grid-template-columns:90px 1fr 40px}}
-    @media (max-width:560px){.app{width:min(100% - 18px,1400px)}.stats,.actions{grid-template-columns:1fr}.toolbar{flex-direction:column}}
+    :root,
+    body[data-theme="dark"] {
+      --bg: #060b14;
+      --bg-soft: #0d1421;
+      --panel: rgba(10, 18, 32, 0.78);
+      --panel-strong: rgba(13, 24, 43, 0.92);
+      --panel-alt: rgba(17, 31, 55, 0.72);
+      --line: rgba(110, 170, 255, 0.16);
+      --line-strong: rgba(129, 188, 255, 0.26);
+      --text: #eef5ff;
+      --muted: #8ea5c3;
+      --accent: #67d3ff;
+      --accent-2: #9ff3c7;
+      --positive: #61f7b1;
+      --neutral: #ffc96e;
+      --negative: #ff6b89;
+      --surface-glow: 0 0 0 1px rgba(115, 185, 255, 0.08), 0 18px 45px rgba(0, 0, 0, 0.42);
+      --button-text: #06111b;
+      --field-bg: rgba(5, 10, 20, 0.54);
+      --rail-bg: rgba(9, 16, 28, 0.88);
+      --noise-opacity: 0.1;
+      --shadow-soft: 0 18px 50px rgba(0, 0, 0, 0.35);
+    }
+
+    body[data-theme="light"] {
+      --bg: #e8eef8;
+      --bg-soft: #d8e5f5;
+      --panel: rgba(255, 255, 255, 0.72);
+      --panel-strong: rgba(255, 255, 255, 0.9);
+      --panel-alt: rgba(242, 247, 255, 0.84);
+      --line: rgba(26, 73, 133, 0.14);
+      --line-strong: rgba(26, 73, 133, 0.24);
+      --text: #10203b;
+      --muted: #617795;
+      --accent: #0c7ff2;
+      --accent-2: #0fbd91;
+      --positive: #1fa869;
+      --neutral: #c0891f;
+      --negative: #de456d;
+      --surface-glow: 0 0 0 1px rgba(17, 78, 147, 0.08), 0 18px 45px rgba(56, 84, 126, 0.16);
+      --button-text: #f7fbff;
+      --field-bg: rgba(244, 248, 255, 0.92);
+      --rail-bg: rgba(245, 249, 255, 0.92);
+      --noise-opacity: 0.04;
+      --shadow-soft: 0 16px 38px rgba(91, 116, 148, 0.18);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+
+    body {
+      font-family: "Segoe UI Variable Display", "Bahnschrift", "Trebuchet MS", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(93, 172, 255, 0.16), transparent 28%),
+        radial-gradient(circle at 85% 12%, rgba(105, 255, 205, 0.14), transparent 24%),
+        linear-gradient(135deg, var(--bg) 0%, var(--bg-soft) 52%, var(--bg) 100%);
+      color: var(--text);
+      overflow-x: hidden;
+      transition: background 240ms ease, color 240ms ease;
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body::before {
+      background:
+        linear-gradient(180deg, transparent 0%, rgba(103, 211, 255, 0.06) 48%, transparent 100%),
+        repeating-linear-gradient(180deg, transparent 0, transparent 3px, rgba(131, 203, 255, 0.03) 4px, rgba(131, 203, 255, 0.03) 5px);
+      mix-blend-mode: screen;
+      animation: scan 10s linear infinite;
+    }
+
+    body::after {
+      opacity: var(--noise-opacity);
+      background-image:
+        radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.9) 0.6px, transparent 0.7px),
+        radial-gradient(circle at 80% 30%, rgba(255, 255, 255, 0.8) 0.5px, transparent 0.7px),
+        radial-gradient(circle at 40% 70%, rgba(255, 255, 255, 0.6) 0.8px, transparent 0.9px);
+      background-size: 180px 180px, 220px 220px, 140px 140px;
+    }
+
+    @keyframes scan {
+      0% { transform: translateY(-12%); opacity: 0.42; }
+      50% { opacity: 0.58; }
+      100% { transform: translateY(12%); opacity: 0.42; }
+    }
+
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(103, 211, 255, 0.15); }
+      50% { box-shadow: 0 0 0 10px rgba(103, 211, 255, 0); }
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-4px); }
+      50% { transform: translateX(4px); }
+      75% { transform: translateX(-3px); }
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .app { position: relative; z-index: 1; min-height: 100vh; padding: 18px 18px 26px; }
+    .topbar {
+      display: grid;
+      grid-template-columns: auto minmax(220px, 1fr) auto;
+      align-items: center;
+      gap: 18px;
+      padding: 14px 18px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      backdrop-filter: blur(18px);
+      border-radius: 22px;
+      box-shadow: var(--surface-glow);
+    }
+
+    .brandmark {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text);
+    }
+
+    .brandmark svg { width: 42px; height: 42px; filter: drop-shadow(0 0 14px rgba(103, 211, 255, 0.25)); }
+    .brandmark small { display: block; color: var(--muted); font-size: 10px; letter-spacing: 0.22em; margin-top: 2px; }
+    .search-shell { position: relative; min-width: 0; }
+    .search-shell svg { position: absolute; left: 14px; top: 50%; width: 18px; height: 18px; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+
+    .search-shell input,
+    textarea,
+    select,
+    input[type="number"],
+    input[type="text"] {
+      width: 100%;
+      border: 1px solid transparent;
+      background: var(--field-bg);
+      color: var(--text);
+      border-radius: 16px;
+      padding: 14px 16px;
+      font: inherit;
+      outline: none;
+      transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease, background 180ms ease;
+    }
+
+    .search-shell input { padding-left: 42px; }
+    .search-shell input::placeholder, textarea::placeholder, input::placeholder { color: var(--muted); }
+
+    .search-shell input:focus,
+    textarea:focus,
+    select:focus,
+    input[type="number"]:focus,
+    input[type="text"]:focus {
+      border-color: var(--line-strong);
+      box-shadow: 0 0 0 4px rgba(103, 211, 255, 0.12);
+    }
+
+    .topbar-controls { display: flex; align-items: center; gap: 10px; }
+    .theme-toggle, .signal-drawer-toggle, .action-btn, .ghost-btn, .nav-item { border: 0; color: inherit; font: inherit; }
+
+    .theme-toggle,
+    .signal-drawer-toggle,
+    .action-btn,
+    .ghost-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 12px 16px;
+      border-radius: 15px;
+      cursor: pointer;
+      transition: transform 140ms ease, filter 180ms ease, background 180ms ease, border-color 180ms ease;
+      user-select: none;
+    }
+
+    .action-btn {
+      background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
+      color: var(--button-text);
+      font-weight: 700;
+      box-shadow: 0 12px 24px rgba(27, 123, 196, 0.26);
+    }
+
+    .ghost-btn, .theme-toggle, .signal-drawer-toggle {
+      background: var(--panel-alt);
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+
+    .action-btn:hover, .ghost-btn:hover, .theme-toggle:hover, .signal-drawer-toggle:hover, .nav-item:hover { filter: brightness(1.06); }
+    .action-btn:active, .ghost-btn:active, .theme-toggle:active, .signal-drawer-toggle:active, .nav-item:active { transform: translateY(1px) scale(0.99); }
+    .theme-toggle .toggle-state { display: inline-flex; align-items: center; gap: 8px; }
+    .signal-drawer-toggle { display: none; }
+
+    .shell {
+      display: grid;
+      grid-template-columns: 100px minmax(0, 1fr) 320px;
+      gap: 18px;
+      margin-top: 18px;
+      align-items: start;
+    }
+
+    .nav-rail, .stage, .signal-panel, .surface, .stats-strip article, .signal-widget, .result-shell, .timeline-item, .table-shell, .summary-ribbon {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      backdrop-filter: blur(18px);
+      box-shadow: var(--surface-glow);
+    }
+
+    .nav-rail {
+      position: sticky;
+      top: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding: 12px 10px;
+      border-radius: 26px;
+      background: var(--rail-bg);
+    }
+
+    .nav-item {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      min-height: 90px;
+      padding: 12px 10px;
+      border-radius: 18px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      overflow: hidden;
+    }
+
+    .nav-item::before {
+      content: "";
+      position: absolute;
+      left: 4px;
+      top: 14px;
+      bottom: 14px;
+      width: 4px;
+      border-radius: 999px;
+      background: linear-gradient(180deg, var(--accent), var(--accent-2));
+      transform: scaleY(0.15);
+      opacity: 0;
+      transition: transform 220ms ease, opacity 220ms ease;
+    }
+
+    .nav-item svg { width: 20px; height: 20px; }
+    .nav-item span { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
+    .nav-item.is-active { color: var(--text); background: linear-gradient(180deg, rgba(103, 211, 255, 0.12), rgba(103, 211, 255, 0.02)); }
+    .nav-item.is-active::before { transform: scaleY(1); opacity: 1; }
+
+    .stage { border-radius: 28px; padding: 22px; min-height: calc(100vh - 136px); }
+    .view { display: none; animation: fadeSlide 220ms ease; }
+    .view.is-active { display: block; }
+    .view-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+    .eyebrow { color: var(--accent); font-size: 12px; letter-spacing: 0.24em; text-transform: uppercase; margin-bottom: 8px; }
+    h1, h2, h3, p { margin: 0; }
+    .view-title { font-size: clamp(28px, 4vw, 42px); line-height: 1; letter-spacing: -0.04em; }
+    .view-copy { color: var(--muted); max-width: 720px; margin-top: 10px; line-height: 1.5; }
+
+    .surface {
+      border-radius: 26px;
+      padding: 18px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .surface::after {
+      content: "";
+      position: absolute;
+      inset: auto -14% -55% 38%;
+      height: 180px;
+      background: radial-gradient(circle, rgba(103, 211, 255, 0.12), transparent 65%);
+      pointer-events: none;
+    }
+
+    .dashboard-layout { display: grid; grid-template-columns: minmax(320px, 1.1fr) minmax(260px, 0.9fr); gap: 18px; }
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+      margin-top: 18px;
+    }
+    .analytics-card {
+      border-radius: 24px;
+      padding: 18px;
+      min-height: 260px;
+      display: grid;
+      gap: 16px;
+      align-content: start;
+    }
+    .analytics-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .analytics-head strong {
+      font-size: 16px;
+      letter-spacing: -0.02em;
+    }
+    .analytics-sub {
+      color: var(--muted);
+      font-size: 12px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+    .dist-list {
+      display: grid;
+      gap: 14px;
+    }
+    .dist-row {
+      display: grid;
+      grid-template-columns: 86px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      font-size: 13px;
+    }
+    .dist-row strong {
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .dist-bar {
+      height: 12px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid var(--line);
+    }
+    .dist-bar span {
+      display: block;
+      height: 100%;
+      width: 0;
+      border-radius: inherit;
+      transition: width 260ms ease;
+    }
+    .dist-caption,
+    .trend-caption,
+    .keyword-caption {
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 13px;
+    }
+    .trend-shell {
+      border-radius: 20px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.03);
+      padding: 12px;
+    }
+    .trend-shell svg {
+      width: 100%;
+      height: 180px;
+      display: block;
+    }
+    .trend-legend {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .trend-legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .trend-legend i {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .keyword-list {
+      display: grid;
+      gap: 12px;
+    }
+    .keyword-row {
+      display: grid;
+      grid-template-columns: 96px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      font-size: 13px;
+    }
+    .keyword-row strong {
+      color: var(--text);
+      font-size: 13px;
+      text-transform: lowercase;
+    }
+    .keyword-bar {
+      height: 10px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid var(--line);
+    }
+    .keyword-bar span {
+      display: block;
+      height: 100%;
+      width: 0;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      transition: width 260ms ease;
+    }
+    .insights-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr 1fr;
+      gap: 18px;
+      margin-top: 18px;
+    }
+    .insight-card {
+      border-radius: 24px;
+      padding: 18px;
+      display: grid;
+      gap: 16px;
+      align-content: start;
+    }
+    .split-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: start;
+    }
+    .control-select {
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      background: var(--field-bg);
+      color: var(--text);
+      padding: 12px 14px;
+      outline: none;
+    }
+    .insight-score {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .score-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-weight: 700;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,0.04);
+    }
+    .score-chip {
+      display: inline-flex;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .risk-low { color: var(--positive); background: rgba(97,247,177,0.12); }
+    .risk-medium { color: var(--neutral); background: rgba(255,201,110,0.12); }
+    .risk-high { color: var(--negative); background: rgba(255,107,137,0.12); }
+    .insight-text {
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 14px;
+    }
+    .pill-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .pill-list span {
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--line);
+      font-size: 12px;
+      color: var(--text);
+    }
+    .compare-grid {
+      display: grid;
+      gap: 12px;
+    }
+    .compare-row {
+      display: grid;
+      grid-template-columns: 78px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      font-size: 13px;
+    }
+    .compare-bar {
+      height: 11px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid var(--line);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+    }
+    .compare-bar span {
+      height: 100%;
+      display: block;
+    }
+    .compare-meta {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .similar-list {
+      display: grid;
+      gap: 10px;
+    }
+    .similar-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 14px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--line);
+    }
+    .similar-item strong {
+      display: block;
+      font-size: 14px;
+    }
+    .similar-item span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .mini-note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .gauge-chamber { display: grid; grid-template-columns: minmax(220px, 280px) minmax(0, 1fr); gap: 20px; align-items: center; min-height: 350px; }
+    .gauge-stack { display: flex; flex-direction: column; gap: 18px; }
+    .summary-ribbon { border-radius: 22px; padding: 16px; display: flex; flex-wrap: wrap; gap: 12px; background: var(--panel-alt); }
+    .summary-ribbon strong { display: block; font-size: 14px; margin-bottom: 4px; }
+    .summary-ribbon span { color: var(--muted); font-size: 12px; line-height: 1.4; }
+    .stats-strip { display: flex; flex-direction: column; gap: 14px; }
+    .stats-strip article { border-radius: 22px; padding: 18px; background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent), var(--panel-alt); }
+    .stats-strip .metric-label { display: block; color: var(--muted); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 12px; }
+    .stats-strip .metric-value { display: flex; align-items: baseline; gap: 8px; font-size: 34px; font-weight: 700; letter-spacing: -0.04em; }
+    .stats-strip .metric-meta { color: var(--muted); margin-top: 10px; line-height: 1.45; }
+
+    .ring-gauge {
+      --value: 0;
+      --ring-color: var(--accent);
+      --ring-track: rgba(255, 255, 255, 0.08);
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      position: relative;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at center, rgba(103, 211, 255, 0.14), transparent 56%), conic-gradient(var(--ring-color) calc(var(--value) * 1%), var(--ring-track) 0);
+      box-shadow: inset 0 0 35px rgba(103, 211, 255, 0.12), 0 0 32px rgba(103, 211, 255, 0.08);
+    }
+
+    .ring-gauge::before {
+      content: "";
+      position: absolute;
+      inset: 12%;
+      border-radius: 50%;
+      background: radial-gradient(circle at 50% 35%, rgba(103, 211, 255, 0.12), transparent 38%), linear-gradient(180deg, rgba(255, 255, 255, 0.05), transparent), var(--panel-strong);
+      border: 1px solid var(--line);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+    }
+
+    .ring-gauge__inner { position: relative; z-index: 1; text-align: center; width: 78%; }
+    .ring-gauge__eyebrow { display: block; color: var(--muted); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; }
+    .ring-gauge__value { display: block; font-size: clamp(44px, 7vw, 70px); font-weight: 700; letter-spacing: -0.05em; line-height: 0.92; margin: 10px 0 4px; }
+    .ring-gauge__suffix { display: block; color: var(--muted); font-size: 14px; }
+    .ring-gauge__caption { display: block; color: var(--muted); font-size: 12px; line-height: 1.4; margin-top: 12px; }
+    .mini-ring { width: 110px; min-width: 110px; margin-inline: auto; }
+
+    .form-shell, form, .field, .progress-shell { display: grid; gap: 16px; }
+    .form-grid { display: grid; grid-template-columns: 1.2fr 0.8fr 0.9fr; gap: 14px; }
+    label { color: var(--muted); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; }
+    textarea { min-height: 180px; resize: vertical; }
+    .form-shell.is-invalid { animation: shake 260ms ease; }
+    .inline-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .spinner { width: 15px; height: 15px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent; animation: spin 700ms linear infinite; }
+    .action-btn[disabled], .ghost-btn[disabled] { opacity: 0.7; cursor: wait; }
+    .result-shell { border-radius: 24px; padding: 18px; background: var(--panel-alt); display: grid; gap: 16px; }
+
+    .sentiment-badge {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 18px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      width: fit-content;
+    }
+
+    .sentiment-badge::before {
+      content: "";
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: currentColor;
+      animation: pulseGlow 1.8s infinite;
+    }
+
+    .sentiment-positive { color: var(--positive); background: rgba(97, 247, 177, 0.12); border-color: rgba(97, 247, 177, 0.26); box-shadow: 0 0 24px rgba(97, 247, 177, 0.12); }
+    .sentiment-neutral { color: var(--neutral); background: rgba(255, 201, 110, 0.12); border-color: rgba(255, 201, 110, 0.28); box-shadow: 0 0 24px rgba(255, 201, 110, 0.12); }
+    .sentiment-negative { color: var(--negative); background: rgba(255, 107, 137, 0.12); border-color: rgba(255, 107, 137, 0.28); box-shadow: 0 0 24px rgba(255, 107, 137, 0.16); }
+
+    .progress-meta { display: flex; justify-content: space-between; gap: 16px; color: var(--muted); font-size: 13px; }
+    .progress-bar { height: 14px; border-radius: 999px; overflow: hidden; background: rgba(255, 255, 255, 0.08); border: 1px solid var(--line); }
+    .progress-bar span { display: block; height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, var(--accent), var(--accent-2)); box-shadow: 0 0 24px rgba(103, 211, 255, 0.22); transition: width 240ms ease; }
+    .warning-panel { display: none; padding: 14px 16px; border-radius: 18px; border: 1px solid rgba(255, 201, 110, 0.28); background: rgba(255, 201, 110, 0.1); color: var(--text); line-height: 1.5; }
+    .warning-panel.is-visible { display: block; }
+    details.json-panel { border-radius: 20px; border: 1px solid var(--line); background: rgba(5, 10, 20, 0.18); overflow: hidden; }
+    body[data-theme="light"] details.json-panel { background: rgba(244, 248, 255, 0.68); }
+    details.json-panel summary { padding: 14px 16px; cursor: pointer; list-style: none; font-weight: 700; letter-spacing: 0.04em; }
+    details.json-panel summary::-webkit-details-marker { display: none; }
+    details.json-panel pre { margin: 0; padding: 0 16px 16px; white-space: pre-wrap; word-break: break-word; color: var(--muted); font-family: Consolas, "Courier New", monospace; font-size: 12px; line-height: 1.55; max-height: 320px; overflow: auto; }
+
+    .checkline { display: inline-flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 15px; border: 1px solid var(--line); background: var(--panel-alt); color: var(--text); width: fit-content; }
+    .checkline input { accent-color: var(--accent); width: 18px; height: 18px; margin: 0; }
+    .batch-layout { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(260px, 0.85fr); gap: 18px; }
+    .batch-sidebar { display: grid; gap: 18px; }
+    .processed-count { font-size: 42px; font-weight: 700; letter-spacing: -0.05em; }
+    .processed-label { color: var(--muted); margin-top: 8px; }
+    .table-shell { border-radius: 24px; padding: 12px; overflow: hidden; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    thead { background: rgba(255, 255, 255, 0.03); }
+    th, td { padding: 13px 12px; text-align: left; border-bottom: 1px solid var(--line); }
+    th { color: var(--muted); text-transform: uppercase; font-size: 11px; letter-spacing: 0.16em; }
+    tbody tr:last-child td { border-bottom: 0; }
+    .tag { display: inline-flex; align-items: center; padding: 7px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+    .tag.positive { color: var(--positive); background: rgba(97, 247, 177, 0.12); }
+    .tag.neutral { color: var(--neutral); background: rgba(255, 201, 110, 0.12); }
+    .tag.negative { color: var(--negative); background: rgba(255, 107, 137, 0.12); }
+    .tag.unknown { color: var(--muted); background: rgba(255, 255, 255, 0.06); }
+
+    .timeline { display: grid; gap: 14px; }
+    .timeline-item { position: relative; border-radius: 24px; padding: 16px 18px 16px 48px; background: var(--panel-alt); }
+    .timeline-item::before { content: ""; position: absolute; left: 20px; top: 22px; width: 10px; height: 10px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: 0 0 18px rgba(103, 211, 255, 0.28); }
+    .timeline-item::after { content: ""; position: absolute; left: 24px; top: 34px; bottom: -14px; width: 2px; background: linear-gradient(180deg, var(--line-strong), transparent); }
+    .timeline-item:last-child::after { display: none; }
+    .timeline-item strong { display: block; font-size: 16px; margin-bottom: 6px; }
+    .timeline-item time, .timeline-item p { color: var(--muted); line-height: 1.5; }
+    .empty-state { padding: 24px; text-align: center; color: var(--muted); border-radius: 22px; border: 1px dashed var(--line); background: rgba(255, 255, 255, 0.02); }
+
+    .signal-panel { position: sticky; top: 18px; border-radius: 28px; padding: 16px; display: grid; gap: 14px; background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent), var(--panel); }
+    .signal-panel h2 { font-size: 13px; color: var(--muted); letter-spacing: 0.22em; text-transform: uppercase; }
+    .signal-widget { border-radius: 22px; padding: 16px; background: var(--panel-alt); display: grid; gap: 14px; }
+    .signal-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+    .signal-pill { display: inline-flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.03); font-size: 12px; font-weight: 700; }
+    .signal-pill i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+    .bars { display: grid; gap: 10px; }
+    .bars .row { display: grid; grid-template-columns: 64px 1fr auto; gap: 10px; align-items: center; font-size: 13px; }
+    .bars .bar { height: 9px; border-radius: 999px; overflow: hidden; background: rgba(255, 255, 255, 0.08); border: 1px solid var(--line); }
+    .bars .bar span { display: block; height: 100%; width: 0; border-radius: inherit; transition: width 260ms ease; }
+    .trend-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .trend-card { padding: 12px; border-radius: 18px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.03); text-align: center; }
+    .trend-card svg { width: 18px; height: 18px; margin-bottom: 10px; }
+    .trend-card strong { display: block; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+    .trend-card span { font-size: 18px; font-weight: 700; }
+    .signal-note { color: var(--muted); line-height: 1.5; font-size: 13px; }
+
+    .toast-stack { position: fixed; top: 20px; right: 20px; display: grid; gap: 10px; width: min(360px, calc(100vw - 32px)); z-index: 30; }
+    .toast { display: grid; gap: 6px; padding: 14px 16px; border-radius: 18px; border: 1px solid var(--line); background: var(--panel-strong); box-shadow: var(--shadow-soft); animation: fadeSlide 180ms ease; }
+    .toast strong { font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; }
+    .toast p { color: var(--muted); line-height: 1.45; }
+    .toast.success strong { color: var(--positive); }
+    .toast.error strong { color: var(--negative); }
+    .toast.info strong { color: var(--accent); }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0; }
+    .hidden { display: none !important; }
+
+    body.auth-locked {
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    .session-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 14px;
+      border-radius: 15px;
+      border: 1px solid var(--line);
+      background: var(--panel-alt);
+      color: var(--muted);
+      max-width: 240px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .session-chip strong {
+      color: var(--text);
+      font-size: 13px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .auth-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      overflow-y: auto;
+      background: rgba(3, 9, 18, 0.68);
+      backdrop-filter: blur(18px);
+    }
+
+    .auth-card {
+      position: relative;
+      z-index: 1;
+      width: min(460px, 100%);
+      max-height: calc(100vh - 40px);
+      border-radius: 28px;
+      padding: 24px;
+      border: 1px solid var(--line);
+      background:
+        radial-gradient(circle at top right, rgba(103, 211, 255, 0.12), transparent 28%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent),
+        var(--panel-strong);
+      box-shadow: var(--shadow-soft);
+      display: grid;
+      gap: 18px;
+      overflow-y: auto;
+    }
+
+    .auth-card p {
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .auth-tabs {
+      display: inline-grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding: 6px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .auth-tab {
+      border: 0;
+      border-radius: 12px;
+      padding: 10px 14px;
+      background: transparent;
+      color: var(--muted);
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 180ms ease, color 180ms ease, transform 140ms ease;
+    }
+
+    .auth-tab.is-active {
+      background: linear-gradient(135deg, rgba(103, 211, 255, 0.22), rgba(159, 243, 199, 0.18));
+      color: var(--text);
+    }
+
+    .auth-panel {
+      display: none;
+      gap: 16px;
+    }
+
+    .auth-panel.is-active {
+      display: grid;
+    }
+
+    .auth-error {
+      min-height: 22px;
+      color: var(--negative);
+      font-size: 14px;
+    }
+
+    .password-rules {
+      display: grid;
+      gap: 8px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .password-rules strong {
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .password-rules ul {
+      margin: 0;
+      padding-left: 18px;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    .auth-switch {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .auth-link {
+      border: 0;
+      background: none;
+      color: var(--accent);
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    @media (max-width: 1200px) {
+      .shell { grid-template-columns: 90px minmax(0, 1fr) 280px; }
+      .dashboard-layout, .batch-layout, .analytics-grid, .insights-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 900px) {
+      .app { padding: 12px 12px 94px; }
+      .topbar, .shell, .gauge-chamber, .form-grid { grid-template-columns: 1fr; }
+      .stage { min-height: auto; padding: 18px; }
+      .signal-drawer-toggle { display: inline-flex; }
+      .signal-panel {
+        position: fixed;
+        top: 90px;
+        right: 12px;
+        bottom: 88px;
+        width: min(88vw, 340px);
+        transform: translateX(calc(100% + 24px));
+        transition: transform 220ms ease;
+        z-index: 22;
+        overflow: auto;
+      }
+      body.drawer-open .signal-panel { transform: translateX(0); }
+      .nav-rail {
+        position: fixed;
+        left: 12px;
+        right: 12px;
+        bottom: 12px;
+        top: auto;
+        z-index: 24;
+        flex-direction: row;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 8px;
+        border-radius: 22px;
+      }
+      .nav-item { min-height: 64px; flex: 1 1 0; gap: 6px; border-radius: 16px; }
+      .nav-item::before { left: 12px; right: 12px; top: auto; bottom: 6px; width: auto; height: 4px; transform: scaleX(0.2); }
+      .nav-item.is-active::before { transform: scaleX(1); }
+    }
+
+    @media (max-width: 600px) {
+      .view-title { font-size: 30px; }
+      .surface, .signal-widget, .timeline-item, .table-shell { border-radius: 20px; }
+      .view-head, .summary-ribbon, .trend-grid { display: flex; flex-direction: column; }
+      .bars .row { grid-template-columns: 56px 1fr auto; }
+      .auth-overlay {
+        place-items: start center;
+        padding: 14px;
+      }
+      .auth-card {
+        max-height: none;
+        min-height: calc(100vh - 28px);
+      }
+    }
+
   </style>
 </head>
-<body>
-  <div class="overlay" id="authOverlay">
-    <section class="login">
-      <div class="art">
+<body data-theme="dark">
+  <div class="app">
+    <header class="topbar">
+      <div class="brandmark" aria-label="BrandPulse">
+        <svg viewBox="0 0 64 64" role="img" aria-hidden="true">
+          <defs>
+            <linearGradient id="logoGrad" x1="0%" x2="100%" y1="0%" y2="100%">
+              <stop offset="0%" stop-color="#67d3ff"></stop>
+              <stop offset="100%" stop-color="#9ff3c7"></stop>
+            </linearGradient>
+          </defs>
+          <rect x="4" y="4" width="56" height="56" rx="16" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.12)"></rect>
+          <path d="M18 39c5-1 7-7 12-7s7 6 12 7 7-4 10-13" fill="none" stroke="url(#logoGrad)" stroke-width="5" stroke-linecap="round"></path>
+          <circle cx="18" cy="39" r="3" fill="#67d3ff"></circle>
+          <circle cx="30" cy="32" r="3" fill="#89e3e5"></circle>
+          <circle cx="42" cy="39" r="3" fill="#9ff3c7"></circle>
+        </svg>
         <div>
-          <div class="eyebrow">BrandPulse Control Room</div>
-          <h1>Admin login for live brand reputation monitoring.</h1>
-          <p>Run preprocessing, train the model, generate predictions, inspect trends, and test reviews from one stronger interface.</p>
-        </div>
-        <div class="badges">
-          <span>Sentiment Ops</span><span>Review Audit</span><span>Platform Monitoring</span><span>Admin Access</span>
+          BrandPulse
+          <small>Control Room</small>
         </div>
       </div>
-      <div class="panel">
-        <div>
-          <div class="eyebrow">Secure Entry</div>
-          <h2>Sign in</h2>
-          <p>Frontend-only demo login. Use any email and a password with at least 6 characters.</p>
+
+      <label class="search-shell" aria-label="Search interface">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="M20 20l-3.5-3.5"></path>
+        </svg>
+        <input type="text" placeholder="Search signals, brands, or review traces">
+      </label>
+
+      <div class="topbar-controls">
+        <div class="session-chip hidden" id="sessionChip">
+          <span>Operator</span>
+          <strong id="sessionUser">Offline</strong>
         </div>
-        <form class="form" id="loginForm">
-          <label class="field"><span>Email</span><input id="loginEmail" type="email" placeholder="admin@brandpulse.ai" required></label>
-          <label class="field"><span>Password</span><input id="loginPassword" type="password" placeholder="Minimum 6 characters" required></label>
-          <button class="primary" type="submit">Enter Dashboard</button>
-        </form>
+        <button class="signal-drawer-toggle" id="signalDrawerToggle" type="button" aria-controls="signalPanel" aria-expanded="false">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 6h16"></path>
+            <path d="M4 12h10"></path>
+            <path d="M4 18h16"></path>
+          </svg>
+          Signals
+        </button>
+        <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false">
+          <span class="toggle-state">
+            <svg id="themeIcon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"></circle>
+              <path d="M12 2v2.5"></path>
+              <path d="M12 19.5V22"></path>
+              <path d="M4.9 4.9l1.8 1.8"></path>
+              <path d="M17.3 17.3l1.8 1.8"></path>
+              <path d="M2 12h2.5"></path>
+              <path d="M19.5 12H22"></path>
+              <path d="M4.9 19.1l1.8-1.8"></path>
+              <path d="M17.3 6.7l1.8-1.8"></path>
+            </svg>
+            <span id="themeLabel">Light Mode</span>
+          </span>
+        </button>
+        <button class="ghost-btn hidden" id="logoutButton" type="button">Logout</button>
       </div>
-    </section>
+    </header>
+
+    <div class="shell">
+      <nav class="nav-rail" aria-label="Primary">
+        <button class="nav-item is-active" type="button" data-view="dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 13h8V3H3z"></path>
+            <path d="M13 21h8v-6h-8z"></path>
+            <path d="M13 10h8V3h-8z"></path>
+            <path d="M3 21h8v-4H3z"></path>
+          </svg>
+          <span>Dashboard</span>
+        </button>
+        <button class="nav-item" type="button" data-view="single">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 20h9"></path>
+            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"></path>
+          </svg>
+          <span>Single Review</span>
+        </button>
+        <button class="nav-item" type="button" data-view="batch">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 5h16"></path>
+            <path d="M4 12h16"></path>
+            <path d="M4 19h10"></path>
+          </svg>
+          <span>Batch</span>
+        </button>
+        <button class="nav-item" type="button" data-view="history">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 8v4l3 2"></path>
+            <path d="M3.1 12a8.9 8.9 0 1 0 2.6-6.3"></path>
+            <path d="M3 4v5h5"></path>
+          </svg>
+          <span>History</span>
+        </button>
+      </nav>
+
+      <main class="stage" tabindex="-1">
+        <section class="view is-active" id="view-dashboard">
+          <div class="view-head">
+            <div>
+              <div class="eyebrow">Mission Overview</div>
+              <h1 class="view-title">BrandPulse Control Room</h1>
+              <p class="view-copy">Live brand reputation telemetry, anomaly readouts, and sentiment pressure indicators in a continuous monitoring loop.</p>
+            </div>
+            <div class="inline-actions">
+              <button class="ghost-btn" id="dashboardSyncButton" type="button">Signal Sync</button>
+              <button class="action-btn" id="refreshScoreButton" type="button">Refresh Brand Score</button>
+            </div>
+          </div>
+
+          <div class="dashboard-layout">
+            <section class="surface gauge-chamber">
+              <div class="ring-gauge" id="brandGauge">
+                <div class="ring-gauge__inner">
+                  <span class="ring-gauge__eyebrow" data-gauge-label>Brand Reputation</span>
+                  <strong class="ring-gauge__value" data-gauge-number>0.0</strong>
+                  <span class="ring-gauge__suffix" data-gauge-suffix>/100 score</span>
+                  <span class="ring-gauge__caption" data-gauge-caption>Waiting for live score telemetry.</span>
+                </div>
+              </div>
+              <div class="gauge-stack">
+                <div class="summary-ribbon">
+                  <div>
+                    <strong id="dashboardNarrative">Telemetry standby</strong>
+                    <span id="dashboardNarrativeCopy">Run a score refresh to pull reputation metrics from the API.</span>
+                  </div>
+                </div>
+                <div class="summary-ribbon">
+                  <div>
+                    <strong>Mode</strong>
+                    <span>Realtime reputation sweep using `/brand-score` with resilient API fallback.</span>
+                  </div>
+                  <div>
+                    <strong>Source</strong>
+                    <span id="dashboardSource">Awaiting endpoint response.</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <aside class="stats-strip">
+              <article>
+                <span class="metric-label">Total Reviews</span>
+                <div class="metric-value"><span id="statTotalReviews">0</span></div>
+                <p class="metric-meta">Processed dataset volume feeding the current score calculation.</p>
+              </article>
+              <article>
+                <span class="metric-label">Positive Share</span>
+                <div class="metric-value"><span id="statPositivePct">0%</span></div>
+                <p class="metric-meta">Current positive pressure inside the monitored review stream.</p>
+              </article>
+              <article>
+                <span class="metric-label">Negative Share</span>
+                <div class="metric-value"><span id="statNegativePct">0%</span></div>
+                <p class="metric-meta">Escalation intensity calculated from negative review volume.</p>
+              </article>
+            </aside>
+          </div>
+
+          <div class="analytics-grid">
+            <section class="surface analytics-card">
+              <div class="analytics-head">
+                <div>
+                  <div class="analytics-sub">Sentiment Distribution</div>
+                  <strong>Live sentiment distribution charts</strong>
+                </div>
+              </div>
+              <div class="dist-list">
+                <div class="dist-row">
+                  <strong>Positive</strong>
+                  <div class="dist-bar"><span id="distPositiveBar" style="background: linear-gradient(90deg, var(--positive), rgba(97,247,177,0.45));"></span></div>
+                  <span id="distPositiveValue">0%</span>
+                </div>
+                <div class="dist-row">
+                  <strong>Neutral</strong>
+                  <div class="dist-bar"><span id="distNeutralBar" style="background: linear-gradient(90deg, var(--neutral), rgba(255,201,110,0.45));"></span></div>
+                  <span id="distNeutralValue">0%</span>
+                </div>
+                <div class="dist-row">
+                  <strong>Negative</strong>
+                  <div class="dist-bar"><span id="distNegativeBar" style="background: linear-gradient(90deg, var(--negative), rgba(255,107,137,0.45));"></span></div>
+                  <span id="distNegativeValue">0%</span>
+                </div>
+              </div>
+              <p class="dist-caption" id="distCaption">Distribution bars update from the current brand score payload.</p>
+            </section>
+
+            <section class="surface analytics-card">
+              <div class="analytics-head">
+                <div>
+                  <div class="analytics-sub">Review Trends</div>
+                  <strong>Review trend graphs</strong>
+                </div>
+              </div>
+              <div class="trend-shell">
+                <svg id="trendChart" viewBox="0 0 320 180" role="img" aria-label="Sentiment trend chart">
+                  <g id="trendGrid"></g>
+                  <path id="trendPositivePath" fill="none" stroke="var(--positive)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+                  <path id="trendNeutralPath" fill="none" stroke="var(--neutral)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+                  <path id="trendNegativePath" fill="none" stroke="var(--negative)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+                  <g id="trendLabels"></g>
+                </svg>
+              </div>
+              <div class="trend-legend">
+                <span><i style="background: var(--positive);"></i>Positive</span>
+                <span><i style="background: var(--neutral);"></i>Neutral</span>
+                <span><i style="background: var(--negative);"></i>Negative</span>
+              </div>
+              <p class="trend-caption" id="trendCaption">Trend graph waiting for `/dashboard/trends` data.</p>
+            </section>
+
+            <section class="surface analytics-card">
+              <div class="analytics-head">
+                <div>
+                  <div class="analytics-sub">Keyword Frequency</div>
+                  <strong>Keyword frequency charts</strong>
+                </div>
+              </div>
+              <div class="keyword-list" id="keywordList">
+                <div class="keyword-caption">Keyword chart waiting for `/dashboard/keywords` data.</div>
+              </div>
+            </section>
+          </div>
+
+          <div class="insights-grid">
+            <section class="surface insight-card">
+              <div class="split-head">
+                <div>
+                  <div class="analytics-sub">Brand Insights</div>
+                  <strong>Brand reputation score and key insights</strong>
+                </div>
+              </div>
+              <div class="field">
+                <label for="brandInsightSelect">Brand</label>
+                <select class="control-select" id="brandInsightSelect"></select>
+              </div>
+              <div class="insight-score">
+                <div class="score-pill">Reputation Score <strong id="insightScoreValue">0.0</strong></div>
+                <span class="score-chip risk-medium" id="insightRiskChip">Monitoring</span>
+              </div>
+              <p class="insight-text" id="insightWhyText">Select a brand to inspect risk, strengths, and recommendation logic.</p>
+              <div>
+                <div class="analytics-sub">Pros</div>
+                <div class="pill-list" id="insightProsList"></div>
+              </div>
+              <div>
+                <div class="analytics-sub">Cons</div>
+                <div class="pill-list" id="insightConsList"></div>
+              </div>
+              <div>
+                <div class="analytics-sub">AI Recommendation</div>
+                <p class="insight-text" id="insightRecommendation">Waiting for brand-level data.</p>
+              </div>
+            </section>
+
+            <section class="surface insight-card">
+              <div class="split-head">
+                <div>
+                  <div class="analytics-sub">Compare Two Brands</div>
+                  <strong>Side-by-side signal comparison</strong>
+                </div>
+              </div>
+              <div class="field">
+                <label for="compareBrandA">Brand A</label>
+                <select class="control-select" id="compareBrandA"></select>
+              </div>
+              <div class="field">
+                <label for="compareBrandB">Brand B</label>
+                <select class="control-select" id="compareBrandB"></select>
+              </div>
+              <div class="compare-grid">
+                <div class="compare-row">
+                  <strong>Score</strong>
+                  <div class="compare-bar"><span id="compareScoreA" style="background:linear-gradient(90deg,var(--accent),rgba(103,211,255,0.45));"></span><span id="compareScoreB" style="background:linear-gradient(90deg,rgba(159,243,199,0.4),var(--accent-2));"></span></div>
+                  <span id="compareScoreText">0 vs 0</span>
+                </div>
+                <div class="compare-row">
+                  <strong>Positive</strong>
+                  <div class="compare-bar"><span id="comparePositiveA" style="background:linear-gradient(90deg,var(--positive),rgba(97,247,177,0.45));"></span><span id="comparePositiveB" style="background:linear-gradient(90deg,rgba(159,243,199,0.4),var(--positive));"></span></div>
+                  <span id="comparePositiveText">0% vs 0%</span>
+                </div>
+                <div class="compare-row">
+                  <strong>Negative</strong>
+                  <div class="compare-bar"><span id="compareNegativeA" style="background:linear-gradient(90deg,var(--negative),rgba(255,107,137,0.45));"></span><span id="compareNegativeB" style="background:linear-gradient(90deg,rgba(255,107,137,0.25),var(--negative));"></span></div>
+                  <span id="compareNegativeText">0% vs 0%</span>
+                </div>
+              </div>
+              <p class="compare-meta" id="compareSummary">Choose two brands to compare advantage, risk, and sentiment balance.</p>
+            </section>
+
+            <section class="surface insight-card">
+              <div class="split-head">
+                <div>
+                  <div class="analytics-sub">Similar Products</div>
+                  <strong>Closest brands by reputation profile</strong>
+                </div>
+              </div>
+              <div class="similar-list" id="similarBrandList"></div>
+              <p class="mini-note">Similarity is inferred from brand reputation score and sentiment percentages already available in the dashboard dataset.</p>
+            </section>
+          </div>
+        </section>
+        <section class="view" id="view-single">
+          <div class="view-head">
+            <div>
+              <div class="eyebrow">Single Review Scan</div>
+              <h1 class="view-title">Sentiment Inspection</h1>
+              <p class="view-copy">Drop one review into the console for a focused classification pass, confidence readout, and rating mismatch warning.</p>
+            </div>
+          </div>
+
+          <div class="form-shell surface" id="singleFormShell">
+            <form id="singleForm">
+              <div class="field">
+                <label for="singleReviewText">Review Text</label>
+                <textarea id="singleReviewText" name="review_text" placeholder="Paste a review to inspect sentiment signal..."></textarea>
+              </div>
+              <div class="form-grid">
+                <div class="field">
+                  <label for="singlePlatform">Platform</label>
+                  <input id="singlePlatform" name="platform" type="text" list="platformOptions" placeholder="Select or type a platform">
+                  <datalist id="platformOptions">
+                    <option value="Amazon"></option>
+                    <option value="Flipkart"></option>
+                    <option value="Myntra"></option>
+                    <option value="Meesho"></option>
+                    <option value="Ajio"></option>
+                    <option value="Nykaa"></option>
+                    <option value="Snapdeal"></option>
+                    <option value="Alibaba"></option>
+                    <option value="AliExpress"></option>
+                    <option value="eBay"></option>
+                    <option value="Shopify"></option>
+                    <option value="Etsy"></option>
+                    <option value="Tata Cliq"></option>
+                    <option value="JioMart"></option>
+                    <option value="Paytm Mall"></option>
+                  </datalist>
+                </div>
+                <div class="field">
+                  <label for="singleRating">Rating</label>
+                  <input id="singleRating" name="rating" type="number" min="1" max="5" step="1" placeholder="1-5">
+                </div>
+                <div class="field">
+                  <label for="singleBrand">Brand</label>
+                  <input id="singleBrand" name="brand" type="text" placeholder="Optional brand name">
+                </div>
+              </div>
+              <div class="inline-actions">
+                <button class="action-btn" id="singlePredictButton" type="submit">Predict Sentiment</button>
+                <span class="signal-note">Validation requires review text. Rating mismatch detection is computed locally when the API does not provide it.</span>
+              </div>
+            </form>
+
+            <section class="result-shell" aria-live="polite">
+              <div class="sentiment-badge sentiment-neutral" id="singleSentimentBadge">Standby</div>
+              <div class="progress-shell">
+                <div class="progress-meta">
+                  <span>Confidence Meter</span>
+                  <strong id="singleConfidenceText">Unavailable</strong>
+                </div>
+                <div class="progress-bar">
+                  <span id="singleConfidenceBar"></span>
+                </div>
+              </div>
+              <div class="warning-panel" id="ratingWarning"></div>
+              <details class="json-panel">
+                <summary>Technical Details</summary>
+                <pre id="singleTechnicalJson">{}</pre>
+              </details>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="view-batch">
+          <div class="view-head">
+            <div>
+              <div class="eyebrow">Batch Sweep</div>
+              <h1 class="view-title">Queue Multiple Reviews</h1>
+              <p class="view-copy">Run grouped review passes, refresh the reputation score from the returned metrics, and preview the first result slice.</p>
+            </div>
+          </div>
+
+          <div class="batch-layout">
+            <section class="surface form-shell" id="batchFormShell">
+              <form id="batchForm">
+                <div class="field">
+                  <label for="batchReviewText">Reviews, one per line</label>
+                  <textarea id="batchReviewText" placeholder="Excellent quality and timely delivery&#10;Packaging was damaged and support was slow&#10;Decent value for the price"></textarea>
+                </div>
+                <label class="checkline" for="saveToDataset">
+                  <input id="saveToDataset" type="checkbox">
+                  <span>Save results to dataset when backend supports it</span>
+                </label>
+                <div class="inline-actions">
+                  <button class="action-btn" id="batchRunButton" type="submit">Run Batch</button>
+                  <span class="signal-note">Requires at least one review line. Results fall back gracefully if the backend returns metrics only.</span>
+                </div>
+              </form>
+            </section>
+
+            <aside class="batch-sidebar">
+              <section class="surface">
+                <div class="eyebrow">Processed Count</div>
+                <div class="processed-count" id="batchProcessedCount">0</div>
+                <p class="processed-label">Last batch run processed count.</p>
+              </section>
+              <section class="surface">
+                <div class="eyebrow">Updated Brand Score</div>
+                <div class="ring-gauge mini-ring" id="batchGauge">
+                  <div class="ring-gauge__inner">
+                    <span class="ring-gauge__eyebrow" data-gauge-label>Batch Score</span>
+                    <strong class="ring-gauge__value" data-gauge-number>0</strong>
+                    <span class="ring-gauge__suffix" data-gauge-suffix>/100</span>
+                    <span class="ring-gauge__caption" data-gauge-caption>Waiting for batch response.</span>
+                  </div>
+                </div>
+              </section>
+            </aside>
+          </div>
+
+          <section class="table-shell" style="margin-top: 18px;">
+            <table aria-label="Batch results preview">
+              <thead>
+                <tr>
+                  <th>Review ID</th>
+                  <th>Sentiment</th>
+                  <th>Confidence</th>
+                </tr>
+              </thead>
+              <tbody id="batchTableBody">
+                <tr>
+                  <td colspan="3" class="signal-note">No batch results available yet.</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+
+          <details class="json-panel" style="margin-top: 18px;">
+            <summary>Technical Details</summary>
+            <pre id="batchTechnicalJson">{}</pre>
+          </details>
+        </section>
+
+        <section class="view" id="view-history">
+          <div class="view-head">
+            <div>
+              <div class="eyebrow">Local Timeline</div>
+              <h1 class="view-title">Recent Activity History</h1>
+              <p class="view-copy">The last ten single predictions and batch runs are stored in local storage for quick traceability on this device.</p>
+            </div>
+            <div class="inline-actions">
+              <button class="ghost-btn" id="clearHistoryButton" type="button">Clear History</button>
+            </div>
+          </div>
+
+          <div class="timeline" id="historyTimeline"></div>
+        </section>
+      </main>
+
+      <aside class="signal-panel" id="signalPanel" aria-label="Live Signal Panel">
+        <h2>Live Signal Panel</h2>
+
+        <section class="signal-widget">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+            <strong>Sentiment Pressure</strong>
+            <span class="signal-note" id="signalTimestamp">No live pull yet</span>
+          </div>
+          <div class="signal-pills">
+            <span class="signal-pill"><i style="background: var(--positive);"></i><span id="signalPositive">Positive 0%</span></span>
+            <span class="signal-pill"><i style="background: var(--neutral);"></i><span id="signalNeutral">Neutral 0%</span></span>
+            <span class="signal-pill"><i style="background: var(--negative);"></i><span id="signalNegative">Negative 0%</span></span>
+          </div>
+          <div class="bars">
+            <div class="row">
+              <span>Pos</span>
+              <div class="bar"><span id="signalPositiveBar" style="background: linear-gradient(90deg, var(--positive), rgba(97, 247, 177, 0.5));"></span></div>
+              <strong id="signalPositiveBarText">0%</strong>
+            </div>
+            <div class="row">
+              <span>Neu</span>
+              <div class="bar"><span id="signalNeutralBar" style="background: linear-gradient(90deg, var(--neutral), rgba(255, 201, 110, 0.5));"></span></div>
+              <strong id="signalNeutralBarText">0%</strong>
+            </div>
+            <div class="row">
+              <span>Neg</span>
+              <div class="bar"><span id="signalNegativeBar" style="background: linear-gradient(90deg, var(--negative), rgba(255, 107, 137, 0.5));"></span></div>
+              <strong id="signalNegativeBarText">0%</strong>
+            </div>
+          </div>
+        </section>
+
+        <section class="signal-widget">
+          <strong>Trend Vectors</strong>
+          <div class="trend-grid">
+            <div class="trend-card">
+              <svg id="trendReputationIcon" viewBox="0 0 24 24" fill="none" stroke="var(--positive)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M6 15l5-5 3 3 4-6"></path>
+                <path d="M17 7h1v1"></path>
+              </svg>
+              <strong>Score</strong>
+              <span id="trendReputationText">Stable</span>
+            </div>
+            <div class="trend-card">
+              <svg id="trendPositiveIcon" viewBox="0 0 24 24" fill="none" stroke="var(--positive)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 19V5"></path>
+                <path d="M6 11l6-6 6 6"></path>
+              </svg>
+              <strong>Positive</strong>
+              <span id="trendPositiveText">Standby</span>
+            </div>
+            <div class="trend-card">
+              <svg id="trendNegativeIcon" viewBox="0 0 24 24" fill="none" stroke="var(--negative)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 5v14"></path>
+                <path d="M6 13l6 6 6-6"></path>
+              </svg>
+              <strong>Negative</strong>
+              <span id="trendNegativeText">Standby</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="signal-widget">
+          <strong>Confidence Gauge</strong>
+          <div class="ring-gauge mini-ring" id="signalConfidenceGauge">
+            <div class="ring-gauge__inner">
+              <span class="ring-gauge__eyebrow" data-gauge-label>Latest Signal</span>
+              <strong class="ring-gauge__value" data-gauge-number>0</strong>
+              <span class="ring-gauge__suffix" data-gauge-suffix>%</span>
+              <span class="ring-gauge__caption" data-gauge-caption>Confidence updates after prediction events.</span>
+            </div>
+          </div>
+          <p class="signal-note" id="signalConfidenceNote">No recent prediction event.</p>
+        </section>
+      </aside>
+    </div>
+
+    <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
+    <div class="sr-only" id="srAnnouncements" aria-live="polite" aria-atomic="true"></div>
   </div>
 
-  <main class="app">
-    <aside class="sidebar">
-      <section class="brandbox">
-        <div class="eyebrow">Admin Dashboard</div>
-        <h2>BrandPulse</h2>
-        <p>AI-based review analysis and reputation monitoring.</p>
-      </section>
-      <nav class="nav">
-        <button class="active" data-section="overview">Overview</button>
-        <button data-section="operations">Operations</button>
-        <button data-section="admin">Admin</button>
-      </nav>
-      <section class="foot">
-        <div class="label">Signed in as</div>
-        <div id="sessionUser" style="margin-top:8px;font-weight:700;">Guest</div>
-        <div style="margin-top:14px"><button class="secondary" id="logoutBtn">Log out</button></div>
-      </section>
-    </aside>
+  <div class="auth-overlay hidden" id="authOverlay" aria-modal="true" role="dialog" aria-labelledby="authTitle">
+    <div class="auth-card" id="authCard">
+      <div>
+        <div class="eyebrow">Session Required</div>
+        <h2 id="authTitle">Enter the Control Room</h2>
+      </div>
+      <p id="authMessage">Use the dashboard account configured in the backend to unlock protected API calls.</p>
+      <div class="auth-tabs" role="tablist" aria-label="Authentication mode">
+        <button class="auth-tab is-active" id="loginTab" type="button" role="tab" aria-selected="true">Login</button>
+        <button class="auth-tab" id="registerTab" type="button" role="tab" aria-selected="false">Create Account</button>
+      </div>
 
-    <section class="content">
-      <section class="hero card">
-        <div>
-          <div class="eyebrow">Realtime Reputation Intelligence</div>
-          <h1>Read the customer mood before it shapes the market story.</h1>
-          <p>Monitor trends, inspect source platforms, trigger the ML pipeline, and validate manual predictions from an admin-grade dashboard.</p>
-          <div class="toolbar">
-            <button class="primary" id="preprocessBtn">Run Preprocessing</button>
-            <button class="primary" id="trainBtn">Train Model</button>
-            <button class="primary" id="predictBtn">Generate Predictions</button>
-            <button class="secondary" id="refreshBtn">Refresh Dashboard</button>
-          </div>
+      <form class="auth-panel is-active" id="loginForm">
+        <div class="field">
+          <label for="loginEmail">Email</label>
+          <input id="loginEmail" name="email" type="text" autocomplete="username" placeholder="admin@brandpulse.ai">
         </div>
-        <aside class="score">
-          <div class="label">Brand Reputation Score</div>
-          <strong id="brandScore">-</strong>
-          <p id="scoreNarrative">Waiting for backend metrics.</p>
-        </aside>
-      </section>
+        <div class="field">
+          <label for="loginPassword">Password</label>
+          <input id="loginPassword" name="password" type="password" autocomplete="current-password" placeholder="Enter password">
+        </div>
+        <div class="auth-error" id="authError"></div>
+        <div class="inline-actions">
+          <button class="action-btn" id="loginButton" type="submit">Login</button>
+        </div>
+        <div class="auth-switch">
+          Need an account?
+          <button class="auth-link" id="switchToRegister" type="button">Create account</button>
+        </div>
+      </form>
 
-      <section class="stats">
-        <article class="card"><div class="label">Total Reviews</div><div class="value" id="totalReviews">-</div></article>
-        <article class="card"><div class="label">Positive Share</div><div class="value" id="positivePct">-</div></article>
-        <article class="card"><div class="label">Neutral Share</div><div class="value" id="neutralPct">-</div></article>
-        <article class="card"><div class="label">Negative Share</div><div class="value" id="negativePct">-</div></article>
-      </section>
-
-      <section class="section active" id="overviewSection">
-        <section class="grid">
-          <article class="card">
-            <div class="head"><div><h3>Sentiment Trend Timeline</h3><p>Monthly movement of positive, neutral, and negative review volume.</p></div><span class="pill">Live API</span></div>
-            <div class="trend" id="trendChart"></div>
-          </article>
-          <div class="stack">
-            <article class="card">
-              <div class="head"><div><h3>Keyword Pressure Points</h3><p>Most repeated terms in processed reviews.</p></div></div>
-              <div class="keywords" id="keywordList"></div>
-            </article>
-            <article class="card">
-              <div class="head"><div><h3>System Health</h3><p>Current backend and artifact availability.</p></div></div>
-              <div class="health" id="healthList"></div>
-            </article>
-          </div>
-        </section>
-        <section class="grid">
-          <article class="card">
-            <div class="head"><div><h3>Platform Monitoring</h3><p>Sentiment split across each source platform.</p></div></div>
-            <div class="tablewrap">
-              <table>
-                <thead><tr><th>Platform</th><th>Positive</th><th>Neutral</th><th>Negative</th></tr></thead>
-                <tbody id="platformTableBody"></tbody>
-              </table>
-            </div>
-          </article>
-          <article class="card">
-            <div class="head"><div><h3>Activity Feed</h3><p>Latest workflow and dashboard events.</p></div></div>
-            <div class="activity" id="activityList"></div>
-          </article>
-        </section>
-      </section>
-
-      <section class="section" id="operationsSection">
-        <section class="grid">
-          <article class="card">
-            <div class="head"><div><h3>Pipeline Actions</h3><p>Trigger each backend stage from the dashboard.</p></div></div>
-            <div class="actions">
-              <button class="action" data-action="preprocess"><strong>Preprocess Reviews</strong><span>Clean, normalize, and deduplicate review data.</span></button>
-              <button class="action" data-action="train"><strong>Train Model</strong><span>Run logistic regression training and refresh artifacts.</span></button>
-              <button class="action" data-action="predict"><strong>Batch Prediction</strong><span>Generate predicted sentiments and brand score.</span></button>
-              <button class="action" data-action="refresh"><strong>Refresh Dashboard</strong><span>Reload summary, trends, keywords, and platform data.</span></button>
-            </div>
-          </article>
-          <article class="card">
-            <div class="head"><div><h3>Status Console</h3><p>Operational messages from the backend workflow.</p></div></div>
-            <div class="status" id="statusBox">Waiting for backend at http://127.0.0.1:5000.</div>
-          </article>
-        </section>
-        <section class="grid">
-          <article class="card">
-            <div class="head"><div><h3>Single Review Prediction</h3><p>Test one review directly against the trained model.</p></div></div>
-            <form class="form" id="predictionForm">
-              <label class="field"><span>Review Text</span><textarea id="reviewText" placeholder="Paste a customer review here..."></textarea></label>
-              <label class="field"><span>Platform</span><input id="reviewPlatform" type="text" value="Manual Input"></label>
-              <label class="field"><span>Brand</span><input id="reviewBrand" type="text" value="Manual Input"></label>
-              <button class="primary" type="submit">Predict Sentiment</button>
-            </form>
-            <div class="output" id="predictionOutput">No manual prediction yet.</div>
-          </article>
-          <article class="card">
-            <div class="head"><div><h3>Workflow Notes</h3><p>What this admin workspace controls.</p></div></div>
-            <div class="activity">
-              <div class="activity-row"><strong>Data collection</strong><span>Aggregates review CSVs from multiple platforms into one analysis stream.</span></div>
-              <div class="activity-row"><strong>Preprocessing</strong><span>Lowercases, tokenizes, removes stopwords, strips noise, and drops duplicates.</span></div>
-              <div class="activity-row"><strong>Inference</strong><span>Runs logistic regression on cleaned review text for sentiment prediction.</span></div>
-            </div>
-          </article>
-        </section>
-      </section>
-
-      <section class="section" id="adminSection">
-        <section class="grid">
-          <article class="card">
-            <div class="head"><div><h3>Admin Policy</h3><p>Frontend controls and session behavior.</p></div></div>
-            <div class="activity">
-              <div class="activity-row"><strong>Access mode</strong><span>Frontend-only demo login stored in browser local storage.</span></div>
-              <div class="activity-row"><strong>Role</strong><span>Administrator session with workflow and monitoring access.</span></div>
-              <div class="activity-row"><strong>Scope</strong><span>Summary metrics, platform analysis, keyword view, health state, and prediction testing.</span></div>
-            </div>
-          </article>
-          <article class="card">
-            <div class="head"><div><h3>Analyst Snapshot</h3><p>Current reporting summary.</p></div></div>
-            <div class="activity" id="snapshotList"></div>
-          </article>
-        </section>
-      </section>
-    </section>
-  </main>
+      <form class="auth-panel" id="registerForm">
+        <div class="field">
+          <label for="registerName">Name</label>
+          <input id="registerName" name="name" type="text" autocomplete="name" placeholder="Your full name">
+        </div>
+        <div class="field">
+          <label for="registerEmail">Email</label>
+          <input id="registerEmail" name="email" type="text" autocomplete="email" placeholder="you@example.com">
+        </div>
+        <div class="field">
+          <label for="registerPassword">Password</label>
+          <input id="registerPassword" name="password" type="password" autocomplete="new-password" placeholder="Create a strong password">
+        </div>
+        <div class="password-rules">
+          <strong>Password Rules</strong>
+          <ul>
+            <li>At least 8 characters</li>
+            <li>At least one uppercase letter</li>
+            <li>At least one lowercase letter</li>
+            <li>At least one number</li>
+            <li>At least one special character</li>
+          </ul>
+        </div>
+        <div class="auth-error" id="registerError"></div>
+        <div class="inline-actions">
+          <button class="action-btn" id="registerButton" type="submit">Create Account</button>
+        </div>
+        <div class="auth-switch">
+          Already have an account?
+          <button class="auth-link" id="switchToLogin" type="button">Back to login</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <script>
-    const API_BASE = "http://127.0.0.1:5000/api";
-    const authOverlay = document.getElementById("authOverlay");
-    const statusBox = document.getElementById("statusBox");
-    const sessionUser = document.getElementById("sessionUser");
-    const activityList = document.getElementById("activityList");
-    const healthList = document.getElementById("healthList");
-    const snapshotList = document.getElementById("snapshotList");
-    const activityFeed = [];
+    const HISTORY_KEY = "brandpulse-control-room-history";
+    const THEME_KEY = "brandpulse-control-room-theme";
 
-    function text(id, value) { document.getElementById(id).textContent = value; }
-    function addActivity(title, detail) {
-      activityFeed.unshift({ title, detail, time: new Date().toLocaleTimeString() });
-      activityFeed.splice(6);
-      activityList.innerHTML = activityFeed.map((item) => `<div class="activity-row"><strong>${item.title}</strong><span>${item.detail} | ${item.time}</span></div>`).join("");
+    const state = {
+      brandScore: {
+        total_reviews: 0,
+        positive_pct: 0,
+        neutral_pct: 0,
+        negative_pct: 0,
+        brand_reputation_score: 0
+      },
+      latestSource: "No endpoint call yet",
+      latestConfidence: null,
+      latestSentiment: "Standby",
+      trends: [],
+      keywords: [],
+      brands: []
+    };
+
+    const $ = (selector) => document.querySelector(selector);
+    const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+
+    function clamp(value, min, max) {
+      return Math.min(max, Math.max(min, value));
     }
-    function setStatus(message) { statusBox.textContent = message; addActivity("System update", message); }
-    function narrative(score) {
-      if (score >= 60) return "Brand sentiment is strongly favorable across recent reviews.";
-      if (score >= 20) return "Brand sentiment is positive, but visible friction still exists.";
-      if (score >= 0) return "Brand sentiment is balanced. Monitor negative movement closely.";
-      return "Brand sentiment is under pressure and needs attention.";
-    }
-    function renderTrends(rows) {
-      const box = document.getElementById("trendChart"); box.innerHTML = "";
-      if (!rows.length) { box.textContent = "No trend data available."; return; }
-      const max = Math.max(...rows.flatMap((r) => [r.Positive, r.Neutral, r.Negative]), 1);
-      rows.forEach((row) => {
-        const group = document.createElement("div");
-        group.className = "group";
-        group.innerHTML = `<div class="cols"><div class="bar positive" style="height:${row.Positive / max * 100}%"></div><div class="bar neutral" style="height:${row.Neutral / max * 100}%"></div><div class="bar negative" style="height:${row.Negative / max * 100}%"></div></div><div>${row.period}</div>`;
-        box.appendChild(group);
-      });
-    }
-    function renderKeywords(rows) {
-      const box = document.getElementById("keywordList"); box.innerHTML = "";
-      if (!rows.length) { box.textContent = "No keyword data available."; return; }
-      const max = Math.max(...rows.map((r) => r.count), 1);
-      rows.forEach((row) => {
-        const item = document.createElement("div");
-        item.className = "keyword";
-        item.innerHTML = `<strong>${row.word}</strong><div class="track"><div class="fill" style="width:${row.count / max * 100}%"></div></div><span>${row.count}</span>`;
-        box.appendChild(item);
-      });
-    }
-    function renderPlatforms(rows) {
-      const body = document.getElementById("platformTableBody"); body.innerHTML = "";
-      if (!rows.length) { body.innerHTML = "<tr><td colspan='4'>No platform data available.</td></tr>"; return; }
-      rows.forEach((row) => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${row.platform || "-"}</td><td>${row.Positive || 0}</td><td>${row.Neutral || 0}</td><td>${row.Negative || 0}</td>`;
-        body.appendChild(tr);
-      });
-    }
-    function renderHealth(payload) {
-      const items = [["Backend status", payload.status === "ok"], ["Model artifact", payload.model_exists], ["Vectorizer artifact", payload.vectorizer_exists], ["Predictions dataset", payload.predictions_exist], ["Report file", payload.report_exists]];
-      healthList.innerHTML = items.map(([label, ok]) => `<div class="health-row"><div>${label}</div><div class="dot ${ok ? "good" : "bad"}"></div></div>`).join("");
-    }
-    function renderSnapshot(summary) {
-      snapshotList.innerHTML = `<div class="activity-row"><strong>Total reviews</strong><span>${summary.total_reviews ?? "-"} reviews currently included in scoring.</span></div><div class="activity-row"><strong>Positive share</strong><span>${summary.positive_pct ?? "-"}% of processed sentiment is positive.</span></div><div class="activity-row"><strong>Negative share</strong><span>${summary.negative_pct ?? "-"}% of processed sentiment is negative.</span></div><div class="activity-row"><strong>Brand score</strong><span>${summary.brand_reputation_score ?? "-"} overall reputation score.</span></div>`;
-    }
-    async function postAction(path, message) {
-      setStatus(message);
-      const response = await fetch(`${API_BASE}${path}`, { method: "POST" });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || payload.message || "Request failed");
-      return payload;
-    }
-    async function loadHealth() {
-      const response = await fetch(`${API_BASE}/health`);
-      const payload = await response.json();
-      renderHealth(payload);
-      return payload;
-    }
-    async function loadDashboard() {
+
+    function storageRead(key, fallback) {
       try {
-        const [summaryRes, trendsRes, keywordsRes, platformsRes, health] = await Promise.all([fetch(`${API_BASE}/dashboard/summary`), fetch(`${API_BASE}/dashboard/trends`), fetch(`${API_BASE}/dashboard/keywords`), fetch(`${API_BASE}/dashboard/platforms`), loadHealth()]);
-        const summary = await summaryRes.json();
-        const trends = await trendsRes.json();
-        const keywords = await keywordsRes.json();
-        const platforms = await platformsRes.json();
-        if (!summaryRes.ok) throw new Error(summary.error || "Dashboard summary is not ready");
-        text("brandScore", summary.brand_reputation_score);
-        text("totalReviews", summary.total_reviews);
-        text("positivePct", `${summary.positive_pct}%`);
-        text("neutralPct", `${summary.neutral_pct}%`);
-        text("negativePct", `${summary.negative_pct}%`);
-        document.getElementById("scoreNarrative").textContent = narrative(Number(summary.brand_reputation_score || 0));
-        renderTrends(trends.trends || []);
-        renderKeywords(keywords.keywords || []);
-        renderPlatforms(platforms.platforms || []);
-        renderSnapshot(summary);
-        setStatus(`Loaded ${summary.total_reviews} processed reviews. Health status: ${health.status}.`);
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : fallback;
       } catch (error) {
-        setStatus(`Dashboard unavailable: ${error.message}`);
+        return fallback;
       }
     }
-    async function runAction(action) {
+
+    function storageWrite(key, value) {
       try {
-        if (action === "refresh") { await loadDashboard(); return; }
-        const pathMap = { preprocess: "/preprocess", train: "/train", predict: "/predict/batch" };
-        const msgMap = { preprocess: "Running preprocessing...", train: "Training logistic regression model...", predict: "Generating predictions and refreshing brand score..." };
-        const payload = await postAction(pathMap[action], msgMap[action]);
-        if (action === "preprocess") setStatus(`Preprocessing completed for ${payload.rows} reviews.`);
-        else if (action === "train") setStatus("Training completed. Metrics and charts were refreshed.");
-        else setStatus(`Prediction completed for ${payload.rows} reviews.`);
-        await loadDashboard();
+        localStorage.setItem(key, JSON.stringify(value));
       } catch (error) {
-        setStatus(`${action} failed: ${error.message}`);
+        return;
       }
     }
-    function switchSection(section) {
-      document.querySelectorAll(".nav button").forEach((button) => button.classList.toggle("active", button.dataset.section === section));
-      document.querySelectorAll(".section").forEach((panel) => panel.classList.toggle("active", panel.id === `${section}Section`));
+
+    function toast(message, type = "info") {
+      const toastEl = document.createElement("div");
+      toastEl.className = "toast " + type;
+      toastEl.innerHTML = "<strong>" + type + "</strong><p>" + message + "</p>";
+      $("#toastStack").appendChild(toastEl);
+      $("#srAnnouncements").textContent = message;
+      window.setTimeout(() => {
+        toastEl.remove();
+      }, 3400);
     }
-    function setSession(email) {
-      localStorage.setItem("brandpulse_user", email);
-      sessionUser.textContent = email;
-      authOverlay.classList.add("hidden");
-      addActivity("Login", `${email} entered the admin dashboard.`);
+
+    function setAuthMode(mode) {
+      const isRegister = mode === "register";
+      $("#loginTab").classList.toggle("is-active", !isRegister);
+      $("#registerTab").classList.toggle("is-active", isRegister);
+      $("#loginTab").setAttribute("aria-selected", String(!isRegister));
+      $("#registerTab").setAttribute("aria-selected", String(isRegister));
+      $("#loginForm").classList.toggle("is-active", !isRegister);
+      $("#registerForm").classList.toggle("is-active", isRegister);
+      $("#authTitle").textContent = isRegister ? "Create Your Account" : "Enter the Control Room";
+      $("#authMessage").textContent = isRegister
+        ? "Create an account, then sign in with the same credentials."
+        : "Use the dashboard account configured in the backend to unlock protected API calls.";
+      $("#authError").textContent = "";
+      $("#registerError").textContent = "";
     }
-    document.getElementById("loginForm").addEventListener("submit", (event) => {
+
+    function showLogin(message = "Use the dashboard account configured in the backend to unlock protected API calls.") {
+      document.body.classList.add("auth-locked");
+      $("#authOverlay").classList.remove("hidden");
+      setAuthMode("login");
+      $("#authMessage").textContent = message;
+    }
+
+    function hideLogin() {
+      document.body.classList.remove("auth-locked");
+      $("#authOverlay").classList.add("hidden");
+      $("#authError").textContent = "";
+    }
+
+    function setSession(user) {
+      $("#sessionChip").classList.remove("hidden");
+      $("#logoutButton").classList.remove("hidden");
+      $("#sessionUser").textContent = user || "Active";
+      hideLogin();
+    }
+
+    function clearSessionUi() {
+      $("#sessionChip").classList.add("hidden");
+      $("#logoutButton").classList.add("hidden");
+      $("#sessionUser").textContent = "Offline";
+    }
+
+    function validateRegistrationForm(name, email, password) {
+      if (!name.trim()) return "Name is required.";
+      if (!email.trim()) return "Email is required.";
+      if (!email.includes("@")) return "Enter a valid email address.";
+      if (password.length < 8) return "Password must be at least 8 characters long.";
+      if (!/[A-Z]/.test(password)) return "Password must include at least one uppercase letter.";
+      if (!/[a-z]/.test(password)) return "Password must include at least one lowercase letter.";
+      if (!/\d/.test(password)) return "Password must include at least one number.";
+      if (!/[^A-Za-z0-9]/.test(password)) return "Password must include at least one special character.";
+      return "";
+    }
+
+    function handleAuthError(error, fallbackMessage) {
+      if (error && error.status === 401) {
+        clearSessionUi();
+        showLogin(fallbackMessage || "Your session expired. Sign in again to continue.");
+        return true;
+      }
+      return false;
+    }
+
+    function renderGauge(element, value, options = {}) {
+      const numeric = Number.isFinite(Number(value)) ? Number(value) : 0;
+      const clamped = clamp(numeric, 0, 100);
+      const color = options.color || "var(--accent)";
+      element.style.setProperty("--value", clamped.toFixed(2));
+      element.style.setProperty("--ring-color", color);
+      const numberEl = element.querySelector("[data-gauge-number]");
+      const suffixEl = element.querySelector("[data-gauge-suffix]");
+      const labelEl = element.querySelector("[data-gauge-label]");
+      const captionEl = element.querySelector("[data-gauge-caption]");
+      if (numberEl) numberEl.textContent = options.displayValue ?? numeric.toFixed(1);
+      if (suffixEl) suffixEl.textContent = options.suffix ?? "";
+      if (labelEl) labelEl.textContent = options.label ?? "";
+      if (captionEl) captionEl.textContent = options.caption ?? "";
+    }
+
+    function setButtonLoading(button, loading, text) {
+      if (!button.dataset.label) {
+        button.dataset.label = text || button.textContent.trim();
+      }
+      button.disabled = loading;
+      button.innerHTML = loading
+        ? '<span class="spinner" aria-hidden="true"></span><span>Working...</span>'
+        : button.dataset.label;
+    }
+
+    function shake(element) {
+      element.classList.remove("is-invalid");
+      void element.offsetWidth;
+      element.classList.add("is-invalid");
+      window.setTimeout(() => element.classList.remove("is-invalid"), 320);
+    }
+
+    function getApiCandidates(path) {
+      const normalized = path.startsWith("/") ? path : "/" + path;
+      const urls = [];
+      const add = (value) => {
+        if (!urls.includes(value)) urls.push(value);
+      };
+
+      if (location.protocol === "file:") {
+        add("http://127.0.0.1:5000/api" + normalized);
+        add("http://localhost:5000/api" + normalized);
+        add("http://127.0.0.1:5000" + normalized);
+        add("http://localhost:5000" + normalized);
+        return urls;
+      }
+
+      add(normalized);
+      add("/api" + normalized);
+      add("http://127.0.0.1:5000/api" + normalized);
+      return urls;
+    }
+
+    async function callApi(path, options = {}) {
+      const method = options.method || "GET";
+      const fallbackMethods = options.fallbackMethods || [];
+      const methods = [method, ...fallbackMethods.filter((item) => item !== method)];
+      const candidates = getApiCandidates(path);
+      let lastError = new Error("Request failed");
+
+      for (const currentMethod of methods) {
+        for (const url of candidates) {
+          try {
+            const response = await fetch(url, {
+              method: currentMethod,
+              credentials: "include",
+              headers: options.body ? { "Content-Type": "application/json" } : {},
+              body: options.body ? JSON.stringify(options.body) : undefined
+            });
+
+            const raw = await response.text();
+            let data = {};
+            try {
+              data = raw ? JSON.parse(raw) : {};
+            } catch (error) {
+              data = { message: raw };
+            }
+
+            if (response.ok) {
+              state.latestSource = currentMethod + " " + url;
+              return data;
+            }
+
+            const message = data.error || data.message || data.detail || (response.status + " " + response.statusText);
+            lastError = new Error(message);
+            lastError.status = response.status;
+          } catch (error) {
+            lastError = error;
+          }
+        }
+      }
+
+      throw lastError;
+    }
+    function normalizeBrandScore(payload) {
+      const raw = payload && payload.brand_score ? payload.brand_score : payload || {};
+      return {
+        total_reviews: Number(raw.total_reviews || raw.rows || 0),
+        positive_pct: Number(raw.positive_pct || raw.positivePercentage || raw.percentages?.Positive || 0),
+        neutral_pct: Number(raw.neutral_pct || raw.neutralPercentage || raw.percentages?.Neutral || 0),
+        negative_pct: Number(raw.negative_pct || raw.negativePercentage || raw.percentages?.Negative || 0),
+        brand_reputation_score: Number(raw.brand_reputation_score || raw.brandScore || 0)
+      };
+    }
+
+    function normalizeBrandRow(row) {
+      return {
+        brand: String(row.brand || row.Brand || "Unknown"),
+        total_reviews: Number(row.total_reviews || row.totalReviews || 0),
+        positive_pct: Number(row.positive_pct || row.positivePercentage || 0),
+        neutral_pct: Number(row.neutral_pct || row.neutralPercentage || 0),
+        negative_pct: Number(row.negative_pct || row.negativePercentage || 0),
+        brand_reputation_score: Number(row.brand_reputation_score || row.brandScore || 0)
+      };
+    }
+
+    function scoreNarrative(score) {
+      if (score >= 70) return ["Reputation surge", "Audience response is strongly favorable across the active review stream."];
+      if (score >= 40) return ["Healthy trajectory", "Brand sentiment remains positive with manageable negative drag."];
+      if (score >= 15) return ["Mixed field conditions", "Positive and negative signals are close enough to require attention."];
+      if (score >= 0) return ["Fragile balance", "Negative pressure is near parity and could flip the score quickly."];
+      return ["Critical drift", "Negative sentiment is overpowering the positive stream. Escalation recommended."];
+    }
+
+    function getTrendLabel(value, positiveDirection = true) {
+      if (value >= 60) return positiveDirection ? "Rising" : "High";
+      if (value >= 35) return "Stable";
+      return positiveDirection ? "Low" : "Contained";
+    }
+
+    function setTrendIcon(icon, direction) {
+      const stroke = direction === "up" ? "var(--positive)" : direction === "down" ? "var(--negative)" : "var(--neutral)";
+      if (icon) icon.setAttribute("stroke", stroke);
+    }
+
+    function updateDashboard(score) {
+      const narrative = scoreNarrative(score.brand_reputation_score);
+      $("#statTotalReviews").textContent = score.total_reviews.toLocaleString();
+      $("#statPositivePct").textContent = score.positive_pct.toFixed(2) + "%";
+      $("#statNegativePct").textContent = score.negative_pct.toFixed(2) + "%";
+      $("#dashboardNarrative").textContent = narrative[0];
+      $("#dashboardNarrativeCopy").textContent = narrative[1];
+      $("#dashboardSource").textContent = state.latestSource;
+
+      const gaugeColor = score.brand_reputation_score >= 40
+        ? "var(--positive)"
+        : score.brand_reputation_score < 10
+          ? "var(--negative)"
+          : "var(--neutral)";
+
+      renderGauge($("#brandGauge"), score.brand_reputation_score, {
+        displayValue: score.brand_reputation_score.toFixed(1),
+        label: "Brand Reputation",
+        suffix: "/100 score",
+        caption: "Current score from the latest `/brand-score` response.",
+        color: gaugeColor
+      });
+      updateDistributionChart(score);
+    }
+
+    function updateDistributionChart(score) {
+      const values = [
+        { id: "Positive", value: clamp(score.positive_pct || 0, 0, 100) },
+        { id: "Neutral", value: clamp(score.neutral_pct || 0, 0, 100) },
+        { id: "Negative", value: clamp(score.negative_pct || 0, 0, 100) }
+      ];
+      values.forEach((item) => {
+        $("#dist" + item.id + "Bar").style.width = item.value + "%";
+        $("#dist" + item.id + "Value").textContent = item.value.toFixed(1) + "%";
+      });
+      $("#distCaption").textContent = "Sentiment mix across " + Number(score.total_reviews || 0).toLocaleString() + " processed reviews.";
+    }
+
+    function riskMeta(score, negativePct) {
+      if (score >= 45 && negativePct < 25) return { label: "Low Risk", className: "risk-low" };
+      if (score < 10 || negativePct >= 40) return { label: "High Risk", className: "risk-high" };
+      return { label: "Medium Risk", className: "risk-medium" };
+    }
+
+    function buildPros(row) {
+      const pros = [];
+      if (row.positive_pct >= 65) pros.push("Strong positive sentiment");
+      if (row.brand_reputation_score >= 40) pros.push("Healthy reputation score");
+      if (row.negative_pct <= 20) pros.push("Low complaint pressure");
+      if (row.total_reviews >= 5000) pros.push("Large review coverage");
+      return pros.length ? pros : ["Stable overall sentiment", "Actionable baseline for growth"];
+    }
+
+    function buildCons(row) {
+      const cons = [];
+      if (row.negative_pct >= 35) cons.push("High negative sentiment");
+      if (row.brand_reputation_score < 15) cons.push("Weak reputation score");
+      if (row.positive_pct < 45) cons.push("Positive momentum is limited");
+      if (row.total_reviews < 1000) cons.push("Lower review volume confidence");
+      return cons.length ? cons : ["No major structural risk detected", "Continue monitoring for drift"];
+    }
+
+    function buildWhyText(row) {
+      if (row.brand_reputation_score >= 45) {
+        return row.brand + " is performing well because positive sentiment materially outweighs negative reviews, which keeps reputation risk contained.";
+      }
+      if (row.brand_reputation_score < 10) {
+        return row.brand + " is high risk because negative sentiment is too close to or above the positive share, pulling the reputation score down.";
+      }
+      return row.brand + " is in a mixed zone. Positive reviews still support the brand, but negative pressure is large enough to reduce trust and future conversion.";
+    }
+
+    function buildRecommendation(row) {
+      if (row.brand_reputation_score >= 45) {
+        return "Recommendation: scale what is already working, highlight top positive themes in campaigns, and defend the current service standard to avoid backslide.";
+      }
+      if (row.brand_reputation_score < 10) {
+        return "Recommendation: prioritize complaint clusters, fix service or quality pain points first, and avoid aggressive promotion until negative drivers are reduced.";
+      }
+      return "Recommendation: improve response quality, reinforce the strongest positive themes, and target the top negative friction points before the next campaign push.";
+    }
+
+    function renderPillList(hostId, items, toneClass) {
+      const host = $("#" + hostId);
+      host.innerHTML = items.map((item) => '<span class="' + (toneClass || "") + '">' + item + "</span>").join("");
+    }
+
+    function renderBrandSelectors(brands) {
+      const sorted = brands.slice().sort((a, b) => b.brand_reputation_score - a.brand_reputation_score);
+      const options = sorted.map((item) => '<option value="' + item.brand + '">' + item.brand + "</option>").join("");
+      ["brandInsightSelect", "compareBrandA", "compareBrandB"].forEach((id) => {
+        $("#" + id).innerHTML = options || '<option value="">No brands available</option>';
+      });
+      if (sorted.length) {
+        $("#brandInsightSelect").value = sorted[0].brand;
+        $("#compareBrandA").value = sorted[0].brand;
+        $("#compareBrandB").value = sorted[Math.min(1, sorted.length - 1)].brand;
+      }
+    }
+
+    function getBrandByName(name) {
+      return state.brands.find((item) => item.brand === name) || null;
+    }
+
+    function renderSimilarBrands(items) {
+      const host = $("#similarBrandList");
+      if (!Array.isArray(items) || !items.length) {
+        host.innerHTML = '<div class="mini-note">No similar brands available.</div>';
+        return;
+      }
+
+      host.innerHTML = items.map((item) => {
+        const metrics = item.metrics || item;
+        const risk = item.risk || riskMeta(metrics.brand_reputation_score, metrics.negative_pct);
+        return [
+          '<div class="similar-item">',
+          '<div><strong>' + item.brand + '</strong><span>Score ' + Number(metrics.brand_reputation_score || 0).toFixed(1) + ' • Positive ' + Number(metrics.positive_pct || 0).toFixed(1) + '%</span></div>',
+          '<span class="score-chip ' + (risk.level ? 'risk-' + risk.level : risk.className) + '">' + risk.label + '</span>',
+          '</div>'
+        ].join("");
+      }).join("");
+    }
+
+    async function renderBrandInsights() {
+      const row = getBrandByName($("#brandInsightSelect").value) || state.brands[0];
+      if (!row) {
+        $("#insightScoreValue").textContent = "0.0";
+        $("#insightRiskChip").textContent = "No data";
+        $("#insightRiskChip").className = "score-chip risk-medium";
+        $("#insightWhyText").textContent = "No brand data available yet.";
+        $("#insightRecommendation").textContent = "Run dashboard refresh after prediction data is available.";
+        renderPillList("insightProsList", []);
+        renderPillList("insightConsList", []);
+        $("#similarBrandList").innerHTML = '<div class="mini-note">No similar brands available.</div>';
+        return;
+      }
+
+      try {
+        const [insightsPayload, similarPayload] = await Promise.all([
+          callApi("/dashboard/insights?brand=" + encodeURIComponent(row.brand)),
+          callApi("/dashboard/similar?brand=" + encodeURIComponent(row.brand) + "&limit=3")
+        ]);
+
+        const metrics = normalizeBrandRow(insightsPayload.metrics || row);
+        const risk = insightsPayload.risk || riskMeta(metrics.brand_reputation_score, metrics.negative_pct);
+        $("#insightScoreValue").textContent = metrics.brand_reputation_score.toFixed(1);
+        $("#insightRiskChip").textContent = risk.label;
+        $("#insightRiskChip").className = "score-chip " + (risk.level ? "risk-" + risk.level : risk.className);
+        $("#insightWhyText").textContent = insightsPayload.why || buildWhyText(metrics);
+        $("#insightRecommendation").textContent = insightsPayload.recommendation || buildRecommendation(metrics);
+        renderPillList("insightProsList", insightsPayload.pros || buildPros(metrics));
+        renderPillList("insightConsList", insightsPayload.cons || buildCons(metrics));
+        renderSimilarBrands(similarPayload.similar || []);
+      } catch (error) {
+        if (handleAuthError(error)) return;
+        const risk = riskMeta(row.brand_reputation_score, row.negative_pct);
+        $("#insightScoreValue").textContent = row.brand_reputation_score.toFixed(1);
+        $("#insightRiskChip").textContent = risk.label;
+        $("#insightRiskChip").className = "score-chip " + risk.className;
+        $("#insightWhyText").textContent = buildWhyText(row);
+        $("#insightRecommendation").textContent = buildRecommendation(row);
+        renderPillList("insightProsList", buildPros(row));
+        renderPillList("insightConsList", buildCons(row));
+        renderSimilarBrands([]);
+      }
+    }
+
+    async function renderBrandComparison() {
+      const brandA = getBrandByName($("#compareBrandA").value) || state.brands[0];
+      const brandB = getBrandByName($("#compareBrandB").value) || state.brands[1] || state.brands[0];
+      if (!brandA || !brandB) {
+        $("#compareSummary").textContent = "Choose two brands to compare advantage, risk, and sentiment balance.";
+        return;
+      }
+
+      try {
+        const payload = await callApi(
+          "/dashboard/compare?brand_a=" + encodeURIComponent(brandA.brand) + "&brand_b=" + encodeURIComponent(brandB.brand)
+        );
+        const left = normalizeBrandRow(payload.brand_a || brandA);
+        const right = normalizeBrandRow(payload.brand_b || brandB);
+        $("#compareScoreA").style.width = clamp(left.brand_reputation_score, 0, 100) + "%";
+        $("#compareScoreB").style.width = clamp(right.brand_reputation_score, 0, 100) + "%";
+        $("#comparePositiveA").style.width = clamp(left.positive_pct, 0, 100) + "%";
+        $("#comparePositiveB").style.width = clamp(right.positive_pct, 0, 100) + "%";
+        $("#compareNegativeA").style.width = clamp(left.negative_pct, 0, 100) + "%";
+        $("#compareNegativeB").style.width = clamp(right.negative_pct, 0, 100) + "%";
+        $("#compareScoreText").textContent = left.brand_reputation_score.toFixed(1) + " vs " + right.brand_reputation_score.toFixed(1);
+        $("#comparePositiveText").textContent = left.positive_pct.toFixed(1) + "% vs " + right.positive_pct.toFixed(1) + "%";
+        $("#compareNegativeText").textContent = left.negative_pct.toFixed(1) + "% vs " + right.negative_pct.toFixed(1) + "%";
+        $("#compareSummary").textContent = payload.summary || "Comparison loaded.";
+        return;
+      } catch (error) {
+        if (handleAuthError(error)) return;
+      }
+
+      $("#compareScoreA").style.width = clamp(brandA.brand_reputation_score, 0, 100) + "%";
+      $("#compareScoreB").style.width = clamp(brandB.brand_reputation_score, 0, 100) + "%";
+      $("#comparePositiveA").style.width = clamp(brandA.positive_pct, 0, 100) + "%";
+      $("#comparePositiveB").style.width = clamp(brandB.positive_pct, 0, 100) + "%";
+      $("#compareNegativeA").style.width = clamp(brandA.negative_pct, 0, 100) + "%";
+      $("#compareNegativeB").style.width = clamp(brandB.negative_pct, 0, 100) + "%";
+
+      $("#compareScoreText").textContent = brandA.brand_reputation_score.toFixed(1) + " vs " + brandB.brand_reputation_score.toFixed(1);
+      $("#comparePositiveText").textContent = brandA.positive_pct.toFixed(1) + "% vs " + brandB.positive_pct.toFixed(1) + "%";
+      $("#compareNegativeText").textContent = brandA.negative_pct.toFixed(1) + "% vs " + brandB.negative_pct.toFixed(1) + "%";
+
+      const leader = brandA.brand_reputation_score >= brandB.brand_reputation_score ? brandA : brandB;
+      const lagger = leader.brand === brandA.brand ? brandB : brandA;
+      $("#compareSummary").textContent = leader.brand + " leads on brand reputation score, while " + lagger.brand + " needs more work on negative sentiment control and trust recovery.";
+    }
+
+    function updateSignalPanel(score) {
+      $("#signalPositive").textContent = "Positive " + score.positive_pct.toFixed(1) + "%";
+      $("#signalNeutral").textContent = "Neutral " + score.neutral_pct.toFixed(1) + "%";
+      $("#signalNegative").textContent = "Negative " + score.negative_pct.toFixed(1) + "%";
+
+      $("#signalPositiveBar").style.width = clamp(score.positive_pct, 0, 100) + "%";
+      $("#signalNeutralBar").style.width = clamp(score.neutral_pct, 0, 100) + "%";
+      $("#signalNegativeBar").style.width = clamp(score.negative_pct, 0, 100) + "%";
+
+      $("#signalPositiveBarText").textContent = score.positive_pct.toFixed(1) + "%";
+      $("#signalNeutralBarText").textContent = score.neutral_pct.toFixed(1) + "%";
+      $("#signalNegativeBarText").textContent = score.negative_pct.toFixed(1) + "%";
+
+      $("#trendReputationText").textContent = getTrendLabel(score.brand_reputation_score, true);
+      $("#trendPositiveText").textContent = getTrendLabel(score.positive_pct, true);
+      $("#trendNegativeText").textContent = getTrendLabel(score.negative_pct, false);
+
+      setTrendIcon($("#trendReputationIcon"), score.brand_reputation_score >= 40 ? "up" : score.brand_reputation_score < 10 ? "down" : "flat");
+      setTrendIcon($("#trendPositiveIcon"), score.positive_pct >= 50 ? "up" : "flat");
+      setTrendIcon($("#trendNegativeIcon"), score.negative_pct >= 40 ? "down" : "flat");
+      $("#signalTimestamp").textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    }
+
+    function updateConfidenceSignal(confidence, sentiment) {
+      const numeric = Number.isFinite(confidence) ? clamp(confidence, 0, 100) : 0;
+      const color = sentimentClass(sentiment) === "sentiment-positive"
+        ? "var(--positive)"
+        : sentimentClass(sentiment) === "sentiment-negative"
+          ? "var(--negative)"
+          : "var(--neutral)";
+
+      renderGauge($("#signalConfidenceGauge"), numeric, {
+        displayValue: numeric ? numeric.toFixed(0) : "0",
+        label: "Latest Signal",
+        suffix: "%",
+        caption: numeric ? "Confidence from the most recent prediction event." : "Confidence updates after prediction events.",
+        color
+      });
+
+      $("#signalConfidenceNote").textContent = numeric
+        ? sentiment + " classification detected with " + numeric.toFixed(1) + "% confidence."
+        : "No recent prediction event.";
+    }
+
+    function pathFromPoints(points) {
+      if (!points.length) return "";
+      return points.map((point, index) => (index ? "L" : "M") + point.x + " " + point.y).join(" ");
+    }
+
+    function renderTrendChart(trends) {
+      const grid = $("#trendGrid");
+      const labels = $("#trendLabels");
+      grid.innerHTML = "";
+      labels.innerHTML = "";
+
+      if (!Array.isArray(trends) || !trends.length) {
+        $("#trendPositivePath").setAttribute("d", "");
+        $("#trendNeutralPath").setAttribute("d", "");
+        $("#trendNegativePath").setAttribute("d", "");
+        $("#trendCaption").textContent = "Trend graph waiting for `/dashboard/trends` data.";
+        return;
+      }
+
+      const width = 320;
+      const height = 180;
+      const padding = { top: 16, right: 14, bottom: 30, left: 10 };
+      const maxValue = Math.max(1, ...trends.flatMap((item) => [Number(item.Positive || 0), Number(item.Neutral || 0), Number(item.Negative || 0)]));
+      const usableWidth = width - padding.left - padding.right;
+      const usableHeight = height - padding.top - padding.bottom;
+      const step = trends.length > 1 ? usableWidth / (trends.length - 1) : usableWidth / 2;
+
+      [0, 0.25, 0.5, 0.75, 1].forEach((ratio) => {
+        const y = padding.top + usableHeight * ratio;
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", padding.left);
+        line.setAttribute("x2", width - padding.right);
+        line.setAttribute("y1", y);
+        line.setAttribute("y2", y);
+        line.setAttribute("stroke", "rgba(142,165,195,0.14)");
+        line.setAttribute("stroke-width", "1");
+        grid.appendChild(line);
+      });
+
+      const pointSet = { Positive: [], Neutral: [], Negative: [] };
+      trends.forEach((item, index) => {
+        const x = padding.left + step * index;
+        ["Positive", "Neutral", "Negative"].forEach((key) => {
+          const value = Number(item[key] || 0);
+          const y = padding.top + usableHeight - (value / maxValue) * usableHeight;
+          pointSet[key].push({ x, y });
+        });
+
+        const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        label.setAttribute("x", x);
+        label.setAttribute("y", height - 8);
+        label.setAttribute("fill", "var(--muted)");
+        label.setAttribute("font-size", "10");
+        label.setAttribute("text-anchor", index === 0 ? "start" : index === trends.length - 1 ? "end" : "middle");
+        label.textContent = String(item.period || "").slice(2);
+        labels.appendChild(label);
+      });
+
+      $("#trendPositivePath").setAttribute("d", pathFromPoints(pointSet.Positive));
+      $("#trendNeutralPath").setAttribute("d", pathFromPoints(pointSet.Neutral));
+      $("#trendNegativePath").setAttribute("d", pathFromPoints(pointSet.Negative));
+      $("#trendCaption").textContent = "Trend graph rendered from " + trends.length + " review periods.";
+    }
+
+    function renderKeywords(keywords) {
+      const host = $("#keywordList");
+      if (!Array.isArray(keywords) || !keywords.length) {
+        host.innerHTML = '<div class="keyword-caption">Keyword chart waiting for `/dashboard/keywords` data.</div>';
+        return;
+      }
+
+      const maxCount = Math.max(1, ...keywords.map((item) => Number(item.count || 0)));
+      host.innerHTML = keywords.slice(0, 8).map((item) => {
+        const width = clamp((Number(item.count || 0) / maxCount) * 100, 0, 100);
+        return [
+          '<div class="keyword-row">',
+          "<strong>" + item.word + "</strong>",
+          '<div class="keyword-bar"><span style="width:' + width.toFixed(2) + '%;"></span></div>',
+          "<span>" + Number(item.count || 0).toLocaleString() + "</span>",
+          "</div>"
+        ].join("");
+      }).join("");
+    }
+
+    async function refreshDashboardAnalytics() {
+      try {
+        const [trendsPayload, keywordsPayload, brandsPayload] = await Promise.all([
+          callApi("/dashboard/trends"),
+          callApi("/dashboard/keywords"),
+          callApi("/dashboard/brands")
+        ]);
+        state.trends = Array.isArray(trendsPayload.trends) ? trendsPayload.trends : [];
+        state.keywords = Array.isArray(keywordsPayload.keywords) ? keywordsPayload.keywords : [];
+        state.brands = Array.isArray(brandsPayload.brands) ? brandsPayload.brands.map(normalizeBrandRow) : [];
+        renderTrendChart(state.trends);
+        renderKeywords(state.keywords);
+        renderBrandSelectors(state.brands);
+        renderBrandInsights();
+        renderBrandComparison();
+      } catch (error) {
+        if (handleAuthError(error)) return;
+        $("#trendCaption").textContent = "Unable to load trend graph: " + (error.message || "request failed") + ".";
+        $("#keywordList").innerHTML = '<div class="keyword-caption">Unable to load keyword chart.</div>';
+        $("#compareSummary").textContent = "Unable to load brand comparison data.";
+        $("#similarBrandList").innerHTML = '<div class="mini-note">Unable to load similar brand data.</div>';
+      }
+    }
+
+    function ratingExpectation(rating) {
+      if (!Number.isFinite(rating)) return null;
+      if (rating >= 4) return "Positive";
+      if (rating <= 2) return "Negative";
+      return "Neutral";
+    }
+
+    function sentimentClass(sentiment) {
+      if ((sentiment || "").toLowerCase() === "positive") return "sentiment-positive";
+      if ((sentiment || "").toLowerCase() === "negative") return "sentiment-negative";
+      return "sentiment-neutral";
+    }
+
+    function extractSentiment(payload) {
+      return payload.predicted_sentiment || payload.final_sentiment || payload.sentiment || "Neutral";
+    }
+
+    function extractConfidence(payload, sentiment) {
+      const candidates = [payload.confidence, payload.prediction_confidence, payload.final_confidence];
+      for (const item of candidates) {
+        if (Number.isFinite(Number(item))) {
+          const value = Number(item);
+          return value <= 1 ? value * 100 : value;
+        }
+      }
+
+      const probabilityMaps = [payload.final_class_probabilities, payload.class_probabilities, payload.probabilities];
+      for (const map of probabilityMaps) {
+        if (map && Number.isFinite(Number(map[sentiment]))) {
+          const value = Number(map[sentiment]);
+          return value <= 1 ? value * 100 : value;
+        }
+      }
+
+      return null;
+    }
+
+    function updateSingleResult(payload, submittedRating) {
+      const sentiment = extractSentiment(payload);
+      const confidence = extractConfidence(payload, sentiment);
+      state.latestConfidence = confidence;
+      state.latestSentiment = sentiment;
+
+      const badge = $("#singleSentimentBadge");
+      badge.className = "sentiment-badge " + sentimentClass(sentiment);
+      badge.textContent = sentiment;
+
+      const meterWidth = Number.isFinite(confidence) ? clamp(confidence, 0, 100) : 0;
+      $("#singleConfidenceBar").style.width = meterWidth + "%";
+      $("#singleConfidenceText").textContent = Number.isFinite(confidence) ? meterWidth.toFixed(1) + "%" : "Unavailable";
+
+      const expected = ratingExpectation(submittedRating);
+      const mismatch = Boolean(payload.is_mismatch_with_rating) || (expected && expected !== sentiment);
+      const warning = $("#ratingWarning");
+      if (mismatch && expected) {
+        warning.classList.add("is-visible");
+        warning.textContent = "Rating suggests " + expected + " sentiment, but the classifier returned " + sentiment + ". Review the mismatch before actioning this signal.";
+      } else {
+        warning.classList.remove("is-visible");
+        warning.textContent = "";
+      }
+
+      $("#singleTechnicalJson").textContent = JSON.stringify(payload, null, 2);
+      updateConfidenceSignal(confidence, sentiment);
+    }
+
+    function sentimentTagClass(value) {
+      const normalized = (value || "").toLowerCase();
+      if (normalized === "positive") return "positive";
+      if (normalized === "negative") return "negative";
+      if (normalized === "neutral") return "neutral";
+      return "unknown";
+    }
+
+    function buildBatchPreview(payload, submittedLines) {
+      const candidates = [payload.results, payload.predictions, payload.preview, payload.items];
+      for (const list of candidates) {
+        if (Array.isArray(list) && list.length) {
+          return list.slice(0, 10).map((item, index) => {
+            const sentiment = item.predicted_sentiment || item.final_sentiment || item.sentiment || "Processed";
+            const confidence = extractConfidence(item, sentiment);
+            return {
+              review_id: item.review_id || item.id || index + 1,
+              sentiment,
+              confidence
+            };
+          });
+        }
+      }
+
+      return submittedLines.slice(0, 10).map((line, index) => ({
+        review_id: index + 1,
+        sentiment: "Processed",
+        confidence: null
+      }));
+    }
+
+    function renderBatchTable(rows) {
+      const tbody = $("#batchTableBody");
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="3" class="signal-note">No batch results available yet.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = rows.map((row) => {
+        const confidenceText = Number.isFinite(row.confidence) ? row.confidence.toFixed(1) + "%" : "Unavailable";
+        return [
+          "<tr>",
+          "<td>" + row.review_id + "</td>",
+          '<td><span class="tag ' + sentimentTagClass(row.sentiment) + '">' + row.sentiment + "</span></td>",
+          "<td>" + confidenceText + "</td>",
+          "</tr>"
+        ].join("");
+      }).join("");
+    }
+
+    function getHistory() {
+      const data = storageRead(HISTORY_KEY, []);
+      return Array.isArray(data) ? data : [];
+    }
+
+    function storeHistory(entry) {
+      const next = [entry, ...getHistory()].slice(0, 10);
+      storageWrite(HISTORY_KEY, next);
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const entries = getHistory();
+      const shell = $("#historyTimeline");
+      if (!entries.length) {
+        shell.innerHTML = '<div class="empty-state">No local activity has been recorded yet.</div>';
+        return;
+      }
+
+      shell.innerHTML = entries.map((entry) => {
+        return [
+          '<article class="timeline-item">',
+          "<strong>" + entry.title + "</strong>",
+          "<time>" + entry.time + "</time>",
+          "<p>" + entry.summary + "</p>",
+          "</article>"
+        ].join("");
+      }).join("");
+    }
+
+    function viewRouter(nextView) {
+      const view = nextView || (location.hash || "#dashboard").replace("#", "") || "dashboard";
+      const validViews = ["dashboard", "single", "batch", "history"];
+      const resolved = validViews.includes(view) ? view : "dashboard";
+      $$(".view").forEach((section) => {
+        section.classList.toggle("is-active", section.id === "view-" + resolved);
+      });
+      $$(".nav-item").forEach((button) => {
+        button.classList.toggle("is-active", button.dataset.view === resolved);
+      });
+      if (location.hash !== "#" + resolved) {
+        history.replaceState(null, "", "#" + resolved);
+      }
+      if (resolved === "history") renderHistory();
+      document.body.classList.remove("drawer-open");
+      $("#signalDrawerToggle").setAttribute("aria-expanded", "false");
+    }
+
+    function applyTheme(theme) {
+      const resolved = theme === "light" ? "light" : "dark";
+      document.body.setAttribute("data-theme", resolved);
+      $("#themeToggle").setAttribute("aria-pressed", String(resolved === "light"));
+      $("#themeLabel").textContent = resolved === "light" ? "Dark Mode" : "Light Mode";
+      $("#themeIcon").innerHTML = resolved === "light"
+        ? '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"></path>'
+        : '<circle cx="12" cy="12" r="4"></circle><path d="M12 2v2.5"></path><path d="M12 19.5V22"></path><path d="M4.9 4.9l1.8 1.8"></path><path d="M17.3 17.3l1.8 1.8"></path><path d="M2 12h2.5"></path><path d="M19.5 12H22"></path><path d="M4.9 19.1l1.8-1.8"></path><path d="M17.3 6.7l1.8-1.8"></path>';
+      storageWrite(THEME_KEY, resolved);
+    }
+
+    async function refreshBrandScore() {
+      const button = $("#refreshScoreButton");
+      setButtonLoading(button, true, "Refresh Brand Score");
+      try {
+        const payload = await callApi("/brand-score", { method: "GET", fallbackMethods: ["POST"] });
+        const score = normalizeBrandScore(payload);
+        state.brandScore = score;
+        updateDashboard(score);
+        updateSignalPanel(score);
+        refreshDashboardAnalytics();
+        toast("Brand score refreshed successfully.", "success");
+      } catch (error) {
+        if (handleAuthError(error)) return;
+        toast(error.message || "Failed to refresh brand score.", "error");
+      } finally {
+        setButtonLoading(button, false, "Refresh Brand Score");
+      }
+    }
+
+    async function handleSingleSubmit(event) {
       event.preventDefault();
-      const email = document.getElementById("loginEmail").value.trim();
-      const password = document.getElementById("loginPassword").value;
-      if (!email || password.length < 6) return;
-      setSession(email);
-      loadDashboard();
-    });
-    document.getElementById("logoutBtn").addEventListener("click", () => {
-      localStorage.removeItem("brandpulse_user");
-      sessionUser.textContent = "Guest";
-      authOverlay.classList.remove("hidden");
-      addActivity("Logout", "Admin session ended.");
-    });
-    document.querySelectorAll(".nav button").forEach((button) => button.addEventListener("click", () => switchSection(button.dataset.section)));
-    document.querySelectorAll(".action").forEach((button) => button.addEventListener("click", () => runAction(button.dataset.action)));
-    document.getElementById("preprocessBtn").addEventListener("click", () => runAction("preprocess"));
-    document.getElementById("trainBtn").addEventListener("click", () => runAction("train"));
-    document.getElementById("predictBtn").addEventListener("click", () => runAction("predict"));
-    document.getElementById("refreshBtn").addEventListener("click", () => runAction("refresh"));
-    document.getElementById("predictionForm").addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const reviewText = document.getElementById("reviewText").value.trim();
-      const platform = document.getElementById("reviewPlatform").value.trim() || "Manual Input";
-      const brand = document.getElementById("reviewBrand").value.trim() || platform;
-      const output = document.getElementById("predictionOutput");
-      if (!reviewText) return;
-      output.textContent = "Predicting sentiment...";
-      try {
-        const response = await fetch(`${API_BASE}/predict`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ review_text: reviewText, platform, brand }) });
-        const payload = await response.json();
-        if (!response.ok) throw new Error(payload.error || "Prediction failed");
-        output.innerHTML = `<strong>Predicted Sentiment:</strong> ${payload.predicted_sentiment}<br><strong>Platform:</strong> ${payload.platform}<br><strong>Cleaned Review:</strong> ${payload.cleaned_review}`;
-        addActivity("Manual prediction", `Predicted ${payload.predicted_sentiment} for ${platform}.`);
-      } catch (error) {
-        output.textContent = error.message;
+      const shell = $("#singleFormShell");
+      const reviewText = $("#singleReviewText").value.trim();
+      if (!reviewText) {
+        shake(shell);
+        toast("Single review text is required.", "error");
+        return;
       }
-    });
-    const storedUser = localStorage.getItem("brandpulse_user");
-    if (storedUser) {
-      setSession(storedUser);
-      loadDashboard();
-    } else {
-      renderHealth({ status: "waiting", model_exists: false, vectorizer_exists: false, predictions_exist: false, report_exists: false });
-      renderSnapshot({});
+
+      const ratingValue = $("#singleRating").value.trim();
+      const rating = ratingValue ? Number(ratingValue) : null;
+      const button = $("#singlePredictButton");
+      setButtonLoading(button, true, "Predict Sentiment");
+
+      const payload = {
+        review_text: reviewText,
+        platform: $("#singlePlatform").value.trim() || "Manual Input",
+        brand: $("#singleBrand").value.trim() || $("#singlePlatform").value.trim() || "Manual Input"
+      };
+
+      if (Number.isFinite(rating)) payload.rating = rating;
+
+      try {
+        const data = await callApi("/predict", { method: "POST", body: payload });
+        updateSingleResult(data, rating);
+        storeHistory({
+          title: "Single review prediction",
+          time: new Date().toLocaleString(),
+          summary: "Sentiment: " + extractSentiment(data) + (Number.isFinite(state.latestConfidence) ? " with " + state.latestConfidence.toFixed(1) + "% confidence." : ".")
+        });
+        toast("Single review prediction completed.", "success");
+      } catch (error) {
+        if (handleAuthError(error)) return;
+        $("#singleTechnicalJson").textContent = JSON.stringify({ error: error.message || "Request failed" }, null, 2);
+        $("#singleSentimentBadge").className = "sentiment-badge sentiment-negative";
+        $("#singleSentimentBadge").textContent = "Error";
+        $("#singleConfidenceBar").style.width = "0%";
+        $("#singleConfidenceText").textContent = "Unavailable";
+        $("#ratingWarning").classList.remove("is-visible");
+        toast(error.message || "Prediction failed.", "error");
+      } finally {
+        setButtonLoading(button, false, "Predict Sentiment");
+      }
     }
+
+    async function handleBatchSubmit(event) {
+      event.preventDefault();
+      const shell = $("#batchFormShell");
+      const lines = $("#batchReviewText").value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+      if (!lines.length) {
+        shake(shell);
+        toast("Batch input requires at least one review line.", "error");
+        return;
+      }
+
+      const button = $("#batchRunButton");
+      setButtonLoading(button, true, "Run Batch");
+
+      const payload = {
+        reviews: lines.map((review_text, index) => ({ review_id: index + 1, review_text })),
+        save_to_dataset: $("#saveToDataset").checked
+      };
+
+      try {
+        const data = await callApi("/predict/batch", { method: "POST", body: payload });
+        $("#batchTechnicalJson").textContent = JSON.stringify(data, null, 2);
+        const score = normalizeBrandScore(data);
+        if (score.total_reviews || score.brand_reputation_score || data.brand_score) {
+          state.brandScore = score;
+          updateDashboard(score);
+          updateSignalPanel(score);
+          refreshDashboardAnalytics();
+          renderGauge($("#batchGauge"), score.brand_reputation_score, {
+            displayValue: score.brand_reputation_score.toFixed(1),
+            label: "Batch Score",
+            suffix: "/100",
+            caption: "Updated from the batch response.",
+            color: score.brand_reputation_score >= 40 ? "var(--positive)" : score.brand_reputation_score < 10 ? "var(--negative)" : "var(--neutral)"
+          });
+        }
+
+        $("#batchProcessedCount").textContent = Number(data.rows || score.total_reviews || lines.length).toLocaleString();
+        renderBatchTable(buildBatchPreview(data, lines));
+        storeHistory({
+          title: "Batch run",
+          time: new Date().toLocaleString(),
+          summary: "Processed " + Number(data.rows || lines.length).toLocaleString() + " reviews. Updated score: " + (score.brand_reputation_score || 0).toFixed(1) + "."
+        });
+        toast("Batch prediction completed.", "success");
+      } catch (error) {
+        if (handleAuthError(error)) return;
+        $("#batchTechnicalJson").textContent = JSON.stringify({ error: error.message || "Request failed" }, null, 2);
+        renderBatchTable([]);
+        toast(error.message || "Batch prediction failed.", "error");
+      } finally {
+        setButtonLoading(button, false, "Run Batch");
+      }
+    }
+
+    function clearHistory() {
+      storageWrite(HISTORY_KEY, []);
+      renderHistory();
+      toast("Local history cleared.", "info");
+    }
+
+    function bindEvents() {
+      $$(".nav-item").forEach((button) => {
+        button.addEventListener("click", () => viewRouter(button.dataset.view));
+      });
+
+      window.addEventListener("hashchange", () => viewRouter());
+      $("#themeToggle").addEventListener("click", () => {
+        const nextTheme = document.body.getAttribute("data-theme") === "dark" ? "light" : "dark";
+        applyTheme(nextTheme);
+      });
+      $("#signalDrawerToggle").addEventListener("click", () => {
+        const next = !document.body.classList.contains("drawer-open");
+        document.body.classList.toggle("drawer-open", next);
+        $("#signalDrawerToggle").setAttribute("aria-expanded", String(next));
+      });
+      $("#refreshScoreButton").addEventListener("click", refreshBrandScore);
+      $("#dashboardSyncButton").addEventListener("click", refreshBrandScore);
+      $("#brandInsightSelect").addEventListener("change", renderBrandInsights);
+      $("#compareBrandA").addEventListener("change", renderBrandComparison);
+      $("#compareBrandB").addEventListener("change", renderBrandComparison);
+      $("#singleForm").addEventListener("submit", handleSingleSubmit);
+      $("#batchForm").addEventListener("submit", handleBatchSubmit);
+      $("#clearHistoryButton").addEventListener("click", clearHistory);
+      $("#loginTab").addEventListener("click", () => setAuthMode("login"));
+      $("#registerTab").addEventListener("click", () => setAuthMode("register"));
+      $("#switchToRegister").addEventListener("click", () => setAuthMode("register"));
+      $("#switchToLogin").addEventListener("click", () => setAuthMode("login"));
+      $("#loginForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const email = $("#loginEmail").value.trim();
+        const password = $("#loginPassword").value;
+        if (!email || !password) {
+          $("#authError").textContent = "Email and password are required.";
+          return;
+        }
+
+        const button = $("#loginButton");
+        setButtonLoading(button, true, "Login");
+        $("#authError").textContent = "";
+        try {
+          const payload = await callApi("/auth/login", {
+            method: "POST",
+            body: { email, password }
+          });
+          setSession(payload.user || email);
+          toast("Login successful.", "success");
+          refreshBrandScore();
+        } catch (error) {
+          $("#authError").textContent = error.message || "Login failed.";
+        } finally {
+          setButtonLoading(button, false, "Login");
+        }
+      });
+      $("#registerForm").addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const name = $("#registerName").value.trim();
+        const email = $("#registerEmail").value.trim();
+        const password = $("#registerPassword").value;
+        const validationError = validateRegistrationForm(name, email, password);
+        if (validationError) {
+          $("#registerError").textContent = validationError;
+          return;
+        }
+
+        const button = $("#registerButton");
+        setButtonLoading(button, true, "Create Account");
+        $("#registerError").textContent = "";
+        try {
+          await callApi("/auth/register", {
+            method: "POST",
+            body: { name, email, password }
+          });
+          $("#loginEmail").value = email;
+          $("#loginPassword").value = "";
+          $("#registerForm").reset();
+          setAuthMode("login");
+          $("#authMessage").textContent = "Account created. Sign in with your new credentials.";
+          toast("Account created successfully. Please log in.", "success");
+        } catch (error) {
+          $("#registerError").textContent = error.message || "Account creation failed.";
+        } finally {
+          setButtonLoading(button, false, "Create Account");
+        }
+      });
+      $("#logoutButton").addEventListener("click", async () => {
+        try {
+          await callApi("/auth/logout", { method: "POST" });
+        } catch (error) {
+          // Ignore logout API errors and still clear local session UI.
+        }
+        clearSessionUi();
+        showLogin("Signed out. Sign in again to continue.");
+      });
+    }
+
+    async function bootUi() {
+      const savedTheme = storageRead(THEME_KEY, "dark");
+      applyTheme(savedTheme);
+      renderGauge($("#brandGauge"), 0, {
+        displayValue: "0.0",
+        label: "Brand Reputation",
+        suffix: "/100 score",
+        caption: "Waiting for live score telemetry.",
+        color: "var(--accent)"
+      });
+      renderGauge($("#batchGauge"), 0, {
+        displayValue: "0",
+        label: "Batch Score",
+        suffix: "/100",
+        caption: "Waiting for batch response.",
+        color: "var(--accent)"
+      });
+      updateConfidenceSignal(null, "Neutral");
+      renderHistory();
+      bindEvents();
+      viewRouter();
+      try {
+        const sessionState = await callApi("/auth/session");
+        if (sessionState && sessionState.authenticated) {
+          setSession(sessionState.user);
+          refreshBrandScore();
+        } else {
+          clearSessionUi();
+          showLogin();
+        }
+      } catch (error) {
+        clearSessionUi();
+        showLogin("Unable to verify the backend session. Make sure the Flask app is running, then sign in.");
+      }
+    }
+
+    bootUi();
   </script>
 </body>
 </html>
