@@ -11,6 +11,7 @@ RAW_DATA_EXCLUSIONS = {
     "cleaned_reviews.csv",
     "feature_dataset.csv",
     "final_predictions.csv",
+    "brand_reputation_by_brand.csv",
     "sentiment_trends.csv",
     "platform_summary.csv",
     "model_metrics.csv",
@@ -33,16 +34,21 @@ MODEL_METRICS_PATH = DATASET_DIR / "model_metrics.csv"
 TRAINING_HISTORY_PATH = DATASET_DIR / "training_history.csv"
 SENTIMENT_TRENDS_PATH = DATASET_DIR / "sentiment_trends.csv"
 PLATFORM_SUMMARY_PATH = DATASET_DIR / "platform_summary.csv"
+USER_STORE_PATH = DATASET_DIR / "dashboard_users.json"
 
 CONFUSION_MATRIX_PATH = DATASET_DIR / "confusion_matrix.png"
-MODEL_ACCURACY_CHART_PATH = DATASET_DIR / "model_accuracy.png"
+MODEL_METRICS_CHART_PATH = DATASET_DIR / "model_metrics.png"
 TRAINING_HISTORY_CHART_PATH = DATASET_DIR / "training_history.png"
 SENTIMENT_DISTRIBUTION_PATH = DATASET_DIR / "sentiment_distribution.png"
 REVIEW_TRENDS_CHART_PATH = DATASET_DIR / "review_trends.png"
 KEYWORD_FREQUENCY_PATH = DATASET_DIR / "keyword_frequency.png"
 PLATFORM_DISTRIBUTION_PATH = DATASET_DIR / "platform_distribution.png"
 
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
+MONGO_URI = ("mongodb+srv://kik81252:kika2005@cluster0.gmpo9u2.mongodb.net/?appName=Cluster0")
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "brand_review_analysis")
 MONGO_REVIEWS_COLLECTION = os.getenv("MONGO_REVIEWS_COLLECTION", "processed_reviews")
 MONGO_PREDICTIONS_COLLECTION = os.getenv("MONGO_PREDICTIONS_COLLECTION", "review_predictions")
+
+SECRET_KEY = os.getenv("SECRET_KEY", "brandpulse-dev-secret-key")
+DASHBOARD_ADMIN_EMAIL = os.getenv("DASHBOARD_ADMIN_EMAIL", "admin@brandpulse.ai")
+DASHBOARD_ADMIN_PASSWORD = os.getenv("DASHBOARD_ADMIN_PASSWORD", "admin123")

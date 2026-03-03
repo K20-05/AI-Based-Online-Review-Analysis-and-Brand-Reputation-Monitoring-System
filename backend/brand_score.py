@@ -35,6 +35,46 @@ def summarize_sentiment_counts(df: pd.DataFrame) -> dict:
     }
 
 
+def format_brand_score_report(payload: dict) -> str:
+    brand_rows = payload.get("brand_scores", [])
+    lines = [
+        "",
+        "=" * 78,
+        "BRAND REPUTATION SUMMARY",
+        "=" * 78,
+        f"Total Reviews            : {payload.get('total_reviews', 0):,}",
+        f"Positive Reviews         : {payload.get('positive', 0):,} ({payload.get('positive_pct', 0):.2f}%)",
+        f"Neutral Reviews          : {payload.get('neutral', 0):,} ({payload.get('neutral_pct', 0):.2f}%)",
+        f"Negative Reviews         : {payload.get('negative', 0):,} ({payload.get('negative_pct', 0):.2f}%)",
+        f"Brand Reputation Score   : {payload.get('brand_reputation_score', 0):.2f}",
+        "",
+    ]
+
+    if not brand_rows:
+        lines.append("No brand-level scores available.")
+        return "\n".join(lines)
+
+    lines.extend(
+        [
+            "Brand-Level Breakdown",
+            "-" * 78,
+            f"{'Brand':<30} {'Reviews':>10} {'Positive %':>12} {'Negative %':>12} {'Score':>10}",
+            "-" * 78,
+        ]
+    )
+    for row in brand_rows:
+        brand = str(row.get("brand", "Unknown"))[:30]
+        lines.append(
+            f"{brand:<30} "
+            f"{row.get('total_reviews', 0):>10,} "
+            f"{row.get('positive_pct', 0):>11.2f}% "
+            f"{row.get('negative_pct', 0):>11.2f}% "
+            f"{row.get('brand_reputation_score', 0):>10.2f}"
+        )
+    lines.append("-" * 78)
+    return "\n".join(lines)
+
+
 def calculate_brand_score() -> dict:
     df = pd.read_csv(
         PREDICTIONS_PATH,
@@ -105,7 +145,7 @@ def calculate_brand_score() -> dict:
 
 def main():
     payload = calculate_brand_score()
-    print(json.dumps(payload, indent=2))
+    print(format_brand_score_report(payload))
 
 
 if __name__ == "__main__":

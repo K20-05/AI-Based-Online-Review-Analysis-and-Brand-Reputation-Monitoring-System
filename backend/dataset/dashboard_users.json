@@ -1,0 +1,87 @@
+[
+  {
+    "name": "Administrator",
+    "email": "admin@brandpulse.ai",
+    "password_hash": "scrypt:32768:8:1$srf6OcIDSZ4CWvNy$78d4326f50bd3957cc4709a32b9722d07ea319b7cc6ae62bf0a8152de0afedac16e1d6be442138fcebe519de4732b4b75778cda0145158ec0e36ff189f67aa07",
+    "role": "admin",
+    "created_at": "2026-03-03T11:05:11.461587+00:00"
+  },
+  {
+    "name": "Test User",
+    "email": "testuser@example.com",
+    "password_hash": "scrypt:32768:8:1$tlFdyZwy3QIULRXw$802731342dad4144a988e1fe6f9317ce16fb7374b584a0ac07bdf0b2f0a730507aa23f2756d64be48d4e047d83471ac1ed610197ae9e31ff301572c5780140b6",
+    "role": "user",
+    "created_at": "2026-03-03T11:05:11.614917+00:00"
+  },
+  {
+    "name": "hello",
+    "email": "22@gmail.com",
+    "password_hash": "scrypt:32768:8:1$KSRz05UEf6Evxr8N$e21b2433faceab8a556458691debccaad0e55adc93cb79d67e7270fcc5fcebf6aa54f8f69892d35e795fb057a1bd75867b2a1e5f4fdfde3b84e776a7f54eb47d",
+    "role": "user",
+    "created_at": "2026-03-03T11:07:00.690808+00:00"
+  },
+  {
+    "name": "Reset User",
+    "email": "resetuser@example.com",
+    "password_hash": "scrypt:32768:8:1$a5Cy76m19e1SrDJ6$11c5ec0a440a42d4ae730f4a55bf661831a72c7ae905c27b1bc7ca17f262e8a906bf5c0fadea9142e0ca4b96c6b9bd4b1af8c729ea38841067ff91788c78716e",
+    "role": "user",
+    "created_at": "2026-03-03T11:27:17.592542+00:00",
+    "updated_at": "2026-03-03T11:27:17.725322+00:00"
+  },
+  {
+    "name": "Aarav Singh",
+    "email": "team@brandpulse.ai",
+    "password_hash": "scrypt:32768:8:1$BHG1TyoSIVIwMdbK$2bab1e67e1c8e346ecf8c8ad27951fc2d2ec6eae2c2edffc26edf1ee5de717d255b6b8384b059ea29c7e22bb81f3040bcec463ffb9c2cbf5293d88e3a8effdb7",
+    "role": "user",
+    "created_at": "2026-03-03T11:29:42.294823+00:00"
+  },
+  {
+    "name": "hello",
+    "email": "kika@gmail.com",
+    "password_hash": "scrypt:32768:8:1$kmlrQ8qF6QvCIQZR$4ad12de621879a8a49387f3c588e6d36c09e1778ee81fd06fb1e55769ee04b42b4fc180b6c5f97c72242806a13f35a42e063a12a98717853230299db171757b0",
+    "role": "user",
+    "created_at": "2026-03-03T11:31:48.695159+00:00"
+  },
+  {
+    "name": "Mg",
+    "email": "mark@gmail.com",
+    "password_hash": "scrypt:32768:8:1$JMtuLgpvR4eojax5$6833bbb724db58f907b88efbebe3d3242c80cb2c4635cdb1d806a19a164afc342561f13aaa5de128c6f1ecfd47591c85394fe7273cb89184d52dc8b5795654a1",
+    "role": "user",
+    "created_at": "2026-03-03T11:34:17.805943+00:00"
+  },
+  {
+    "name": "NoSession User",
+    "email": "nosession@example.com",
+    "password_hash": "scrypt:32768:8:1$vppqAmizJeYLg2RA$ef3df6fe6a2a80040a5b0d022a644047581bba2d926b1c86f0e7399fe3c63f2b89d188f191dc9a0fdb324e0e66039bc67b9071097a6575ad72ced01e23f3ae65",
+    "role": "user",
+    "created_at": "2026-03-03T11:48:48.607221+00:00"
+  },
+  {
+    "name": "hell",
+    "email": "7@gmail.com",
+    "password_hash": "scrypt:32768:8:1$mybMejPHpxps3Vif$ab5503928da6dd33e29e3ac792a4807364e84d2fdc3918001546af956302f83fbe30b1b526b47bf5d95ffebaf77e7a65e01de237b51fa2f7de2a96bb8fd8a105",
+    "role": "user",
+    "created_at": "2026-03-03T11:52:57.445795+00:00"
+  },
+  {
+    "name": "Strong User",
+    "email": "strong@example.com",
+    "password_hash": "scrypt:32768:8:1$7hrfjrRHZm1U7QM4$8fb4bebb65ff9ecb3f9af8b7fcc00d1fe53216251b80e2e64e8570102b9df298b346dcf522abc12f343ce8393b4c37b15a32f641bbeaf34ee9254038fca7f609",
+    "role": "user",
+    "created_at": "2026-03-03T12:00:25.634973+00:00"
+  },
+  {
+    "name": "h",
+    "email": "j@gmail.com",
+    "password_hash": "scrypt:32768:8:1$wbkDGZSk4PSgF6zG$ab72fb1121d1817c97429672e3c2fe2ff3db5f6bd09d2acb634dd2b3caaa83f5a19de8fd0c28fe08fbfb8d3e68beeb5b8f90a221e4cf271a559a7ad0d352d79f",
+    "role": "user",
+    "created_at": "2026-03-03T12:06:49.405918+00:00"
+  },
+  {
+    "name": "ki",
+    "email": "keeru@gmail.com",
+    "password_hash": "scrypt:32768:8:1$znLiaFckV7sdJxLF$281412f961985d7df3891faa923667112917800e806219e54517e24cf41e271a30015472593ce570ec108e24acee22c888796fb1b26dcc0f9fff0b10b50b474e",
+    "role": "user",
+    "created_at": "2026-03-03T13:44:12.041144+00:00"
+  }
+]

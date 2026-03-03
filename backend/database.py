@@ -27,6 +27,17 @@ def mongo_enabled() -> bool:
     return MongoClient is not None
 
 
+def format_mongo_error(error: Exception) -> str:
+    text = str(error)
+    if "Authentication failed" in text or "bad auth" in text.lower():
+        return "MongoDB authentication failed. Check the Atlas username and password."
+    if "No servers found yet" in text or "localhost:27017" in text:
+        return "MongoDB connection failed. Check that the configured server is reachable."
+    if "SSL handshake failed" in text:
+        return "MongoDB TLS handshake failed. Check Atlas network and TLS compatibility."
+    return "MongoDB operation failed."
+
+
 def get_database():
     if not mongo_enabled():
         return None
@@ -45,7 +56,8 @@ def write_dataframe(df: pd.DataFrame, collection_name: str, replace: bool = True
         if records:
             collection.insert_many(records)
         return True
-    except PyMongoError:
+    except PyMongoError as error:
+        print(f"MongoDB write failed for {collection_name}: {format_mongo_error(error)}")
         return False
 
 
@@ -55,7 +67,8 @@ def read_dataframe(collection_name: str) -> pd.DataFrame:
     try:
         collection = get_database()[collection_name]
         return pd.DataFrame(list(collection.find({}, {"_id": 0})))
-    except PyMongoError:
+    except PyMongoError as error:
+        print(f"MongoDB read failed for {collection_name}: {format_mongo_error(error)}")
         return pd.DataFrame()
 
 

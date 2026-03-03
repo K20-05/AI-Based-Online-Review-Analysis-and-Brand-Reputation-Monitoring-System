@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 from sklearn.base import clone
-from sklearn.model_selection import GridSearchCV
 from sklearn.pipeline import FeatureUnion
 from sklearn.pipeline import Pipeline
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -18,7 +17,6 @@ from sklearn.metrics import (
     classification_report,
     confusion_matrix,
     f1_score,
-    log_loss,
     precision_score,
     recall_score,
 )
@@ -29,7 +27,7 @@ if __package__ is None or __package__ == "":
 
 from backend.config import (
     CONFUSION_MATRIX_PATH,
-    MODEL_ACCURACY_CHART_PATH,
+    MODEL_METRICS_CHART_PATH,
     MODEL_METRICS_PATH,
     MODEL_PATH,
     MODEL_REPORT_PATH,
@@ -68,17 +66,8 @@ def build_search_pipeline() -> Pipeline:
                             TfidfVectorizer(
                                 analyzer="word",
                                 ngram_range=(1, 2),
-                                min_df=2,
-                                max_features=40000,
-                                sublinear_tf=True,
-                            ),
-                        ),
-                        (
-                            "char_tfidf",
-                            TfidfVectorizer(
-                                analyzer="char_wb",
-                                ngram_range=(3, 5),
-                                min_df=2,
+                                min_df=3,
+                                max_features=12000,
                                 sublinear_tf=True,
                             ),
                         ),
@@ -88,39 +77,30 @@ def build_search_pipeline() -> Pipeline:
             (
                 "model",
                 LogisticRegression(
-                    max_iter=5000,
-                    solver="saga",
+                    max_iter=1500,
+                    solver="lbfgs",
+                    C=1.0,
                 ),
             ),
         ]
     )
 
 
-def tune_model(x_train_text, y_train) -> tuple[Pipeline, dict]:
+def build_direct_model() -> tuple[Pipeline, dict]:
     pipeline = build_search_pipeline()
-    search = GridSearchCV(
-        estimator=pipeline,
-        param_grid={
-            "features__word_tfidf__ngram_range": [(1, 1), (1, 2), (1, 3)],
-            "features__word_tfidf__max_features": [30000, 40000, 60000],
-            "features__word_tfidf__min_df": [2, 3],
-            "features__char_tfidf__ngram_range": [(3, 5), (4, 6)],
-            "model__C": [0.5, 1.0, 2.0, 4.0],
-            "model__class_weight": [None, "balanced"],
-        },
-        scoring="accuracy",
-        cv=3,
-        n_jobs=-1,
-        verbose=0,
-    )
-    search.fit(x_train_text, y_train)
-    return search.best_estimator_, search.best_params_
+    params = {
+        "word_tfidf_ngram_range": (1, 2),
+        "word_tfidf_max_features": 12000,
+        "word_tfidf_min_df": 3,
+        "model_C": 1.0,
+        "model_solver": "lbfgs",
+    }
+    return pipeline, params
 
 
 def build_training_history(model, x_train, x_test, y_train, y_test) -> pd.DataFrame:
-    labels = sorted(y_train.astype(str).unique())
     rows = []
-    train_sizes = [0.2, 0.4, 0.6, 0.8, 1.0]
+    train_sizes = [0.3, 0.6, 1.0]
     for fraction in train_sizes:
         size = max(2, int(len(y_train) * fraction))
         x_subset = x_train[:size]
@@ -131,48 +111,43 @@ def build_training_history(model, x_train, x_test, y_train, y_test) -> pd.DataFr
         fitted.fit(x_subset, y_subset)
         train_pred = fitted.predict(x_subset)
         test_pred = fitted.predict(x_test)
-        train_proba = fitted.predict_proba(x_subset)
-        test_proba = fitted.predict_proba(x_test)
         rows.append(
             {
                 "train_size": size,
                 "train_accuracy": round(accuracy_score(y_subset, train_pred) * 100, 2),
                 "validation_accuracy": round(accuracy_score(y_test, test_pred) * 100, 2),
-                "train_loss": round(log_loss(y_subset, train_proba, labels=labels), 4),
-                "validation_loss": round(log_loss(y_test, test_proba, labels=labels), 4),
             }
         )
     return pd.DataFrame(rows)
 
 
-def save_metric_charts(accuracy: float, history_df: pd.DataFrame) -> None:
-    plt.figure(figsize=(7, 4.5))
-    plt.bar(["Logistic Regression"], [accuracy], color="#2a9d8f")
-    plt.title("Model Accuracy")
-    plt.xlabel("Model")
-    plt.ylabel("Accuracy (%)")
+def save_metric_charts(result: dict, history_df: pd.DataFrame) -> None:
+    metric_names = ["accuracy", "precision_macro", "recall_macro", "f1_macro"]
+    metric_labels = ["Accuracy", "Precision", "Recall", "F1"]
+    metric_values = [result[name] for name in metric_names]
+
+    plt.figure(figsize=(7.5, 4.5))
+    bars = plt.bar(metric_labels, metric_values, color=["#2a9d8f", "#457b9d", "#e9c46a", "#e76f51"])
+    plt.title("Model Metrics")
+    plt.ylabel("Score")
+    plt.ylim(0, 100 if max(metric_values) > 1 else 1)
+    for bar, value in zip(bars, metric_values):
+        label = f"{value:.2f}" if value > 1 else f"{value:.4f}"
+        plt.text(bar.get_x() + bar.get_width() / 2, bar.get_height(), label, ha="center", va="bottom")
     plt.tight_layout()
-    plt.savefig(MODEL_ACCURACY_CHART_PATH, dpi=300)
+    plt.savefig(MODEL_METRICS_CHART_PATH, dpi=300)
     plt.close()
 
     if history_df.empty:
         return
 
-    fig, axes = plt.subplots(1, 2, figsize=(11, 4.5))
-    axes[0].plot(history_df["train_size"], history_df["train_accuracy"], marker="o", label="Train Accuracy")
-    axes[0].plot(history_df["train_size"], history_df["validation_accuracy"], marker="o", label="Validation Accuracy")
-    axes[0].set_title("Accuracy vs Train Size")
-    axes[0].set_xlabel("Training Samples")
-    axes[0].set_ylabel("Accuracy (%)")
-    axes[0].legend()
-
-    axes[1].plot(history_df["train_size"], history_df["train_loss"], marker="o", label="Train Loss")
-    axes[1].plot(history_df["train_size"], history_df["validation_loss"], marker="o", label="Validation Loss")
-    axes[1].set_title("Loss vs Train Size")
-    axes[1].set_xlabel("Training Samples")
-    axes[1].set_ylabel("Log Loss")
-    axes[1].legend()
-
+    plt.figure(figsize=(7.5, 4.5))
+    plt.plot(history_df["train_size"], history_df["train_accuracy"], marker="o", label="Train Accuracy")
+    plt.plot(history_df["train_size"], history_df["validation_accuracy"], marker="o", label="Validation Accuracy")
+    plt.title("Accuracy vs Train Size")
+    plt.xlabel("Training Samples")
+    plt.ylabel("Accuracy (%)")
+    plt.legend()
     plt.tight_layout()
     plt.savefig(TRAINING_HISTORY_CHART_PATH, dpi=300)
     plt.close()
@@ -181,6 +156,7 @@ def save_metric_charts(accuracy: float, history_df: pd.DataFrame) -> None:
 def train_models() -> pd.DataFrame:
     df = load_cleaned_reviews()
     df = sample_reviews_per_dataset(df, TRAINING_SAMPLE_LIMIT_PER_DATASET)
+    print(f"Training rows used: {len(df)}", flush=True)
     df["sentiment_label"] = df["rating"].apply(label_from_rating)
 
     x_text = df["cleaned_review"]
@@ -198,11 +174,13 @@ def train_models() -> pd.DataFrame:
         stratify=stratify_target,
     )
 
-    best_pipeline, best_params = tune_model(x_train_text, y_train)
+    best_pipeline, best_params = build_direct_model()
     vectorizer = best_pipeline.named_steps["features"]
     logistic_model = best_pipeline.named_steps["model"]
+    print("Building training features...", flush=True)
     x_train = vectorizer.fit_transform(x_train_text)
     x_test = vectorizer.transform(x_test_text)
+    print("Fitting logistic regression...", flush=True)
     result = evaluate_model("Logistic Regression", logistic_model, x_train, x_test, y_train, y_test)
 
     metrics_df = pd.DataFrame(
@@ -213,12 +191,13 @@ def train_models() -> pd.DataFrame:
     best_model = result["model_object"]
     best_predictions = result["predictions"]
     accuracy = result["accuracy"]
+    print("Building training history...", flush=True)
     history_df = build_training_history(best_model, x_train, x_test, y_train, y_test)
 
     joblib.dump(best_model, MODEL_PATH)
     joblib.dump(vectorizer, VECTORIZER_PATH)
     history_df.to_csv(TRAINING_HISTORY_PATH, index=False)
-    save_metric_charts(accuracy, history_df)
+    save_metric_charts(result, history_df)
 
     labels = ["Positive", "Neutral", "Negative"]
     cm = confusion_matrix(y_test, best_predictions, labels=labels)
@@ -243,7 +222,6 @@ def train_models() -> pd.DataFrame:
         handle.write(report)
 
     print("Training complete")
-    print(f"Training rows used: {len(df)}")
     if "source_file" in df.columns:
         counts = df["source_file"].value_counts().sort_index()
         print("Training samples per dataset:")
@@ -254,7 +232,7 @@ def train_models() -> pd.DataFrame:
     print(f"Best model saved: {MODEL_PATH}")
     print(f"Vectorizer saved: {VECTORIZER_PATH}")
     print(f"Metrics saved: {MODEL_METRICS_PATH}")
-    print(f"Accuracy chart saved: {MODEL_ACCURACY_CHART_PATH}")
+    print(f"Metrics chart saved: {MODEL_METRICS_CHART_PATH}")
     print(f"Training history saved: {TRAINING_HISTORY_PATH}")
     print(f"Training history chart saved: {TRAINING_HISTORY_CHART_PATH}")
     print(f"Report saved: {MODEL_REPORT_PATH}")

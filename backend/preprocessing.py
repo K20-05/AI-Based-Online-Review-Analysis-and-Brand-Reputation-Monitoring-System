@@ -181,7 +181,18 @@ def preprocess_reviews(save_to_mongo: bool = True) -> pd.DataFrame:
     files = raw_csv_files()
     if not files:
         raise FileNotFoundError(f"No raw CSV files found in {DATASET_DIR}")
-    df = pd.concat([normalize_frame(path) for path in files], ignore_index=True)
+    normalized_frames = []
+    skipped_files = []
+    for path in files:
+        try:
+            normalized_frames.append(normalize_frame(path))
+        except ValueError as error:
+            skipped_files.append(f"Skipped {path.name}: {error}")
+
+    if not normalized_frames:
+        raise ValueError(f"No valid raw review CSV files found in {DATASET_DIR}")
+
+    df = pd.concat(normalized_frames, ignore_index=True)
     before_rows = len(df)
     df["cleaned_review"] = df["review_text"].apply(clean_text)
     df = df[df["cleaned_review"].str.strip() != ""].copy()
@@ -197,6 +208,8 @@ def preprocess_reviews(save_to_mongo: bool = True) -> pd.DataFrame:
         f"Rows after preprocessing: {after_rows}\n"
         f"MongoDB saved: {mongo_saved}"
     )
+    if skipped_files:
+        print("\n".join(skipped_files))
     return output_df
 
 
