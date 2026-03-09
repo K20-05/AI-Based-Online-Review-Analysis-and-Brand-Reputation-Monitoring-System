@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from collections import Counter
 from datetime import datetime, UTC
-from functools import lru_cache, wraps
+from functools import wraps
 import json
 from pathlib import Path
 import re
@@ -20,7 +19,6 @@ if __package__ is None or __package__ == "":
 from backend.brand_score import calculate_brand_score, summarize_sentiment_counts
 from backend.config import (
     BRAND_REPUTATION_BY_BRAND_PATH,
-    BRAND_SCORE_PATH,
     DASHBOARD_ADMIN_EMAIL,
     DASHBOARD_ADMIN_PASSWORD,
     FRONTEND_DIR,

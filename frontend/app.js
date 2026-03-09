@@ -370,7 +370,10 @@ const HISTORY_KEY = "brandpulse-control-room-history";
         if (marketingSignalSection) marketingSignalSection.classList.add("hidden");
         if (analystFocusSection) analystFocusSection.classList.add("hidden");
         if (gaugeSection) gaugeSection.classList.add("hidden");
-        if (statsSection) statsSection.classList.remove("hidden");
+        if (statsSection) {
+          statsSection.classList.remove("hidden");
+          statsSection.classList.add("stats-strip--wide");
+        }
         if (summarySection) summarySection.classList.add("hidden");
         if (adminControlHub) adminControlHub.classList.remove("hidden");
         if (confidenceWidget) confidenceWidget.classList.add("hidden");
@@ -398,7 +401,10 @@ const HISTORY_KEY = "brandpulse-control-room-history";
         if (marketingSignalSection) marketingSignalSection.classList.remove("hidden");
         if (analystFocusSection) analystFocusSection.classList.add("hidden");
         if (gaugeSection) gaugeSection.classList.add("hidden");
-        if (statsSection) statsSection.classList.add("hidden");
+        if (statsSection) {
+          statsSection.classList.add("hidden");
+          statsSection.classList.remove("stats-strip--wide");
+        }
         if (summarySection) summarySection.classList.remove("hidden");
         if (adminControlHub) adminControlHub.classList.add("hidden");
         if (adminSideSummaryWidget) adminSideSummaryWidget.classList.add("hidden");
@@ -423,7 +429,10 @@ const HISTORY_KEY = "brandpulse-control-room-history";
       if (marketingSignalSection) marketingSignalSection.classList.add("hidden");
       if (analystFocusSection) analystFocusSection.classList.remove("hidden");
       if (gaugeSection) gaugeSection.classList.add("hidden");
-      if (statsSection) statsSection.classList.add("hidden");
+      if (statsSection) {
+        statsSection.classList.add("hidden");
+        statsSection.classList.remove("stats-strip--wide");
+      }
       if (summarySection) summarySection.classList.add("hidden");
       if (adminControlHub) adminControlHub.classList.add("hidden");
       if (adminSideSummaryWidget) adminSideSummaryWidget.classList.add("hidden");
@@ -444,6 +453,7 @@ const HISTORY_KEY = "brandpulse-control-room-history";
       state.userRole = normalizeAccessRole(role);
       applyRoleNavLabels(state.userRole);
       applyDashboardRolePresentation(state.userRole);
+      applyAnalyticsSummaryPresentation(state.userRole);
       if (state.userRole === "admin" && !state.modelMetrics) loadAdminModelPerformance();
       renderNavAccordion(state.userRole);
     }
@@ -1069,6 +1079,7 @@ const HISTORY_KEY = "brandpulse-control-room-history";
       $("#statTotalReviews").textContent = score.total_reviews.toLocaleString();
       $("#statPositivePct").textContent = score.positive_pct.toFixed(2) + "%";
       $("#statNegativePct").textContent = score.negative_pct.toFixed(2) + "%";
+      $("#statBrandScore").textContent = score.brand_reputation_score.toFixed(1);
       $("#dashboardNarrative").textContent = narrative[0];
       $("#dashboardNarrativeCopy").textContent = narrative[1];
       $("#dashboardSource").textContent = state.latestSource;
@@ -1267,6 +1278,37 @@ const HISTORY_KEY = "brandpulse-control-room-history";
         : "Platform comparison will appear after analytics load.";
     }
 
+    function applyAnalyticsSummaryPresentation(role) {
+      const resolved = normalizeAccessRole(role);
+      const view = $("#view-analytics-summary");
+      if (!view) return;
+      const eyebrow = view.querySelector(".eyebrow");
+      const title = view.querySelector(".view-title");
+      const copy = view.querySelector(".view-copy");
+      const snapshotLabel = view.querySelector(".about-sub");
+
+      if (resolved === "marketing_staff") {
+        if (eyebrow) eyebrow.textContent = "Market Signals";
+        if (title) title.textContent = "Business Summary";
+        if (copy) copy.textContent = "Brand score, sentiment mix, complaints, and market spread.";
+        if (snapshotLabel) snapshotLabel.textContent = "Business Snapshot";
+        return;
+      }
+
+      if (resolved === "analyst") {
+        if (eyebrow) eyebrow.textContent = "Analysis";
+        if (title) title.textContent = "Summary";
+        if (copy) copy.textContent = "Key totals, sentiment mix, and complaint spread.";
+        if (snapshotLabel) snapshotLabel.textContent = "Analysis Snapshot";
+        return;
+      }
+
+      if (eyebrow) eyebrow.textContent = "Control Summary";
+      if (title) title.textContent = "Summary";
+      if (copy) copy.textContent = "Portfolio totals, risk spread, and monitoring context.";
+      if (snapshotLabel) snapshotLabel.textContent = "Control Snapshot";
+    }
+
     async function loadAdminModelPerformance() {
       if (normalizeAccessRole(state.userRole) !== "admin") return;
       try {
@@ -1420,18 +1462,30 @@ const HISTORY_KEY = "brandpulse-control-room-history";
         ? activeCount + " active alert" + (activeCount === 1 ? "" : "s")
         : "No active alerts";
       host.innerHTML = items.map((item) => {
-        const accent = item.level === "critical"
-          ? "var(--negative)"
-          : item.level === "warning"
-            ? "var(--neutral)"
-            : item.level === "success"
-              ? "var(--positive)"
-              : "var(--accent)";
+        const level = item.level || "info";
+        const label = level === "critical"
+          ? "Critical"
+          : level === "warning"
+            ? "Warning"
+            : level === "success"
+              ? "Stable"
+              : "Info";
+        const action = level === "critical"
+          ? "Immediate review required"
+          : level === "warning"
+            ? "Review recommended"
+            : level === "success"
+              ? "No action needed"
+              : "Check system state";
         return [
-          '<article class="timeline-item" style="border-left:3px solid ' + accent + '; padding-left:42px;">',
-          '<strong>' + item.title + "</strong>",
+          '<article class="timeline-item admin-alert-card admin-alert-card--' + level + '">',
+          '<div class="admin-alert-head">',
+          '<span class="score-chip admin-alert-chip admin-alert-chip--' + level + '">' + label + "</span>",
           '<time>' + new Date().toLocaleString() + "</time>",
+          "</div>",
+          '<strong>' + item.title + "</strong>",
           '<p>' + item.summary + "</p>",
+          '<div class="admin-alert-action">Action: ' + action + "</div>",
           "</article>"
         ].join("");
       }).join("");
@@ -1615,7 +1669,8 @@ const HISTORY_KEY = "brandpulse-control-room-history";
     }
 
     async function loadTrendDrilldown(sentiment) {
-      if (normalizeAccessRole(state.userRole) !== "analyst") return;
+      const role = normalizeAccessRole(state.userRole);
+      if (role !== "analyst" && role !== "admin") return;
       const title = $("#trendDrilldownTitle");
       const copy = $("#trendDrilldownCopy");
       const host = $("#trendReviewDrilldown");
@@ -2448,6 +2503,7 @@ const HISTORY_KEY = "brandpulse-control-room-history";
     function trendsEndpoint(selectedBrand = "") {
       const params = new URLSearchParams();
       if (selectedBrand) params.set("brand", selectedBrand);
+      if (state.trendWindow && String(state.trendWindow).trim()) params.set("months", String(state.trendWindow).trim());
       const query = params.toString();
       return "/dashboard/trends" + (query ? "?" + query : "");
     }
@@ -2519,7 +2575,7 @@ const HISTORY_KEY = "brandpulse-control-room-history";
 
       const width = 320;
       const height = 180;
-      const padding = { top: 16, right: 14, bottom: 30, left: 10 };
+      const padding = { top: 16, right: 14, bottom: 34, left: 10 };
       const maxValue = Math.max(1, ...trends.flatMap((item) => [Number(item.Positive || 0), Number(item.Neutral || 0), Number(item.Negative || 0)]));
       const usableWidth = width - padding.left - padding.right;
       const usableHeight = height - padding.top - padding.bottom;
@@ -2538,6 +2594,7 @@ const HISTORY_KEY = "brandpulse-control-room-history";
       });
 
       const pointSet = { Positive: [], Neutral: [], Negative: [] };
+      const labelStep = trends.length > 10 ? 2 : 1;
       trends.forEach((item, index) => {
         const x = padding.left + step * index;
         ["Positive", "Neutral", "Negative"].forEach((key) => {
@@ -2546,6 +2603,7 @@ const HISTORY_KEY = "brandpulse-control-room-history";
           pointSet[key].push({ x, y });
         });
 
+        if (index % labelStep !== 0 && index !== trends.length - 1) return;
         const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
         label.setAttribute("x", x);
         label.setAttribute("y", height - 8);
@@ -2797,6 +2855,16 @@ const HISTORY_KEY = "brandpulse-control-room-history";
       }).join("");
     }
 
+    function resetViewScroll() {
+      const stage = document.querySelector(".stage");
+      const mainShell = document.querySelector(".app-shell");
+      if (stage) stage.scrollTop = 0;
+      if (mainShell) mainShell.scrollTop = 0;
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
+
     function viewRouter(nextView) {
       const hashView = (location.hash || "").replace("#", "");
       const view = nextView || hashView || defaultViewForRole(state.userRole);
@@ -2824,6 +2892,7 @@ const HISTORY_KEY = "brandpulse-control-room-history";
       if (resolved === "users" && state.userRole === "admin") loadUsersManagement();
       document.body.classList.remove("drawer-open");
       $("#signalDrawerToggle").setAttribute("aria-expanded", "false");
+      resetViewScroll();
     }
 
     function applyTheme(theme) {

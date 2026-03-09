@@ -1452,6 +1452,10 @@
       grid-template-columns: 1fr;
       gap: 14px;
     }
+    .stats-strip.stats-strip--wide {
+      grid-column: 1 / -1;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
     .stats-strip article {
       border-radius: 22px;
       padding: 18px;
@@ -1470,6 +1474,12 @@
       white-space: nowrap;
     }
     .stats-strip .metric-meta { color: var(--muted); margin-top: 10px; line-height: 1.45; }
+    .stats-strip .metric-value small {
+      font-size: 16px;
+      color: var(--muted);
+      letter-spacing: 0;
+      font-weight: 600;
+    }
 
     .ring-gauge {
       --value: 0;
@@ -1642,6 +1652,77 @@
     .timeline-item:last-child::after { display: none; }
     .timeline-item strong { display: block; font-size: 16px; margin-bottom: 6px; }
     .timeline-item time, .timeline-item p { color: var(--muted); line-height: 1.5; }
+    .admin-alert-card {
+      padding: 18px 18px 18px 20px;
+      border: 1px solid var(--line);
+      overflow: hidden;
+    }
+    .admin-alert-card::before,
+    .admin-alert-card::after {
+      display: none;
+    }
+    .admin-alert-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .admin-alert-chip {
+      border: 1px solid transparent;
+      letter-spacing: 0.12em;
+    }
+    .admin-alert-chip--critical {
+      color: var(--negative);
+      background: rgba(255, 107, 137, 0.14);
+      border-color: rgba(255, 107, 137, 0.28);
+    }
+    .admin-alert-chip--warning {
+      color: var(--neutral);
+      background: rgba(255, 201, 110, 0.14);
+      border-color: rgba(255, 201, 110, 0.28);
+    }
+    .admin-alert-chip--info {
+      color: var(--accent);
+      background: rgba(103, 211, 255, 0.14);
+      border-color: rgba(103, 211, 255, 0.28);
+    }
+    .admin-alert-chip--success {
+      color: var(--positive);
+      background: rgba(97, 247, 177, 0.14);
+      border-color: rgba(97, 247, 177, 0.28);
+    }
+    .admin-alert-card--critical {
+      border-color: rgba(255, 107, 137, 0.35);
+      box-shadow: 0 0 0 1px rgba(255, 107, 137, 0.08), 0 16px 32px rgba(255, 107, 137, 0.10);
+      background: linear-gradient(180deg, rgba(255, 107, 137, 0.10), rgba(255, 255, 255, 0.02));
+    }
+    .admin-alert-card--warning {
+      border-color: rgba(255, 201, 110, 0.32);
+      box-shadow: 0 0 0 1px rgba(255, 201, 110, 0.06), 0 16px 32px rgba(255, 201, 110, 0.08);
+      background: linear-gradient(180deg, rgba(255, 201, 110, 0.09), rgba(255, 255, 255, 0.02));
+    }
+    .admin-alert-card--info {
+      border-color: rgba(103, 211, 255, 0.28);
+      background: linear-gradient(180deg, rgba(103, 211, 255, 0.08), rgba(255, 255, 255, 0.02));
+    }
+    .admin-alert-card--success {
+      border-color: rgba(97, 247, 177, 0.30);
+      background: linear-gradient(180deg, rgba(97, 247, 177, 0.08), rgba(255, 255, 255, 0.02));
+    }
+    .admin-alert-card strong {
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+    .admin-alert-card p {
+      margin-bottom: 10px;
+    }
+    .admin-alert-action {
+      font-size: 13px;
+      color: var(--text-soft);
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
     .empty-state { padding: 24px; text-align: center; color: var(--muted); border-radius: 22px; border: 1px dashed var(--line); background: rgba(255, 255, 255, 0.02); }
 
     .signal-panel {
@@ -2445,6 +2526,7 @@
       #view-brand-insights .insights-grid > .insight-card:nth-child(3),
       #view-brand-insights .insights-grid > .insight-card:nth-child(4) { grid-column: span 1; }
       .stats-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .stats-strip.stats-strip--wide { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
 
     @media (max-width: 900px) {
@@ -2452,6 +2534,7 @@
       .topbar, .shell, .gauge-chamber, .form-grid { grid-template-columns: 1fr; }
       .stage { min-height: auto; max-height: none; overflow: visible; padding: 18px; }
       .insights-grid, .analytics-grid, .stats-strip { grid-template-columns: 1fr; }
+      .stats-strip.stats-strip--wide { grid-template-columns: 1fr; }
       .admin-control-grid { grid-template-columns: 1fr; }
       .admin-control-card { grid-column: 1 / -1; }
       .dashboard-summary-grid { grid-template-columns: 1fr; }

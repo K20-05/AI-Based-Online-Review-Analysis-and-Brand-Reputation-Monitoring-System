@@ -104,6 +104,7 @@ def create_dashboard_blueprint(deps: dict) -> Blueprint:
     def dashboard_trends():
         grouped = trend_counts_frame()
         brand_filter = str(request.args.get("brand", "")).strip()
+        months = str(request.args.get("months", "all")).strip().lower() or "all"
         if grouped.empty:
             return jsonify({"trends": [], "brand": brand_filter or None})
         if brand_filter:
@@ -118,6 +119,9 @@ def create_dashboard_blueprint(deps: dict) -> Blueprint:
             .unstack(fill_value=0)
             .sort_index()
         )
+        if months != "all" and months.isdigit() and not period_grouped.empty:
+            month_count = max(1, int(months))
+            period_grouped = period_grouped.tail(month_count)
         trends = []
         for period, row in period_grouped.iterrows():
             trends.append(
