@@ -53,7 +53,7 @@
     "name": "NoSession User",
     "email": "nosession@example.com",
     "password_hash": "scrypt:32768:8:1$vppqAmizJeYLg2RA$ef3df6fe6a2a80040a5b0d022a644047581bba2d926b1c86f0e7399fe3c63f2b89d188f191dc9a0fdb324e0e66039bc67b9071097a6575ad72ced01e23f3ae65",
-    "role": "user",
+    "role": "marketing_staff",
     "created_at": "2026-03-03T11:48:48.607221+00:00"
   },
   {
