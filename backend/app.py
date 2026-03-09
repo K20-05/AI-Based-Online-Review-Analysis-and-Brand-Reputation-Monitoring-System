@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import Counter
 from datetime import datetime, UTC
-from functools import wraps
+from functools import lru_cache, wraps
 import json
 from pathlib import Path
 import re
@@ -17,13 +17,14 @@ from werkzeug.security import check_password_hash, generate_password_hash
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from backend.brand_score import calculate_brand_score
+from backend.brand_score import calculate_brand_score, summarize_sentiment_counts
 from backend.config import (
     BRAND_REPUTATION_BY_BRAND_PATH,
     BRAND_SCORE_PATH,
     DASHBOARD_ADMIN_EMAIL,
     DASHBOARD_ADMIN_PASSWORD,
     FRONTEND_DIR,
+    MODEL_METRICS_PATH,
     MODEL_PATH,
     MODEL_REPORT_PATH,
     PREDICTIONS_PATH,
@@ -31,6 +32,10 @@ from backend.config import (
     USER_STORE_PATH,
     VECTORIZER_PATH,
 )
+from backend import dashboard_data
+from backend.admin_routes import create_admin_blueprint
+from backend.auth_routes import create_auth_blueprint
+from backend.dashboard_routes import create_dashboard_blueprint
 from backend.feature_extraction import build_feature_dataset
 from backend.model_training import train_models
 from backend.predict import predict_dataset
@@ -291,13 +296,7 @@ def load_artifacts():
 
 
 def prediction_frame() -> pd.DataFrame:
-    if not PREDICTIONS_PATH.exists():
-        raise FileNotFoundError("Prediction dataset not found. Run prediction first.")
-    return pd.read_csv(
-        PREDICTIONS_PATH,
-        dtype={"review_id": "string", "platform": "string", "brand": "string"},
-        low_memory=False,
-    )
+    return dashboard_data.prediction_frame()
 
 
 def json_success(message: str, **data):
@@ -311,143 +310,73 @@ def json_error(message: str, status_code: int = 400):
 
 
 def dashboard_brand_payload() -> dict:
-    payload = calculate_brand_score()
-    if BRAND_SCORE_PATH.exists():
-        payload = json.loads(BRAND_SCORE_PATH.read_text(encoding="utf-8"))
-    return payload
+    return dashboard_data.dashboard_brand_payload()
+
+
+def normalize_brand_key(value: str) -> str:
+    return dashboard_data.normalize_brand_key(value)
+
+
+def trend_counts_frame() -> pd.DataFrame:
+    return dashboard_data.trend_counts_frame()
+
+
+def review_samples(
+    sentiment: str,
+    brand: str = "",
+    months: str = "all",
+    limit: int = 5,
+) -> list[dict]:
+    return dashboard_data.review_samples(sentiment=sentiment, brand=brand, months=months, limit=limit)
+
+
+def trend_brand_availability() -> dict[str, bool]:
+    return dashboard_data.trend_brand_availability()
+
+
+def dashboard_keywords_payload(brand: str = "", months: str = "all", sentiment: str = "") -> list[dict]:
+    return dashboard_data.dashboard_keywords_payload(brand=brand, months=months, sentiment=sentiment)
 
 
 def brand_rows() -> list[dict]:
-    rows = dashboard_brand_payload().get("brand_scores", [])
-    normalized = []
-    for row in rows:
-        normalized.append(
-            {
-                "brand": str(row.get("brand", "Unknown")),
-                "total_reviews": int(float(row.get("total_reviews", 0) or 0)),
-                "positive_pct": float(row.get("positive_pct", 0) or 0),
-                "neutral_pct": float(row.get("neutral_pct", 0) or 0),
-                "negative_pct": float(row.get("negative_pct", 0) or 0),
-                "brand_reputation_score": float(row.get("brand_reputation_score", 0) or 0),
-            }
-        )
-    return normalized
+    return dashboard_data.brand_rows()
 
 
 def find_brand_row(brand_name: str) -> dict:
-    lookup = brand_name.strip().lower()
-    for row in brand_rows():
-        if row["brand"].strip().lower() == lookup:
-            return row
-    raise ValueError(f"Brand '{brand_name}' was not found")
+    return dashboard_data.find_brand_row(brand_name)
 
 
 def risk_profile(score: float, negative_pct: float) -> dict:
-    if score >= 45 and negative_pct < 25:
-        return {"level": "low", "label": "Low Risk"}
-    if score < 10 or negative_pct >= 40:
-        return {"level": "high", "label": "High Risk"}
-    return {"level": "medium", "label": "Medium Risk"}
+    return dashboard_data.risk_profile(score, negative_pct)
 
 
 def build_brand_insights(row: dict) -> dict:
-    score = float(row["brand_reputation_score"])
-    negative_pct = float(row["negative_pct"])
-    positive_pct = float(row["positive_pct"])
-    total_reviews = int(row["total_reviews"])
-    risk = risk_profile(score, negative_pct)
-
-    pros = []
-    cons = []
-
-    if positive_pct >= 65:
-        pros.append("Strong positive sentiment share")
-    if score >= 40:
-        pros.append("Healthy brand reputation score")
-    if negative_pct <= 20:
-        pros.append("Complaint pressure is relatively low")
-    if total_reviews >= 5000:
-        pros.append("Large review volume supports confidence")
-
-    if negative_pct >= 35:
-        cons.append("Negative sentiment is elevated")
-    if score < 15:
-        cons.append("Brand reputation score is weak")
-    if positive_pct < 45:
-        cons.append("Positive momentum is limited")
-    if total_reviews < 1000:
-        cons.append("Review volume is comparatively thin")
-
-    if not pros:
-        pros = ["Overall sentiment remains usable for decision-making", "Brand has a measurable baseline to improve from"]
-    if not cons:
-        cons = ["No major structural risk detected", "Continue monitoring for drift and service issues"]
-
-    if score >= 45:
-        why = (
-            f"{row['brand']} is performing well because positive sentiment materially outweighs negative reviews, "
-            "which keeps brand trust and reputation stable."
-        )
-        recommendation = (
-            "Scale the strongest positive themes in campaigns, preserve service quality, and use testimonials to defend the lead."
-        )
-    elif score < 10:
-        why = (
-            f"{row['brand']} is high risk because negative sentiment is too close to or above the positive share, "
-            "which is pulling the reputation score down."
-        )
-        recommendation = (
-            "Prioritize complaint clusters first, fix product or service friction, and hold back aggressive promotion until negative drivers fall."
-        )
-    else:
-        why = (
-            f"{row['brand']} is in a mixed zone. Positive reviews still support the brand, "
-            "but negative pressure is large enough to weaken trust."
-        )
-        recommendation = (
-            "Address the most common complaints, strengthen support response quality, and amplify the top positive review themes."
-        )
-
-    return {
-        "brand": row["brand"],
-        "metrics": row,
-        "risk": risk,
-        "why": why,
-        "pros": pros,
-        "cons": cons,
-        "key_insights": [
-            f"Reputation score: {score:.1f}",
-            f"Positive sentiment: {positive_pct:.1f}%",
-            f"Negative sentiment: {negative_pct:.1f}%",
-            f"Review volume: {total_reviews:,}",
-        ],
-        "recommendation": recommendation,
-    }
+    return dashboard_data.build_brand_insights(row)
 
 
 def similar_brand_rows(base_row: dict, limit: int = 3) -> list[dict]:
-    scored_rows = []
-    for row in brand_rows():
-        if row["brand"] == base_row["brand"]:
-            continue
-        distance = (
-            abs(row["brand_reputation_score"] - base_row["brand_reputation_score"])
-            + abs(row["positive_pct"] - base_row["positive_pct"]) * 0.4
-            + abs(row["negative_pct"] - base_row["negative_pct"]) * 0.5
-        )
-        scored_rows.append(
-            {
-                "brand": row["brand"],
-                "metrics": row,
-                "risk": risk_profile(row["brand_reputation_score"], row["negative_pct"]),
-                "distance": round(distance, 2),
-            }
-        )
-    return sorted(scored_rows, key=lambda item: item["distance"])[:limit]
+    return dashboard_data.similar_brand_rows(base_row, limit=limit)
 
 
 def current_user() -> str | None:
     return session.get("user_email")
+
+
+def current_user_record() -> dict | None:
+    user_email = current_user()
+    if not user_email:
+        return None
+    return find_user(user_email)
+
+
+def current_user_role() -> str:
+    user = current_user_record()
+    if not user:
+        return ""
+    normalized = str(user.get("role", "")).strip().lower()
+    if normalized == "user":
+        return "analyst"
+    return normalized
 
 
 def load_user_store() -> list[dict]:
@@ -483,6 +412,28 @@ def find_user(email: str) -> dict | None:
     return None
 
 
+def serialize_user(user: dict | None) -> dict | None:
+    if not user:
+        return None
+    normalized_role = str(user.get("role", "")).strip().lower() or "analyst"
+    if normalized_role == "user":
+        normalized_role = "analyst"
+    return {
+        "name": str(user.get("name", "")).strip() or str(user.get("email", "")).strip(),
+        "email": str(user.get("email", "")).strip().lower(),
+        "role": normalized_role,
+    }
+
+
+def normalize_public_role(role: str | None) -> str:
+    normalized = str(role or "").strip().lower()
+    if normalized == "marketing_staff":
+        return "marketing_staff"
+    if normalized in {"admin", "user"}:
+        return "analyst"
+    return "analyst"
+
+
 def validate_password_strength(password: str) -> str | None:
     if len(password) < 8:
         return "Password must be at least 8 characters long"
@@ -507,6 +458,26 @@ def require_auth(view_func):
     return wrapped
 
 
+def require_roles(*roles: str):
+    allowed_roles = {str(role).strip().lower() for role in roles if str(role).strip()}
+
+    def decorator(view_func):
+        @wraps(view_func)
+        def wrapped(*args, **kwargs):
+            if not current_user():
+                return json_error("Authentication required", 401)
+            active_role = current_user_role()
+            if active_role == "admin":
+                return view_func(*args, **kwargs)
+            if active_role not in allowed_roles:
+                return json_error("Access denied for this role", 403)
+            return view_func(*args, **kwargs)
+
+        return wrapped
+
+    return decorator
+
+
 def parse_predict_payload(payload: dict) -> dict:
     review_text = str(payload.get("review_text", "")).strip()
     if not review_text:
@@ -521,6 +492,81 @@ def parse_predict_payload(payload: dict) -> dict:
         "brand": brand,
         "rating": rating,
     }
+
+
+app.register_blueprint(
+    create_auth_blueprint(
+        {
+            "jsonify": jsonify,
+            "request": request,
+            "session": session,
+            "UTC": UTC,
+            "datetime": datetime,
+            "check_password_hash": check_password_hash,
+            "generate_password_hash": generate_password_hash,
+            "json_success": json_success,
+            "json_error": json_error,
+            "load_user_store": load_user_store,
+            "save_user_store": save_user_store,
+            "find_user": find_user,
+            "current_user": current_user,
+            "serialize_user": serialize_user,
+            "normalize_public_role": normalize_public_role,
+            "validate_password_strength": validate_password_strength,
+        }
+    )
+)
+
+app.register_blueprint(
+    create_admin_blueprint(
+        {
+            "jsonify": jsonify,
+            "request": request,
+            "pd": pd,
+            "UTC": UTC,
+            "datetime": datetime,
+            "json_success": json_success,
+            "json_error": json_error,
+            "load_user_store": load_user_store,
+            "save_user_store": save_user_store,
+            "current_user": current_user,
+            "serialize_user": serialize_user,
+            "normalize_public_role": normalize_public_role,
+            "require_auth": require_auth,
+            "require_roles": require_roles,
+            "MODEL_METRICS_PATH": MODEL_METRICS_PATH,
+            "DASHBOARD_ADMIN_EMAIL": DASHBOARD_ADMIN_EMAIL,
+        }
+    )
+)
+
+app.register_blueprint(
+    create_dashboard_blueprint(
+        {
+            "jsonify": jsonify,
+            "request": request,
+            "pd": pd,
+            "json_error": json_error,
+            "require_auth": require_auth,
+            "require_roles": require_roles,
+            "prediction_frame": prediction_frame,
+            "calculate_brand_score": calculate_brand_score,
+            "generate_visualizations": generate_visualizations,
+            "dashboard_brand_payload": dashboard_brand_payload,
+            "trend_brand_availability": trend_brand_availability,
+            "normalize_brand_key": normalize_brand_key,
+            "build_brand_insights": build_brand_insights,
+            "find_brand_row": find_brand_row,
+            "similar_brand_rows": similar_brand_rows,
+            "risk_profile": risk_profile,
+            "trend_counts_frame": trend_counts_frame,
+            "dashboard_keywords_payload": dashboard_keywords_payload,
+            "review_samples": review_samples,
+            "dashboard_data": dashboard_data,
+            "BRAND_REPUTATION_BY_BRAND_PATH": BRAND_REPUTATION_BY_BRAND_PATH,
+        }
+    )
+)
 
 
 @app.route("/")
@@ -548,93 +594,6 @@ def login_illustration():
     return send_file(LOGIN_ILLUSTRATION_PATH)
 
 
-@app.get("/api/auth/session")
-def auth_session():
-    user_email = current_user()
-    return jsonify({"authenticated": bool(user_email), "user": user_email})
-
-
-@app.post("/api/auth/register")
-def auth_register():
-    payload = request.get_json(force=True, silent=False) or {}
-    name = str(payload.get("name", "")).strip()
-    email = str(payload.get("email", "")).strip().lower()
-    password = str(payload.get("password", ""))
-
-    if not name or not email or not password:
-        return json_error("name, email and password are required")
-    if "@" not in email:
-        return json_error("Enter a valid email address")
-    password_error = validate_password_strength(password)
-    if password_error:
-        return json_error(password_error)
-    if find_user(email):
-        return json_error("An account with this email already exists", 409)
-
-    users = load_user_store()
-    users.append(
-        {
-            "name": name,
-            "email": email,
-            "password_hash": generate_password_hash(password),
-            "role": "user",
-            "created_at": datetime.now(UTC).isoformat(),
-        }
-    )
-    save_user_store(users)
-    return json_success("Account created", user=email)
-
-
-@app.post("/api/auth/login")
-def auth_login():
-    payload = request.get_json(force=True, silent=False) or {}
-    email = str(payload.get("email", "")).strip().lower()
-    password = str(payload.get("password", ""))
-
-    if not email or not password:
-        return json_error("email and password are required")
-    user = find_user(email)
-    if not user or not check_password_hash(str(user.get("password_hash", "")), password):
-        return json_error("Invalid email or password", 401)
-
-    session["user_email"] = str(user.get("email", email))
-    return json_success("Login successful", user=str(user.get("email", email)))
-
-
-@app.post("/api/auth/reset-password")
-def auth_reset_password():
-    payload = request.get_json(force=True, silent=False) or {}
-    email = str(payload.get("email", "")).strip().lower()
-    new_password = str(payload.get("new_password", ""))
-
-    if not email or not new_password:
-        return json_error("email and new_password are required")
-    password_error = validate_password_strength(new_password)
-    if password_error:
-        return json_error(password_error)
-
-    users = load_user_store()
-    updated = False
-    for user in users:
-        if str(user.get("email", "")).strip().lower() == email:
-            user["password_hash"] = generate_password_hash(new_password)
-            user["updated_at"] = datetime.now(UTC).isoformat()
-            updated = True
-            break
-
-    if not updated:
-        return json_error("No account found for this email", 404)
-
-    save_user_store(users)
-    return json_success("Password updated", user=email)
-
-
-@app.post("/api/auth/logout")
-def auth_logout():
-    session.clear()
-    return json_success("Logout successful")
-
-
 @app.get("/api/docs")
 def api_docs():
     return jsonify(API_DOCS)
@@ -647,6 +606,7 @@ def api_openapi():
 
 @app.post("/api/preprocess")
 @require_auth
+@require_roles("admin", "analyst")
 def preprocess_endpoint():
     df = preprocess_reviews()
     return json_success("Preprocessing completed", rows=int(len(df)))
@@ -654,13 +614,16 @@ def preprocess_endpoint():
 
 @app.post("/api/features")
 @require_auth
+@require_roles("admin", "analyst")
 def feature_extraction_endpoint():
     df = build_feature_dataset()
+
     return json_success("Feature extraction completed", rows=int(len(df)))
 
 
 @app.post("/api/train")
 @require_auth
+@require_roles("admin", "analyst")
 def train_endpoint():
     metrics = train_models()
     return json_success("Training completed", models=metrics.to_dict(orient="records"))
@@ -668,6 +631,7 @@ def train_endpoint():
 
 @app.post("/api/predict")
 @require_auth
+@require_roles("admin", "analyst")
 def predict_single():
     payload = request.get_json(force=True, silent=False) or {}
     request_data = parse_predict_payload(payload)
@@ -703,7 +667,102 @@ def predict_single():
 
 @app.post("/api/predict/batch")
 @require_auth
+@require_roles("admin", "analyst")
 def predict_batch():
+    payload = request.get_json(force=True, silent=False) or {}
+    reviews = payload.get("reviews") or []
+    save_to_dataset = bool(payload.get("save_to_dataset"))
+
+    # Fast path: predict only submitted batch rows from UI text input.
+    if isinstance(reviews, list) and reviews and not save_to_dataset:
+        model, vectorizer = load_artifacts()
+        prepared = []
+        for index, item in enumerate(reviews):
+            if isinstance(item, dict):
+                review_text = str(item.get("review_text", "")).strip()
+                review_id = item.get("review_id", index + 1)
+                platform = str(item.get("platform", "Manual Batch")).strip() or "Manual Batch"
+                brand = str(item.get("brand", platform)).strip() or platform
+                rating = item.get("rating")
+            else:
+                review_text = str(item).strip()
+                review_id = index + 1
+                platform = "Manual Batch"
+                brand = "Manual Batch"
+                rating = None
+            if not review_text:
+                continue
+            prepared.append(
+                {
+                    "review_id": review_id,
+                    "review_text": review_text,
+                    "cleaned_review": clean_text(review_text),
+                    "platform": platform,
+                    "brand": brand,
+                    "rating": rating,
+                }
+            )
+
+        if not prepared:
+            return json_error("Batch input requires at least one non-empty review_text")
+
+        features = vectorizer.transform([row["cleaned_review"] for row in prepared])
+        predictions = model.predict(features)
+        class_probabilities = model.predict_proba(features) if hasattr(model, "predict_proba") and hasattr(model, "classes_") else None
+
+        results = []
+        for index, row in enumerate(prepared):
+            sentiment = str(predictions[index])
+            confidence = None
+            probability_map = {}
+            if class_probabilities is not None:
+                probability_map = {
+                    str(label): float(probability)
+                    for label, probability in zip(model.classes_, class_probabilities[index])
+                }
+                confidence = float(probability_map.get(sentiment, 0.0))
+            results.append(
+                {
+                    "review_id": row["review_id"],
+                    "review_text": row["review_text"],
+                    "cleaned_review": row["cleaned_review"],
+                    "platform": row["platform"],
+                    "brand": row["brand"],
+                    "rating": row["rating"],
+                    "predicted_sentiment": sentiment,
+                    "class_probabilities": probability_map,
+                    "prediction_confidence": confidence,
+                }
+            )
+
+        score_df = pd.DataFrame(
+            [
+                {
+                    "brand": row["brand"],
+                    "predicted_sentiment": row["predicted_sentiment"],
+                }
+                for row in results
+            ]
+        )
+        batch_score = summarize_sentiment_counts(score_df)
+        brand_rows = []
+        for brand, group in score_df.groupby("brand", sort=True):
+            brand_row = {"brand": str(brand)}
+            brand_row.update(summarize_sentiment_counts(group))
+            brand_rows.append(brand_row)
+        batch_score["brand_scores"] = brand_rows
+
+        return jsonify(
+            {
+                "success": True,
+                "message": "Batch prediction completed",
+                "rows": len(results),
+                "results": results,
+                "brand_score": batch_score,
+            }
+        )
+
+    # Full refresh path: expensive dataset-wide rebuild (used when save_to_dataset is enabled).
     df = predict_dataset()
     score = calculate_brand_score()
     return json_success("Batch prediction completed", rows=int(len(df)), brand_score=score)
@@ -711,138 +770,10 @@ def predict_batch():
 
 @app.post("/api/brand-score")
 @require_auth
+@require_roles("admin", "analyst")
 def brand_score_endpoint():
     payload = calculate_brand_score()
     return json_success("Brand scoring completed", brand_score=payload)
-
-
-@app.get("/api/dashboard/summary")
-@require_auth
-def dashboard_summary():
-    payload = calculate_brand_score()
-    if BRAND_SCORE_PATH.exists():
-        payload = json.loads(BRAND_SCORE_PATH.read_text(encoding="utf-8"))
-    return jsonify(payload)
-
-
-@app.get("/api/dashboard/brands")
-@require_auth
-def dashboard_brands():
-    if BRAND_REPUTATION_BY_BRAND_PATH.exists():
-        df = pd.read_csv(BRAND_REPUTATION_BY_BRAND_PATH, low_memory=False)
-        return jsonify({"brands": df.to_dict(orient="records")})
-    payload = calculate_brand_score()
-    return jsonify({"brands": payload.get("brand_scores", [])})
-
-
-@app.get("/api/dashboard/insights")
-@require_auth
-def dashboard_insights():
-    brand = str(request.args.get("brand", "")).strip()
-    if not brand:
-        return json_error("brand query parameter is required")
-    return jsonify(build_brand_insights(find_brand_row(brand)))
-
-
-@app.get("/api/dashboard/similar")
-@require_auth
-def dashboard_similar():
-    brand = str(request.args.get("brand", "")).strip()
-    if not brand:
-        return json_error("brand query parameter is required")
-    limit = max(1, min(int(request.args.get("limit", 3) or 3), 10))
-    row = find_brand_row(brand)
-    return jsonify({"brand": row["brand"], "similar": similar_brand_rows(row, limit)})
-
-
-@app.get("/api/dashboard/compare")
-@require_auth
-def dashboard_compare():
-    brand_a = str(request.args.get("brand_a", "")).strip()
-    brand_b = str(request.args.get("brand_b", "")).strip()
-    if not brand_a or not brand_b:
-        return json_error("brand_a and brand_b query parameters are required")
-
-    row_a = find_brand_row(brand_a)
-    row_b = find_brand_row(brand_b)
-    leader = row_a if row_a["brand_reputation_score"] >= row_b["brand_reputation_score"] else row_b
-    lagger = row_b if leader is row_a else row_a
-    summary = (
-        f"{leader['brand']} leads on reputation score, while {lagger['brand']} needs more work on negative sentiment control and trust recovery."
-    )
-
-    return jsonify(
-        {
-            "brand_a": row_a,
-            "brand_b": row_b,
-            "risk_a": risk_profile(row_a["brand_reputation_score"], row_a["negative_pct"]),
-            "risk_b": risk_profile(row_b["brand_reputation_score"], row_b["negative_pct"]),
-            "summary": summary,
-        }
-    )
-
-
-@app.get("/api/dashboard/trends")
-@require_auth
-def dashboard_trends():
-    df = prediction_frame()
-    df["review_date"] = pd.to_datetime(df["review_date"], errors="coerce")
-    df = df.dropna(subset=["review_date"])
-    if df.empty:
-        return jsonify({"trends": []})
-
-    df["period"] = df["review_date"].dt.to_period("M").astype(str)
-    grouped = (
-        df.groupby(["period", "predicted_sentiment"])
-        .size()
-        .unstack(fill_value=0)
-        .sort_index()
-    )
-    trends = []
-    for period, row in grouped.iterrows():
-        trends.append(
-            {
-                "period": period,
-                "Positive": int(row.get("Positive", 0)),
-                "Neutral": int(row.get("Neutral", 0)),
-                "Negative": int(row.get("Negative", 0)),
-            }
-        )
-    return jsonify({"trends": trends})
-
-
-@app.get("/api/dashboard/keywords")
-@require_auth
-def dashboard_keywords():
-    df = prediction_frame()
-    tokens = []
-    for text in df.get("cleaned_review", pd.Series(dtype=str)).fillna("").astype(str):
-        tokens.extend(re.findall(r"\b[a-z]{3,}\b", text.lower()))
-    keywords = [{"word": word, "count": count} for word, count in Counter(tokens).most_common(12)]
-    return jsonify({"keywords": keywords})
-
-
-@app.get("/api/dashboard/platforms")
-@require_auth
-def dashboard_platforms():
-    df = prediction_frame()
-    platform_counts = (
-        df.groupby(["platform", "predicted_sentiment"])
-        .size()
-        .unstack(fill_value=0)
-        .reset_index()
-        .to_dict(orient="records")
-    )
-    return jsonify({"platforms": platform_counts})
-
-
-@app.post("/api/dashboard/refresh")
-@require_auth
-def dashboard_refresh():
-    df = prediction_frame()
-    generate_visualizations(df)
-    score = calculate_brand_score()
-    return jsonify({"message": "Dashboard refreshed", "brand_score": score})
 
 
 if __name__ == "__main__":

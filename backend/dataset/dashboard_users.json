@@ -17,7 +17,7 @@
     "name": "hello",
     "email": "22@gmail.com",
     "password_hash": "scrypt:32768:8:1$KSRz05UEf6Evxr8N$e21b2433faceab8a556458691debccaad0e55adc93cb79d67e7270fcc5fcebf6aa54f8f69892d35e795fb057a1bd75867b2a1e5f4fdfde3b84e776a7f54eb47d",
-    "role": "user",
+    "role": "analyst",
     "created_at": "2026-03-03T11:07:00.690808+00:00"
   },
   {
@@ -67,7 +67,7 @@
     "name": "Strong User",
     "email": "strong@example.com",
     "password_hash": "scrypt:32768:8:1$7hrfjrRHZm1U7QM4$8fb4bebb65ff9ecb3f9af8b7fcc00d1fe53216251b80e2e64e8570102b9df298b346dcf522abc12f343ce8393b4c37b15a32f641bbeaf34ee9254038fca7f609",
-    "role": "user",
+    "role": "marketing_staff",
     "created_at": "2026-03-03T12:00:25.634973+00:00"
   },
   {
@@ -83,5 +83,33 @@
     "password_hash": "scrypt:32768:8:1$znLiaFckV7sdJxLF$281412f961985d7df3891faa923667112917800e806219e54517e24cf41e271a30015472593ce570ec108e24acee22c888796fb1b26dcc0f9fff0b10b50b474e",
     "role": "user",
     "created_at": "2026-03-03T13:44:12.041144+00:00"
+  },
+  {
+    "name": "mark",
+    "email": "m@gmail.com",
+    "password_hash": "scrypt:32768:8:1$4qUxm5EIOg1AxOwJ$23a62da3d6216964523aae0a66a5be8a38f11cc39fedd1c8874ba1ce3633a61ed80c22a39c5bf862220b1a7693c2047ade67b1d95a4863836b00274483326e10",
+    "role": "user",
+    "created_at": "2026-03-04T14:35:45.730172+00:00"
+  },
+  {
+    "name": "keeru",
+    "email": "k@gmail.com",
+    "password_hash": "scrypt:32768:8:1$kcF1z6w8BwsUNKzp$bc1fda2d51a593298973e0d62a3e686defa0018b31fa79fe8a6bd8f6c349fb56ee14313bc7ef500c4f9f6d4abbb9d61f92034b3ec2697c7a30023808012f0ad8",
+    "role": "analyst",
+    "created_at": "2026-03-04T14:44:39.986132+00:00"
+  },
+  {
+    "name": "keert",
+    "email": "kt@gmail.com",
+    "password_hash": "scrypt:32768:8:1$0IYUfefJeD3t1k5V$ef4b6ff1190c52017cd978685c40dfe9b793f4a17dbe8f055d55f81562db54e9974ca9e49bdd4b72e283c9ae2b32d18274f7e15603e335c1fb91e6b1062ab92f",
+    "role": "marketing_staff",
+    "created_at": "2026-03-05T06:21:33.560062+00:00"
+  },
+  {
+    "name": "maya",
+    "email": "maya@gmail.com",
+    "password_hash": "scrypt:32768:8:1$Nl5XwL8TQu8l58NN$a5721384fc92246f96c555c191ea0a2af5bea600e1796ba676d650f7903c320a4ac08f8e27072d6f582a55d4f8117efbdc7fdfa4bd392e3c73ad8aa17c85599d",
+    "role": "marketing_staff",
+    "created_at": "2026-03-08T12:04:32.033648+00:00"
   }
 ]

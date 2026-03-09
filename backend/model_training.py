@@ -2,244 +2,311 @@ from __future__ import annotations
 
 from pathlib import Path
 import sys
+import warnings
 
 import joblib
 import matplotlib.pyplot as plt
 import pandas as pd
-import seaborn as sns
 from sklearn.base import clone
-from sklearn.pipeline import FeatureUnion
-from sklearn.pipeline import Pipeline
+from sklearn.exceptions import ConvergenceWarning
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import (
-    accuracy_score,
-    classification_report,
-    confusion_matrix,
-    f1_score,
-    precision_score,
-    recall_score,
-)
+from sklearn.metrics import accuracy_score, classification_report, f1_score, log_loss
 from sklearn.model_selection import train_test_split
 
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from backend.config import (
-    CONFUSION_MATRIX_PATH,
+    CLEANED_DATA_PATH,
     MODEL_METRICS_CHART_PATH,
     MODEL_METRICS_PATH,
     MODEL_PATH,
     MODEL_REPORT_PATH,
     TRAINING_HISTORY_CHART_PATH,
     TRAINING_HISTORY_PATH,
-    TRAINING_SAMPLE_LIMIT_PER_DATASET,
     VECTORIZER_PATH,
 )
-from backend.preprocessing import label_from_rating, load_cleaned_reviews
-from backend.preprocessing import sample_reviews_per_dataset
+from backend.preprocessing import label_from_rating
+
+warnings.filterwarnings("ignore", category=ConvergenceWarning)
+
+RANDOM_STATE = 42
 
 
-def evaluate_model(name: str, model, x_train, x_test, y_train, y_test) -> dict:
-    model.fit(x_train, y_train)
-    predictions = model.predict(x_test)
-    return {
-        "model": name,
-        "model_object": model,
-        "predictions": predictions,
-        "accuracy": round(accuracy_score(y_test, predictions) * 100, 2),
-        "precision_macro": round(precision_score(y_test, predictions, average="macro", zero_division=0), 4),
-        "recall_macro": round(recall_score(y_test, predictions, average="macro", zero_division=0), 4),
-        "f1_macro": round(f1_score(y_test, predictions, average="macro"), 4),
-    }
-
-
-def build_search_pipeline() -> Pipeline:
-    return Pipeline(
-        [
-            (
-                "features",
-                FeatureUnion(
-                    [
-                        (
-                            "word_tfidf",
-                            TfidfVectorizer(
-                                analyzer="word",
-                                ngram_range=(1, 2),
-                                min_df=3,
-                                max_features=12000,
-                                sublinear_tf=True,
-                            ),
-                        ),
-                    ]
-                ),
-            ),
-            (
-                "model",
-                LogisticRegression(
-                    max_iter=1500,
-                    solver="lbfgs",
-                    C=1.0,
-                ),
-            ),
-        ]
+def _resolve_text_column(df: pd.DataFrame) -> str:
+    for candidate in ("cleaned_review", "clean_text", "review_text"):
+        if candidate in df.columns:
+            return candidate
+    raise ValueError(
+        "Training dataset must contain one of: cleaned_review, clean_text, review_text"
     )
 
 
-def build_direct_model() -> tuple[Pipeline, dict]:
-    pipeline = build_search_pipeline()
-    params = {
-        "word_tfidf_ngram_range": (1, 2),
-        "word_tfidf_max_features": 12000,
-        "word_tfidf_min_df": 3,
-        "model_C": 1.0,
-        "model_solver": "lbfgs",
-    }
-    return pipeline, params
+def _load_training_frame() -> tuple[pd.DataFrame, str]:
+    if not CLEANED_DATA_PATH.exists():
+        raise FileNotFoundError(f"{CLEANED_DATA_PATH} not found. Run preprocessing first.")
 
+    df = pd.read_csv(CLEANED_DATA_PATH, low_memory=False)
+    text_column = _resolve_text_column(df)
 
-def build_training_history(model, x_train, x_test, y_train, y_test) -> pd.DataFrame:
-    rows = []
-    train_sizes = [0.3, 0.6, 1.0]
-    for fraction in train_sizes:
-        size = max(2, int(len(y_train) * fraction))
-        x_subset = x_train[:size]
-        y_subset = y_train.iloc[:size]
-        if y_subset.nunique() < 2:
-            continue
-        fitted = clone(model)
-        fitted.fit(x_subset, y_subset)
-        train_pred = fitted.predict(x_subset)
-        test_pred = fitted.predict(x_test)
-        rows.append(
-            {
-                "train_size": size,
-                "train_accuracy": round(accuracy_score(y_subset, train_pred) * 100, 2),
-                "validation_accuracy": round(accuracy_score(y_test, test_pred) * 100, 2),
-            }
+    if "sentiment_label" not in df.columns:
+        if "rating" not in df.columns:
+            raise ValueError("Training dataset requires either sentiment_label or rating column.")
+        df["rating"] = pd.to_numeric(df["rating"], errors="coerce")
+        df = df.dropna(subset=["rating"])
+        df["sentiment_label"] = df["rating"].apply(label_from_rating)
+
+    df[text_column] = df[text_column].fillna("").astype(str)
+    df["sentiment_label"] = df["sentiment_label"].fillna("").astype(str)
+    df = df[df[text_column].str.strip() != ""].copy()
+    df = df[df["sentiment_label"].str.strip() != ""].copy()
+    if df.empty:
+        raise ValueError("No valid rows available for training after cleaning.")
+
+    class_counts = df["sentiment_label"].value_counts()
+    if class_counts.shape[0] < 2:
+        raise ValueError("Training requires at least two sentiment classes.")
+    if (class_counts < 2).any():
+        raise ValueError(
+            "Each sentiment class needs at least 2 rows for train/test split. "
+            f"Current counts: {class_counts.to_dict()}"
         )
-    return pd.DataFrame(rows)
 
-
-def save_metric_charts(result: dict, history_df: pd.DataFrame) -> None:
-    metric_names = ["accuracy", "precision_macro", "recall_macro", "f1_macro"]
-    metric_labels = ["Accuracy", "Precision", "Recall", "F1"]
-    metric_values = [result[name] for name in metric_names]
-
-    plt.figure(figsize=(7.5, 4.5))
-    bars = plt.bar(metric_labels, metric_values, color=["#2a9d8f", "#457b9d", "#e9c46a", "#e76f51"])
-    plt.title("Model Metrics")
-    plt.ylabel("Score")
-    plt.ylim(0, 100 if max(metric_values) > 1 else 1)
-    for bar, value in zip(bars, metric_values):
-        label = f"{value:.2f}" if value > 1 else f"{value:.4f}"
-        plt.text(bar.get_x() + bar.get_width() / 2, bar.get_height(), label, ha="center", va="bottom")
-    plt.tight_layout()
-    plt.savefig(MODEL_METRICS_CHART_PATH, dpi=300)
-    plt.close()
-
-    if history_df.empty:
-        return
-
-    plt.figure(figsize=(7.5, 4.5))
-    plt.plot(history_df["train_size"], history_df["train_accuracy"], marker="o", label="Train Accuracy")
-    plt.plot(history_df["train_size"], history_df["validation_accuracy"], marker="o", label="Validation Accuracy")
-    plt.title("Accuracy vs Train Size")
-    plt.xlabel("Training Samples")
-    plt.ylabel("Accuracy (%)")
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(TRAINING_HISTORY_CHART_PATH, dpi=300)
-    plt.close()
+    return df, text_column
 
 
 def train_models() -> pd.DataFrame:
-    df = load_cleaned_reviews()
-    df = sample_reviews_per_dataset(df, TRAINING_SAMPLE_LIMIT_PER_DATASET)
-    print(f"Training rows used: {len(df)}", flush=True)
-    df["sentiment_label"] = df["rating"].apply(label_from_rating)
+    print("\n========== MODEL TRAINING STARTED ==========")
+    df, text_column = _load_training_frame()
 
-    x_text = df["cleaned_review"]
+    X = df[text_column]
     y = df["sentiment_label"]
+    print(f"Dataset size: {len(df)}")
 
-    if y.nunique() < 2:
-        raise ValueError("Training requires at least two sentiment classes.")
-
-    stratify_target = y if y.value_counts().min() >= 2 else None
-    x_train_text, x_test_text, y_train, y_test = train_test_split(
-        x_text,
+    X_train_val, X_test, y_train_val, y_test = train_test_split(
+        X,
         y,
         test_size=0.2,
-        random_state=42,
-        stratify=stratify_target,
+        random_state=RANDOM_STATE,
+        stratify=y,
     )
 
-    best_pipeline, best_params = build_direct_model()
-    vectorizer = best_pipeline.named_steps["features"]
-    logistic_model = best_pipeline.named_steps["model"]
-    print("Building training features...", flush=True)
-    x_train = vectorizer.fit_transform(x_train_text)
-    x_test = vectorizer.transform(x_test_text)
-    print("Fitting logistic regression...", flush=True)
-    result = evaluate_model("Logistic Regression", logistic_model, x_train, x_test, y_train, y_test)
-
-    metrics_df = pd.DataFrame(
-        [{key: value for key, value in result.items() if key not in {"model_object", "predictions"}}]
+    X_train, X_val, y_train, y_val = train_test_split(
+        X_train_val,
+        y_train_val,
+        test_size=0.1,
+        random_state=RANDOM_STATE,
+        stratify=y_train_val,
     )
+
+    print(f"Training samples: {len(X_train_val)}")
+    print(f"Testing samples: {len(X_test)}")
+    print(f"Validation samples: {len(X_val)}")
+
+    vectorizer = TfidfVectorizer(
+        max_features=50000,
+        ngram_range=(1, 2),
+        stop_words="english",
+        min_df=2,
+        max_df=0.98,
+        sublinear_tf=True,
+    )
+    X_train_vec = vectorizer.fit_transform(X_train)
+    X_val_vec = vectorizer.transform(X_val)
+
+    candidates = [
+        (
+            "LogReg C=1.0",
+            LogisticRegression(
+                max_iter=3000,
+                solver="lbfgs",
+                C=1.0,
+                class_weight=None,
+            ),
+        ),
+        (
+            "LogReg C=2.0",
+            LogisticRegression(
+                max_iter=3000,
+                solver="lbfgs",
+                C=2.0,
+                class_weight=None,
+            ),
+        ),
+        (
+            "LogReg C=4.0",
+            LogisticRegression(
+                max_iter=3000,
+                solver="lbfgs",
+                C=4.0,
+                class_weight=None,
+            ),
+        ),
+        (
+            "LogReg Balanced C=2.0",
+            LogisticRegression(
+                max_iter=3000,
+                solver="lbfgs",
+                C=2.0,
+                class_weight="balanced",
+            ),
+        ),
+    ]
+
+    best_name = ""
+    best_model = None
+    best_val_accuracy = -1.0
+    best_val_f1 = -1.0
+    model_scores = []
+    for name, estimator in candidates:
+        estimator.fit(X_train_vec, y_train)
+        val_pred = estimator.predict(X_val_vec)
+        val_accuracy = float(accuracy_score(y_val, val_pred))
+        val_f1 = float(f1_score(y_val, val_pred, average="macro"))
+        model_scores.append((name, val_accuracy, val_f1))
+        if (val_accuracy > best_val_accuracy) or (
+            val_accuracy == best_val_accuracy and val_f1 > best_val_f1
+        ):
+            best_name = name
+            best_model = clone(estimator)
+            best_val_accuracy = val_accuracy
+            best_val_f1 = val_f1
+
+    # Refit best pipeline on full train+validation split
+    vectorizer = TfidfVectorizer(
+        max_features=50000,
+        ngram_range=(1, 2),
+        stop_words="english",
+        min_df=2,
+        max_df=0.98,
+        sublinear_tf=True,
+    )
+    X_train_val_vec = vectorizer.fit_transform(X_train_val)
+    X_test_vec = vectorizer.transform(X_test)
+    model = best_model
+    model.fit(X_train_val_vec, y_train_val)
+    y_train_pred = model.predict(X_train_val_vec)
+    y_pred = model.predict(X_test_vec)
+
+    train_accuracy = float(accuracy_score(y_train_val, y_train_pred))
+    accuracy = float(accuracy_score(y_test, y_pred))
+    train_macro_f1 = float(f1_score(y_train_val, y_train_pred, average="macro"))
+    macro_f1 = float(f1_score(y_test, y_pred, average="macro"))
+    metrics_row = {
+        "model": best_name,
+        "validation_accuracy": best_val_accuracy,
+        "validation_f1_macro": best_val_f1,
+        "train_accuracy": train_accuracy,
+        "accuracy": accuracy,
+        "train_f1_macro": train_macro_f1,
+        "f1_macro": macro_f1,
+    }
+
+    train_loss = None
+    test_loss = None
+    if hasattr(model, "predict_proba"):
+        y_train_proba = model.predict_proba(X_train_val_vec)
+        y_proba = model.predict_proba(X_test_vec)
+        train_loss = float(log_loss(y_train_val, y_train_proba, labels=model.classes_))
+        test_loss = float(log_loss(y_test, y_proba, labels=model.classes_))
+        metrics_row["train_log_loss"] = train_loss
+        metrics_row["log_loss"] = test_loss
+
+    metrics_df = pd.DataFrame([metrics_row])
     metrics_df.to_csv(MODEL_METRICS_PATH, index=False)
 
-    best_model = result["model_object"]
-    best_predictions = result["predictions"]
-    accuracy = result["accuracy"]
-    print("Building training history...", flush=True)
-    history_df = build_training_history(best_model, x_train, x_test, y_train, y_test)
-
-    joblib.dump(best_model, MODEL_PATH)
-    joblib.dump(vectorizer, VECTORIZER_PATH)
+    history_df = pd.DataFrame(
+        [
+            {
+                "split": "train",
+                "accuracy": train_accuracy,
+                "f1_macro": train_macro_f1,
+                "log_loss": train_loss,
+            },
+            {
+                "split": "test",
+                "accuracy": accuracy,
+                "f1_macro": macro_f1,
+                "log_loss": test_loss,
+            },
+        ]
+    )
     history_df.to_csv(TRAINING_HISTORY_PATH, index=False)
-    save_metric_charts(result, history_df)
 
-    labels = ["Positive", "Neutral", "Negative"]
-    cm = confusion_matrix(y_test, best_predictions, labels=labels)
-    plt.figure(figsize=(6, 5))
-    sns.heatmap(cm, annot=True, fmt="d", xticklabels=labels, yticklabels=labels, cmap="Blues")
-    plt.title("Confusion Matrix - Logistic Regression")
-    plt.xlabel("Predicted")
-    plt.ylabel("Actual")
+    # Gain graph (accuracy + macro F1)
+    plt.figure(figsize=(8, 5))
+    gain_labels = ["Train Accuracy", "Test Accuracy", "Train Macro F1", "Test Macro F1"]
+    gain_values = [train_accuracy, accuracy, train_macro_f1, macro_f1]
+    gain_colors = ["#63e6be", "#22b8cf", "#74c0fc", "#4dabf7"]
+    plt.bar(gain_labels, gain_values, color=gain_colors)
+    plt.ylim(0, 1)
+    plt.ylabel("Score")
+    plt.title("Model Gain Metrics")
+    plt.xticks(rotation=12)
     plt.tight_layout()
-    plt.savefig(CONFUSION_MATRIX_PATH, dpi=300)
+    plt.savefig(MODEL_METRICS_CHART_PATH, dpi=140)
     plt.close()
 
-    report = classification_report(y_test, best_predictions, zero_division=0)
-    with MODEL_REPORT_PATH.open("w", encoding="utf-8") as handle:
-        handle.write("Model: Logistic Regression\n")
-        handle.write(f"Accuracy: {accuracy:.2f}%\n")
-        handle.write(f"Best Params: {best_params}\n")
-        handle.write(f"Precision Macro: {result['precision_macro']:.4f}\n")
-        handle.write(f"Recall Macro: {result['recall_macro']:.4f}\n")
-        handle.write(f"F1 Macro: {result['f1_macro']:.4f}\n\n")
-        handle.write("Classification Report:\n")
-        handle.write(report)
+    # Loss graph (train vs test log loss)
+    if train_loss is not None and test_loss is not None:
+        plt.figure(figsize=(7, 4.5))
+        plt.plot(["Train", "Test"], [train_loss, test_loss], marker="o", linewidth=2.5, color="#ff6b8d")
+        plt.ylabel("Log Loss")
+        plt.title("Loss Graph")
+        plt.grid(alpha=0.2)
+        plt.tight_layout()
+        plt.savefig(TRAINING_HISTORY_CHART_PATH, dpi=140)
+        plt.close()
 
-    print("Training complete")
-    if "source_file" in df.columns:
-        counts = df["source_file"].value_counts().sort_index()
-        print("Training samples per dataset:")
-        print(counts.to_string())
-    print(f"Accuracy: {accuracy:.2f}%")
-    print(f"Best params: {best_params}")
-    print(metrics_df.to_string(index=False))
-    print(f"Best model saved: {MODEL_PATH}")
-    print(f"Vectorizer saved: {VECTORIZER_PATH}")
-    print(f"Metrics saved: {MODEL_METRICS_PATH}")
-    print(f"Metrics chart saved: {MODEL_METRICS_CHART_PATH}")
-    print(f"Training history saved: {TRAINING_HISTORY_PATH}")
-    print(f"Training history chart saved: {TRAINING_HISTORY_CHART_PATH}")
-    print(f"Report saved: {MODEL_REPORT_PATH}")
+    report = classification_report(y_test, y_pred)
+
+    ranked_models = sorted(model_scores, key=lambda item: (item[1], item[2]), reverse=True)
+    best_val_name, best_val_acc, best_val_f1 = ranked_models[0]
+    print("\nModel Selection: " + best_val_name + f" (val_acc={best_val_acc:.4f}, val_f1={best_val_f1:.4f})")
+    print(
+        "Summary: "
+        + f"train_acc={train_accuracy:.4f} | "
+        + f"val_acc={best_val_accuracy:.4f} | "
+        + f"test_acc={accuracy:.4f} | "
+        + f"test_f1={macro_f1:.4f}"
+    )
+    print(f"Train Accuracy: {train_accuracy:.4f}")
+    print(f"Validation Accuracy: {best_val_accuracy:.4f}")
+    print(f"Test Accuracy: {accuracy:.4f}")
+    if train_loss is not None and test_loss is not None:
+        print(f"Loss: train={train_loss:.4f} | test={test_loss:.4f}")
+    print("\nClassification Report (Test):")
+    print(report)
+
+    MODEL_REPORT_PATH.write_text(
+        "Train Accuracy: " + str(train_accuracy) + "\n"
+        + "Test Accuracy: " + str(accuracy) + "\n"
+        + "Train Macro F1: " + str(train_macro_f1) + "\n"
+        + "Test Macro F1: " + str(macro_f1) + "\n"
+        + ("Train Log Loss: " + str(train_loss) + "\n" if train_loss is not None else "")
+        + ("Test Log Loss: " + str(test_loss) + "\n" if test_loss is not None else "")
+        + "\n"
+        + report,
+        encoding="utf-8",
+    )
+
+    joblib.dump(model, MODEL_PATH)
+    joblib.dump(vectorizer, VECTORIZER_PATH)
+
+    print(f"Saved model: {MODEL_PATH}")
+    print(f"Saved vectorizer: {VECTORIZER_PATH}")
+    print(f"Saved metrics: {MODEL_METRICS_PATH}")
+    print(f"Saved history: {TRAINING_HISTORY_PATH}")
+    print(f"Saved gain graph: {MODEL_METRICS_CHART_PATH}")
+    if train_loss is not None and test_loss is not None:
+        print(f"Saved loss graph: {TRAINING_HISTORY_CHART_PATH}")
+    print(f"Saved report: {MODEL_REPORT_PATH}")
+    print("========== MODEL TRAINING COMPLETED ==========\n")
     return metrics_df
 
 
-def main():
+def main() -> None:
     train_models()
 
 

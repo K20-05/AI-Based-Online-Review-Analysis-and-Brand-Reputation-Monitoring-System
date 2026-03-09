@@ -23,15 +23,28 @@ def summarize_sentiment_counts(df: pd.DataFrame) -> dict:
     positive = int((df["predicted_sentiment"] == "Positive").sum())
     neutral = int((df["predicted_sentiment"] == "Neutral").sum())
     negative = int((df["predicted_sentiment"] == "Negative").sum())
+
+    positive_pct = round((positive / total) * 100, 2) if total else 0.0
+    neutral_pct = round((neutral / total) * 100, 2) if total else 0.0
+    negative_pct = round((negative / total) * 100, 2) if total else 0.0
+
+    # Updated weighted score formula
+    # Positive = +1, Neutral = +0.5, Negative = -1
+    brand_reputation_score = (
+        round((((positive * 1.0) + (neutral * 0.5) - (negative * 1.0)) / total) * 100, 2)
+        if total
+        else 0.0
+    )
+
     return {
         "total_reviews": total,
         "positive": positive,
         "neutral": neutral,
         "negative": negative,
-        "positive_pct": round((positive / total) * 100, 2) if total else 0.0,
-        "neutral_pct": round((neutral / total) * 100, 2) if total else 0.0,
-        "negative_pct": round((negative / total) * 100, 2) if total else 0.0,
-        "brand_reputation_score": round(((positive - negative) / total) * 100, 2) if total else 0.0,
+        "positive_pct": positive_pct,
+        "neutral_pct": neutral_pct,
+        "negative_pct": negative_pct,
+        "brand_reputation_score": brand_reputation_score,
     }
 
 
@@ -81,6 +94,7 @@ def calculate_brand_score() -> dict:
         dtype={"review_id": "string", "platform": "string", "brand": "string"},
         low_memory=False,
     )
+
     if df.empty:
         payload = summarize_sentiment_counts(df)
         payload["brand_scores"] = []
@@ -105,28 +119,38 @@ def calculate_brand_score() -> dict:
         df["brand"] = "Unknown"
         brand_column = "brand"
 
-    df[brand_column] = df[brand_column].fillna("Unknown").astype(str).str.strip().replace("", "Unknown")
+    df[brand_column] = (
+        df[brand_column]
+        .fillna("Unknown")
+        .astype(str)
+        .str.strip()
+        .replace("", "Unknown")
+    )
+
     payload = summarize_sentiment_counts(df)
+
     brand_rows = []
     for brand, group in df.groupby(brand_column, sort=True):
         row = {"brand": brand}
         row.update(summarize_sentiment_counts(group))
         brand_rows.append(row)
+
     payload["brand_scores"] = brand_rows
     pd.DataFrame(brand_rows).to_csv(BRAND_REPUTATION_BY_BRAND_PATH, index=False)
 
     trend_df = df.copy()
-    trend_df["review_date"] = pd.to_datetime(trend_df["review_date"], errors="coerce")
-    trend_df = trend_df.dropna(subset=["review_date"])
-    if not trend_df.empty:
-        trend_df["review_month"] = trend_df["review_date"].dt.to_period("M").astype(str)
-        trend_summary = (
-            trend_df.groupby(["review_month", "predicted_sentiment"])
-            .size()
-            .unstack(fill_value=0)
-            .reset_index()
-        )
-        trend_summary.to_csv(SENTIMENT_TRENDS_PATH, index=False)
+    if "review_date" in trend_df.columns:
+        trend_df["review_date"] = pd.to_datetime(trend_df["review_date"], errors="coerce")
+        trend_df = trend_df.dropna(subset=["review_date"])
+        if not trend_df.empty:
+            trend_df["review_month"] = trend_df["review_date"].dt.to_period("M").astype(str)
+            trend_summary = (
+                trend_df.groupby(["review_month", "predicted_sentiment"])
+                .size()
+                .unstack(fill_value=0)
+                .reset_index()
+            )
+            trend_summary.to_csv(SENTIMENT_TRENDS_PATH, index=False)
 
     if "platform" in df.columns:
         platform_summary = (
