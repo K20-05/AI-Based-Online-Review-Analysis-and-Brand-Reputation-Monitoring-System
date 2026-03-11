@@ -17,7 +17,7 @@
     "name": "hello",
     "email": "22@gmail.com",
     "password_hash": "scrypt:32768:8:1$KSRz05UEf6Evxr8N$e21b2433faceab8a556458691debccaad0e55adc93cb79d67e7270fcc5fcebf6aa54f8f69892d35e795fb057a1bd75867b2a1e5f4fdfde3b84e776a7f54eb47d",
-    "role": "analyst",
+    "role": "marketing_staff",
     "created_at": "2026-03-03T11:07:00.690808+00:00"
   },
   {
@@ -60,7 +60,7 @@
     "name": "hell",
     "email": "7@gmail.com",
     "password_hash": "scrypt:32768:8:1$mybMejPHpxps3Vif$ab5503928da6dd33e29e3ac792a4807364e84d2fdc3918001546af956302f83fbe30b1b526b47bf5d95ffebaf77e7a65e01de237b51fa2f7de2a96bb8fd8a105",
-    "role": "user",
+    "role": "marketing_staff",
     "created_at": "2026-03-03T11:52:57.445795+00:00"
   },
   {
@@ -74,7 +74,7 @@
     "name": "h",
     "email": "j@gmail.com",
     "password_hash": "scrypt:32768:8:1$wbkDGZSk4PSgF6zG$ab72fb1121d1817c97429672e3c2fe2ff3db5f6bd09d2acb634dd2b3caaa83f5a19de8fd0c28fe08fbfb8d3e68beeb5b8f90a221e4cf271a559a7ad0d352d79f",
-    "role": "user",
+    "role": "analyst",
     "created_at": "2026-03-03T12:06:49.405918+00:00"
   },
   {

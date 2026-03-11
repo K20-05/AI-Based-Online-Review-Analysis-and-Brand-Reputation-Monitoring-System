@@ -2995,26 +2995,42 @@ const HISTORY_KEY = "brandpulse-control-room-history";
         const data = await callApi("/predict/batch", { method: "POST", body: payload });
         $("#batchTechnicalJson").textContent = JSON.stringify(data, null, 2);
         const score = normalizeBrandScore(data);
+        const results = Array.isArray(data.results) ? data.results : [];
+        const confidenceValues = results
+          .map((item) => Number(item.prediction_confidence))
+          .filter((value) => Number.isFinite(value));
+        const averageConfidence = confidenceValues.length
+          ? confidenceValues.reduce((sum, value) => sum + value, 0) / confidenceValues.length
+          : null;
         if (score.total_reviews || score.brand_reputation_score || data.brand_score) {
           state.brandScore = score;
           updateDashboard(score);
           updateSignalPanel(score);
           refreshDashboardAnalytics();
-          renderGauge($("#batchGauge"), score.brand_reputation_score, {
-            displayValue: score.brand_reputation_score.toFixed(1),
-            label: "Batch Score",
-            suffix: "/100",
-            caption: "Updated from the batch response.",
-            color: score.brand_reputation_score >= 40 ? "var(--positive)" : score.brand_reputation_score < 10 ? "var(--negative)" : "var(--neutral)"
-          });
         }
+        renderGauge($("#batchGauge"), Number.isFinite(averageConfidence) ? averageConfidence * 100 : 0, {
+          displayValue: Number.isFinite(averageConfidence) ? (averageConfidence * 100).toFixed(1) : "0.0",
+          label: "Batch Confidence",
+          suffix: "%",
+          caption: Number.isFinite(averageConfidence)
+            ? "Mean confidence across processed reviews."
+            : "Confidence is unavailable for this batch response.",
+          color: Number.isFinite(averageConfidence)
+            ? averageConfidence >= 0.8
+              ? "var(--positive)"
+              : averageConfidence >= 0.6
+                ? "var(--neutral)"
+                : "var(--negative)"
+            : "var(--accent)"
+        });
 
         $("#batchProcessedCount").textContent = Number(data.rows || score.total_reviews || lines.length).toLocaleString();
         renderBatchTable(buildBatchPreview(data, lines));
         storeHistory({
           title: "Batch run",
           time: new Date().toLocaleString(),
-          summary: "Processed " + Number(data.rows || lines.length).toLocaleString() + " reviews. Updated score: " + (score.brand_reputation_score || 0).toFixed(1) + "."
+          summary: "Processed " + Number(data.rows || lines.length).toLocaleString() + " reviews." +
+            (Number.isFinite(averageConfidence) ? " Average confidence: " + (averageConfidence * 100).toFixed(1) + "%." : "")
         });
         toast("Batch prediction completed.", "success");
       } catch (error) {
@@ -3358,8 +3374,8 @@ const HISTORY_KEY = "brandpulse-control-room-history";
       });
       renderGauge($("#batchGauge"), 0, {
         displayValue: "0",
-        label: "Batch Score",
-        suffix: "/100",
+        label: "Batch Confidence",
+        suffix: "%",
         caption: "Waiting for batch response.",
         color: "var(--accent)"
       });
