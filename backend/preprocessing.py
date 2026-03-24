@@ -10,8 +10,15 @@ import pandas as pd
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from backend.config import CLEANED_DATA_PATH, DATASET_DIR, RAW_DATA_EXCLUSIONS
+from backend.config import (
+    CLEANED_DATA_PATH,
+    DATASET_DIR,
+    LEGACY_RAW_DATA_DIR,
+    RAW_DATA_DIR,
+    RAW_DATA_EXCLUSIONS,
+)
 from backend.database import write_processed_reviews
+from backend.multilingual import normalize_multilingual_text
 
 try:
     from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
@@ -30,6 +37,9 @@ OUTPUT_COLUMNS = [
     "platform",
     "brand",
     "source_file",
+    "source_language",
+    "language_confidence",
+    "multilingual_strategy",
     "cleaned_review",
 ]
 SCHEMA_MAP = {
@@ -54,13 +64,33 @@ SCHEMA_MAP = {
     "reviews.sourceURLs": "platform",
     "appName": "platform",
 }
-STOP_WORDS = set(ENGLISH_STOP_WORDS)
+NEGATION_TOKENS = {"no", "nor", "not", "never"}
+STOP_WORDS = {word for word in ENGLISH_STOP_WORDS if word not in NEGATION_TOKENS}
 CSV_ENCODINGS = ("utf-8", "utf-8-sig", "utf-16", "latin-1")
 
 
 def raw_csv_files() -> list[Path]:
     DATASET_DIR.mkdir(parents=True, exist_ok=True)
-    return sorted(path for path in DATASET_DIR.rglob("*.csv") if path.name not in RAW_DATA_EXCLUSIONS)
+    candidates: list[Path] = []
+    seen: set[Path] = set()
+    search_plan = (
+        (RAW_DATA_DIR, True),
+        (LEGACY_RAW_DATA_DIR, True),
+        (DATASET_DIR, False),
+    )
+
+    for directory, recursive in search_plan:
+        if not directory.exists():
+            continue
+        iterator = directory.rglob("*.csv") if recursive else directory.glob("*.csv")
+        for path in iterator:
+            resolved = path.resolve()
+            if path.name in RAW_DATA_EXCLUSIONS or resolved in seen:
+                continue
+            seen.add(resolved)
+            candidates.append(path)
+
+    return sorted(candidates)
 
 
 def parse_review_date(value):
@@ -85,7 +115,8 @@ def label_from_rating(rating: float) -> str:
 
 
 def clean_text(text: str) -> str:
-    tokens = re.findall(r"[a-z0-9]+", str(text).lower())
+    multilingual_payload = normalize_multilingual_text(text)
+    tokens = multilingual_payload["normalized_text"].split()
     return " ".join(token for token in tokens if token not in STOP_WORDS)
 
 
@@ -154,6 +185,12 @@ def load_cleaned_reviews() -> pd.DataFrame:
         df["brand"] = df["platform"]
     if "source_file" not in df.columns:
         df["source_file"] = df["platform"]
+    if "source_language" not in df.columns:
+        df["source_language"] = "unknown"
+    if "language_confidence" not in df.columns:
+        df["language_confidence"] = 0.0
+    if "multilingual_strategy" not in df.columns:
+        df["multilingual_strategy"] = "legacy"
     df = df[OUTPUT_COLUMNS].copy()
     df["review_id"] = df["review_id"].astype("string")
     df["rating"] = pd.to_numeric(df["rating"], errors="coerce")
@@ -162,6 +199,9 @@ def load_cleaned_reviews() -> pd.DataFrame:
     df["platform"] = df["platform"].apply(normalize_platform)
     df["brand"] = df["brand"].fillna(df["platform"]).astype(str)
     df["source_file"] = df["source_file"].fillna(df["platform"]).astype(str)
+    df["source_language"] = df["source_language"].fillna("unknown").astype(str)
+    df["language_confidence"] = pd.to_numeric(df["language_confidence"], errors="coerce").fillna(0.0)
+    df["multilingual_strategy"] = df["multilingual_strategy"].fillna("legacy").astype(str)
     df["cleaned_review"] = df["cleaned_review"].fillna("").astype(str)
     return df[df["cleaned_review"].str.strip() != ""].copy()
 
@@ -194,7 +234,13 @@ def preprocess_reviews(save_to_mongo: bool = True) -> pd.DataFrame:
 
     df = pd.concat(normalized_frames, ignore_index=True)
     before_rows = len(df)
-    df["cleaned_review"] = df["review_text"].apply(clean_text)
+    multilingual_features = df["review_text"].apply(normalize_multilingual_text)
+    df["source_language"] = multilingual_features.apply(lambda item: item["detected_language"])
+    df["language_confidence"] = multilingual_features.apply(lambda item: item["language_confidence"])
+    df["multilingual_strategy"] = multilingual_features.apply(lambda item: item["strategy"])
+    df["cleaned_review"] = multilingual_features.apply(
+        lambda item: " ".join(token for token in item["normalized_text"].split() if token not in STOP_WORDS)
+    )
     df = df[df["cleaned_review"].str.strip() != ""].copy()
     df = df.drop_duplicates(subset=["cleaned_review", "rating", "platform"], keep="first")
     output_df = df[OUTPUT_COLUMNS].copy()

@@ -1,181 +1,85 @@
-<<<<<<< HEAD
-# AI-Based Online Review Analysis and Brand Reputation Monitoring
-
-This project analyzes customer reviews with NLP + machine learning, predicts sentiment, and computes a brand reputation score.
-
-## Current Project Structure
-- `preprocessing.py`: Cleans raw dataset and writes `dataset/cleaned_reviews.csv`
-- `feature_extraction.py`: Builds TF-IDF feature files (legacy/offline analysis)
-- `model_training.py`: Trains the classifier and saves model artifacts
-- `predict.py`: Generates file-based predictions to `dataset/final_predictions.csv`
-- `brand_score.py`: Computes reputation score from `dataset/final_predictions.csv`
-- `backend_api.py`: REST backend interface for prediction + scoring
-
-## Backend API Interface
-
-### 1. Install dependencies
-=======
 # AI-Based Online Review Analysis and Brand Reputation Monitoring System
 
-This project has been rebuilt from scratch according to the project planner. It implements a full academic pipeline for online review analysis with Flask, MongoDB integration, TF-IDF feature extraction, supervised sentiment classification, brand reputation scoring, and an interactive dashboard.
+BrandPulse is a Flask-based review analytics project that preprocesses ecommerce reviews, trains a sentiment model, predicts review polarity, calculates brand reputation scores, and serves an interactive dashboard for admins, analysts, and marketing users.
 
-## Planner-Aligned Architecture
+## Current Status
 
-### Backend
-- `backend/app.py`: Flask API and dashboard backend
-- `backend/preprocessing.py`: Multi-source review preprocessing and sentiment label generation
-- `backend/feature_extraction.py`: TF-IDF feature dataset generation
-- `backend/model_training.py`: Train/test split, Logistic Regression and Naive Bayes training, evaluation
-- `backend/predict.py`: Batch sentiment prediction and prediction export
-- `backend/brand_score.py`: Brand reputation score and trend summaries
-- `backend/visualization.py`: Sentiment, trend, keyword, and platform charts
-- `backend/database.py`: MongoDB read/write helpers
-- `backend/config.py`: Paths and environment configuration
+This project is close to feature-complete for an academic/demo build:
 
-### Frontend
-- `frontend/index.html`: Interactive dashboard using HTML, CSS, and JavaScript
+- End-to-end ML pipeline is implemented.
+- Flask backend APIs are implemented.
+- Interactive frontend dashboard is implemented.
+- Auth, role-based views, realtime review ingestion, and connector polling are implemented.
+- Unit tests now cover core preprocessing, prediction-guard, and scoring logic.
 
-### Dataset
-Place raw CSV review datasets in `backend/dataset/`. The current rebuild supports both:
-- Amazon-style review schema
-- App-review schema using `reviewId`, `content`, `score`, `at`, `appName`
+## Project Structure
 
-## Planner Workflow
+- `backend/app.py` - Flask entry point, API routes, auth/session wiring
+- `backend/preprocessing.py` - review normalization and cleaning
+- `backend/feature_extraction.py` - TF-IDF feature dataset creation
+- `backend/model_training.py` - model training, metrics, and reports
+- `backend/predict.py` - single/batch sentiment prediction pipeline
+- `backend/brand_score.py` - overall and per-brand reputation scoring
+- `backend/dashboard_data.py` - cached dashboard data shaping
+- `backend/dashboard_routes.py` - dashboard analytics endpoints
+- `backend/realtime_reviews.py` - realtime ingestion and storage
+- `backend/connectors.py` - realtime connector implementations
+- `backend/connector_scheduler.py` - automatic polling scheduler
+- `frontend/index.html` - dashboard markup
+- `frontend/styles.css` - dashboard styling
+- `frontend/app.js` - dashboard client logic
 
-1. Review Data Collection
-2. Data Preprocessing
-3. Feature Extraction
-4. Dataset Splitting
-5. Sentiment Model Training
-6. Model Evaluation
-7. Brand Reputation Scoring
-8. Backend Processing
-9. Visualization and Dashboard Output
+## Quick Start
 
-## Installation
+### 1. Install dependencies
 
->>>>>>> 98618ec (Update project files)
 ```bash
 pip install -r requirements.txt
 ```
 
-<<<<<<< HEAD
-### 2. Ensure model artifacts exist
-Run training once if needed:
-```bash
-python model_training.py
-```
-This creates:
-- `dataset/sentiment_model.pkl`
-- `dataset/tfidf_vectorizer.pkl`
+### 2. Configure environment variables
 
-### 3. Run backend server
-```bash
-uvicorn backend_api:app --reload --host 0.0.0.0 --port 8000
-```
+Copy `.env.example` to `.env` and update values as needed.
 
-API docs:
-- Swagger UI: `http://127.0.0.1:8000/docs`
-- ReDoc: `http://127.0.0.1:8000/redoc`
+Important notes:
 
-## API Endpoints
-- `GET /health`: Check API and model artifact status
-- `POST /predict`: Predict one review sentiment
-- `POST /predict/batch`: Predict multiple reviews and optionally save `dataset/final_predictions.csv`
-- `GET /brand-score`: Compute score from saved `dataset/final_predictions.csv`
+- `MONGO_URI` is optional. Leave it blank to run the project in CSV-only mode.
+- The dashboard seeds a default admin account using `DASHBOARD_ADMIN_EMAIL` and `DASHBOARD_ADMIN_PASSWORD` on first run.
 
-## Example Request
+### 3. Place raw review CSV files
 
-### `POST /predict`
-```json
-{
-  "review_text": "Delivery was quick and product quality is excellent",
-  "rating": 5,
-  "platform": "Amazon"
-}
-```
+Use one of these locations for raw source files:
 
-### `POST /predict/batch`
-```json
-{
-  "save_to_dataset": true,
-  "reviews": [
-    {
-      "review_id": 1,
-      "review_text": "Very good product",
-      "rating": 5,
-      "platform": "Amazon",
-      "review_date": "2026-02-16"
-    },
-    {
-      "review_id": 2,
-      "review_text": "Bad fitting and poor quality",
-      "rating": 1,
-      "platform": "Flipkart",
-      "review_date": "2026-02-16"
-    }
-  ]
-}
-```
-=======
-Optional MongoDB environment variables:
+- `backend/dataset/raw/` for the preferred structure
+- `backend/dataset/csv/` for backward compatibility
+- `backend/dataset/` root only for legacy flat layouts
 
-```bash
-set MONGO_URI=mongodb://localhost:27017/
-set MONGO_DB_NAME=brand_review_analysis
-```
+Generated files like predictions, metrics, trends, and realtime review logs are not treated as raw input.
 
-## End-to-End Run
+### 4. Run the backend
 
-### 1. Preprocess all raw datasets
-```bash
-python backend/preprocessing.py
-```
-
-### 2. Build feature dataset
-```bash
-python backend/feature_extraction.py
-```
-
-### 3. Train classifiers
-```bash
-python backend/model_training.py
-```
-
-### 4. Generate predictions
-```bash
-python backend/predict.py
-```
-
-### 5. Compute brand reputation score
-```bash
-python backend/brand_score.py
-```
-
-### 6. Start the Flask backend
 ```bash
 python backend/app.py
 ```
 
-Open the dashboard in a browser:
+Open the dashboard at:
+
 - `http://127.0.0.1:5000`
 
-## API Endpoints
+## End-to-End Pipeline
 
-- `GET /api/health`
-- `POST /api/preprocess`
-- `POST /api/train`
-- `POST /api/predict`
-- `POST /api/predict/batch`
-- `GET /api/dashboard/summary`
-- `GET /api/dashboard/trends`
-- `GET /api/dashboard/keywords`
-- `GET /api/dashboard/platforms`
-- `POST /api/dashboard/refresh`
+Run these if you want to rebuild artifacts from raw CSV files:
 
-## Output Files
+```bash
+python backend/preprocessing.py
+python backend/feature_extraction.py
+python backend/model_training.py
+python backend/predict.py
+python backend/brand_score.py
+```
 
-Generated inside `backend/dataset/`:
+Generated outputs are written to `backend/dataset/`, including:
+
 - `cleaned_reviews.csv`
 - `feature_dataset.csv`
 - `sentiment_model.pkl`
@@ -184,25 +88,60 @@ Generated inside `backend/dataset/`:
 - `model_report.txt`
 - `final_predictions.csv`
 - `brand_score.json`
+- `brand_reputation_by_brand.csv`
 - `sentiment_trends.csv`
 - `platform_summary.csv`
-- `confusion_matrix.png`
-- `sentiment_distribution.png`
-- `review_trends.png`
-- `keyword_frequency.png`
-- `platform_distribution.png`
 
-## Planner Coverage
+Raw source files are discovered from `backend/dataset/raw/`, `backend/dataset/csv/`, and legacy top-level CSV files inside `backend/dataset/`.
 
-This rebuild covers:
-- preprocessing of raw review text
-- TF-IDF feature extraction
-- train/test splitting
-- Logistic Regression and Naive Bayes classification
-- accuracy, precision, recall, and F1-score evaluation
-- brand reputation scoring
-- sentiment trend analysis
-- keyword frequency analysis
-- HTML/CSS/JavaScript dashboard
-- MongoDB integration for processed reviews and predictions
->>>>>>> 98618ec (Update project files)
+## Main API Endpoints
+
+- `GET /api/health`
+- `GET /api/docs`
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/logout`
+- `POST /api/preprocess`
+- `POST /api/features`
+- `POST /api/train`
+- `POST /api/predict`
+- `POST /api/predict/batch`
+- `POST /api/brand-score`
+- `GET /api/dashboard/summary`
+- `GET /api/dashboard/trends`
+- `GET /api/dashboard/keywords`
+- `GET /api/dashboard/platforms`
+- `POST /api/dashboard/refresh`
+- `POST /api/reviews/realtime`
+- `GET /api/connectors`
+- `POST /api/connectors/poll`
+- `GET /api/connectors/scheduler`
+- `POST /api/connectors/scheduler`
+
+## Testing
+
+Run the lightweight unit test suite with:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+## Environment Variables
+
+Supported configuration:
+
+- `SECRET_KEY`
+- `DASHBOARD_ADMIN_EMAIL`
+- `DASHBOARD_ADMIN_PASSWORD`
+- `MONGO_URI`
+- `MONGO_DB_NAME`
+- `MONGO_REVIEWS_COLLECTION`
+- `MONGO_PREDICTIONS_COLLECTION`
+- `MONGO_REALTIME_REVIEWS_COLLECTION`
+- `MONGO_CONNECT_TIMEOUT_MS`
+
+## Notes
+
+- MongoDB integration is optional.
+- Generated datasets and model artifacts are intentionally not committed when ignored by `.gitignore`.
+- Current model performance and dashboard outputs depend on the datasets present in `backend/dataset/`.

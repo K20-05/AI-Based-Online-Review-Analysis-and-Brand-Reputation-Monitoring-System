@@ -197,13 +197,36 @@
             <div>
               <div class="eyebrow">Mission Overview</div>
               <h1 class="view-title">BrandPulse Control Room</h1>
-              <p class="view-copy">Mission-control overview with reputation score, review volume, and live sentiment pressure.</p>
+              <p class="view-copy">Live reputation score, review coverage, and sentiment pressure.</p>
             </div>
             <div class="inline-actions">
               <button class="ghost-btn" id="dashboardSyncButton" type="button">Signal Sync</button>
               <button class="action-btn" id="refreshScoreButton" type="button">Refresh Brand Score</button>
             </div>
           </div>
+
+          <section class="dashboard-command-strip" id="dashboardCommandStrip" aria-label="Dashboard quick status">
+            <article class="dashboard-status-pill">
+              <span class="dashboard-status-pill__label">Role Mode</span>
+              <strong id="dashboardRoleLabel">Analyst Workspace</strong>
+              <span class="dashboard-status-pill__meta" id="dashboardRoleMeta">Trend and complaint monitoring mode.</span>
+            </article>
+            <article class="dashboard-status-pill">
+              <span class="dashboard-status-pill__label">Sync Route</span>
+              <strong id="dashboardSourceBadge">Awaiting sync</strong>
+              <span class="dashboard-status-pill__meta" id="dashboardSourceMeta">Last successful dashboard API call.</span>
+            </article>
+            <article class="dashboard-status-pill">
+              <span class="dashboard-status-pill__label">Stream Volume</span>
+              <strong id="dashboardLiveBadge">0 reviews</strong>
+              <span class="dashboard-status-pill__meta" id="dashboardLiveMeta">No realtime activity yet.</span>
+            </article>
+            <article class="dashboard-status-pill dashboard-status-pill--risk is-medium" id="dashboardRiskPill">
+              <span class="dashboard-status-pill__label">Complaint Risk</span>
+              <strong id="dashboardRiskBadge">Medium Risk</strong>
+              <span class="dashboard-status-pill__meta" id="dashboardRiskMeta">Negative share 0.0%.</span>
+            </article>
+          </section>
 
           <section class="surface role-dashboard-panel" id="roleDashboardPanel">
             <div class="role-dashboard-head">
@@ -247,14 +270,14 @@
           </section>
 
           <section class="surface" id="dashboardBrandSection" style="margin-bottom: 18px;">
-            <div class="split-head">
-              <div>
-                <div class="analytics-sub" id="dashboardBrandEyebrow">Brand List</div>
+              <div class="split-head">
+                <div>
+                <div class="analytics-sub" id="dashboardBrandEyebrow">Portfolio Directory</div>
                 <strong id="dashboardBrandTitle">Available brands</strong>
               </div>
             </div>
               <div class="brand-quick-list" id="brandQuickList">
-                <div class="mini-note" id="dashboardBrandNote">Brand list will appear after analytics data loads.</div>
+                <div class="mini-note" id="dashboardBrandNote">Brand directory will appear after analytics data loads.</div>
               </div>
           </section>
 
@@ -277,45 +300,63 @@
           </section>
 
           <section class="admin-control-grid hidden" id="adminControlHub">
-            <article class="admin-control-card">
-              <b>Access</b>
-              <strong id="adminUsersCount">0</strong>
-              <span>Active users</span>
-              <p>Accounts currently available inside the system workspace.</p>
-            </article>
-            <article class="admin-control-card">
-              <b>Coverage</b>
-              <strong id="adminBrandsCount">0</strong>
-              <span>Tracked brands</span>
-              <p>Brands available across the current monitored dataset.</p>
-            </article>
-            <article class="admin-control-card">
-              <b>Volume</b>
-              <strong id="adminReviewsCount">0</strong>
-              <span>Total reviews</span>
-              <p>Processed review volume currently feeding system analytics.</p>
-            </article>
-            <article class="admin-control-card">
-              <b>Model</b>
-              <strong id="adminModelAccuracy">Waiting</strong>
-              <span>Latest accuracy</span>
-              <p id="adminModelName">Model metrics pending.</p>
-            </article>
-            <article class="admin-control-card">
-              <b>Training</b>
-              <strong id="adminTrainingTime">Waiting</strong>
-              <span>Last training run</span>
-              <p>Latest saved training timestamp from the model metrics artifact.</p>
-            </article>
-            <article class="admin-control-card">
-              <b>Status</b>
-              <strong id="adminPipelineStatus">Ready</strong>
-              <span>Pipeline health</span>
-              <p id="adminPipelineCopy">Pipeline status is inferred from model metrics and current dashboard health.</p>
-            </article>
+            <section class="dashboard-block dashboard-block--health">
+                <div class="dashboard-block__head">
+                  <div class="analytics-sub">Platform Health</div>
+                  <strong>Model, training, and pipeline readiness</strong>
+                  <p>Model quality, last training event, and current pipeline health.</p>
+                </div>
+                <div class="dashboard-block__cards dashboard-block__cards--hero">
+                <article class="admin-control-card admin-control-card--hero">
+                  <b>Model</b>
+                  <strong id="adminModelAccuracy">Waiting</strong>
+                  <span>Latest accuracy</span>
+                  <p id="adminModelName">Model metrics pending.</p>
+                </article>
+                <article class="admin-control-card admin-control-card--hero">
+                  <b>Training</b>
+                  <strong id="adminTrainingTime">Waiting</strong>
+                  <span>Last training run</span>
+                  <p>Latest saved training timestamp from the model metrics artifact.</p>
+                </article>
+                <article class="admin-control-card admin-control-card--hero">
+                  <b>Status</b>
+                  <strong id="adminPipelineStatus">Ready</strong>
+                  <span>Pipeline health</span>
+                  <p id="adminPipelineCopy">Pipeline status is inferred from model metrics and current dashboard health.</p>
+                </article>
+              </div>
+            </section>
+            <section class="dashboard-block dashboard-block--coverage">
+                <div class="dashboard-block__head">
+                  <div class="analytics-sub">Workspace Coverage</div>
+                  <strong>People, brands, and dataset scale</strong>
+                  <p>User access, monitored brands, and review volume in one row.</p>
+                </div>
+                <div class="dashboard-block__cards">
+                <article class="admin-control-card">
+                  <b>Access</b>
+                  <strong id="adminUsersCount">0</strong>
+                  <span>Active users</span>
+                  <p>Accounts currently available inside the system workspace.</p>
+                </article>
+                <article class="admin-control-card">
+                  <b>Coverage</b>
+                  <strong id="adminBrandsCount">0</strong>
+                  <span>Tracked brands</span>
+                  <p>Brands available across the current monitored dataset.</p>
+                </article>
+                <article class="admin-control-card">
+                  <b>Volume</b>
+                  <strong id="adminReviewsCount">0</strong>
+                  <span>Total reviews</span>
+                  <p>Processed review volume currently feeding system analytics.</p>
+                </article>
+              </div>
+            </section>
           </section>
 
-          <div class="dashboard-layout">
+          <div class="dashboard-layout" id="dashboardLayout">
             <section class="surface gauge-chamber" id="dashboardGaugeSection">
               <div class="ring-gauge" id="brandGauge">
                 <div class="ring-gauge__inner">
@@ -326,46 +367,101 @@
                 </div>
               </div>
               <div class="gauge-stack">
-                <div class="summary-ribbon">
-                  <div>
+                <div class="summary-ribbon summary-ribbon--hero">
+                  <div class="summary-ribbon__content">
+                    <span class="summary-ribbon__label">Live Narrative</span>
                     <strong id="dashboardNarrative">Telemetry standby</strong>
-                    <span id="dashboardNarrativeCopy">Refresh to load score metrics.</span>
+                    <p class="summary-ribbon__copy" id="dashboardNarrativeCopy">Refresh to load score metrics.</p>
                   </div>
+                  <span class="score-chip risk-medium" id="dashboardRiskChip">Standby</span>
                 </div>
-                <div class="summary-ribbon">
+                <div class="dashboard-quick-grid">
+                  <article class="dashboard-quick-stat">
+                    <span class="dashboard-quick-stat__label">Realtime Share</span>
+                    <strong id="dashboardQuickRealtimeShare">0.0%</strong>
+                    <span class="dashboard-quick-stat__meta">Portion of monitored reviews coming from the live buffer.</span>
+                  </article>
+                  <article class="dashboard-quick-stat">
+                    <span class="dashboard-quick-stat__label">Neutral Share</span>
+                    <strong id="dashboardQuickNeutral">0.0%</strong>
+                    <span class="dashboard-quick-stat__meta">Middle-ground sentiment in the current mix.</span>
+                  </article>
+                  <article class="dashboard-quick-stat">
+                    <span class="dashboard-quick-stat__label">Portfolio Leader</span>
+                    <strong id="dashboardQuickLeader">Waiting</strong>
+                    <span class="dashboard-quick-stat__meta">Highest reputation in the active portfolio.</span>
+                  </article>
+                </div>
+                <div class="summary-ribbon summary-ribbon--meta">
                   <div>
-                    <strong>Mode</strong>
-                    <span>Live reputation sync.</span>
+                    <strong>Monitoring Mode</strong>
+                    <span id="dashboardModeLabel">Live reputation sync.</span>
                   </div>
                   <div>
-                    <strong>Source</strong>
+                    <strong>Sync Route</strong>
                     <span id="dashboardSource">Waiting</span>
+                  </div>
+                  <div>
+                    <strong>Latest Ingest</strong>
+                    <span id="dashboardLiveUpdate">Waiting</span>
                   </div>
                 </div>
               </div>
             </section>
 
-            <aside class="stats-strip" id="dashboardStatsSection">
-              <article>
-                <span class="metric-label">Total Reviews</span>
-                <div class="metric-value"><span id="statTotalReviews">0</span></div>
-                <p class="metric-meta">Current review count.</p>
-              </article>
-              <article>
-                <span class="metric-label">Positive Share</span>
-                <div class="metric-value"><span id="statPositivePct">0%</span></div>
-                <p class="metric-meta">Current positive share.</p>
-              </article>
-              <article>
-                <span class="metric-label">Negative Share</span>
-                <div class="metric-value"><span id="statNegativePct">0%</span></div>
-                <p class="metric-meta">Current negative share.</p>
-              </article>
-              <article>
-                <span class="metric-label">Brand Score</span>
-                <div class="metric-value"><span id="statBrandScore">0.0</span><small>/100</small></div>
-                <p class="metric-meta">Current reputation score.</p>
-              </article>
+            <aside class="stats-strip stats-strip--dashboard" id="dashboardStatsSection">
+              <section class="stats-cluster stats-cluster--primary">
+                <div class="stats-cluster__head">
+                  <div class="analytics-sub">Portfolio Metrics</div>
+                  <strong>Sentiment balance snapshot</strong>
+                  <p>Margin, review coverage, and sentiment mix at a glance.</p>
+                </div>
+                <article class="metric-card metric-card--hero">
+                  <span class="metric-label">Sentiment Margin</span>
+                  <div class="metric-value"><span id="statSentimentMargin">0.0</span><small>pts</small></div>
+                  <p class="metric-meta">Positive share minus negative share across the active portfolio.</p>
+                </article>
+                <div class="stats-cluster__subgrid">
+                  <article class="metric-card">
+                    <span class="metric-label">Coverage Rows</span>
+                    <div class="metric-value"><span id="statTotalReviews">0</span></div>
+                    <p class="metric-meta">Total number of reviews currently included in analysis.</p>
+                  </article>
+                  <article class="metric-card">
+                    <span class="metric-label">Positive Share</span>
+                    <div class="metric-value"><span id="statPositivePct">0%</span></div>
+                    <p class="metric-meta">Percentage of reviews classified as positive.</p>
+                  </article>
+                  <article class="metric-card">
+                    <span class="metric-label">Negative Share</span>
+                    <div class="metric-value"><span id="statNegativePct">0%</span></div>
+                    <p class="metric-meta">Percentage of reviews classified as negative.</p>
+                  </article>
+                </div>
+              </section>
+              <section class="stats-cluster stats-cluster--live">
+                <div class="stats-cluster__head">
+                  <div class="analytics-sub">Ingestion Monitor</div>
+                  <strong>Realtime pipeline status</strong>
+                  <p>Buffered review count and the latest captured ingest activity.</p>
+                </div>
+                <div class="stats-cluster__note">
+                  <span class="stats-cluster__note-label">Pipeline view</span>
+                  <p>Updates after connector polls, scheduler runs, or manual ingest.</p>
+                </div>
+                <div class="stats-cluster__subgrid stats-cluster__subgrid--live">
+                  <article class="metric-card metric-card--live">
+                    <span class="metric-label">Realtime Buffer</span>
+                    <div class="metric-value"><span id="statRealtimeReviews">0</span></div>
+                    <p class="metric-meta">Number of reviews stored from realtime sources.</p>
+                  </article>
+                  <article class="metric-card metric-card--live">
+                    <span class="metric-label">Latest Ingest</span>
+                    <div class="metric-value metric-value--timestamp"><span id="statRealtimeUpdated">Waiting</span></div>
+                    <p class="metric-meta">Most recent timestamp when a live review was ingested.</p>
+                  </article>
+                </div>
+              </section>
             </aside>
           </div>
 
@@ -379,6 +475,17 @@
               <div class="analytics-sub">Insight Engine</div>
               <strong id="dashboardInsightTitle">Insight standby</strong>
               <p class="users-note" id="dashboardInsightCopy">Insight updates after analytics load.</p>
+            </section>
+            <section class="surface" style="grid-column: 1 / -1;">
+              <div class="split-head">
+                <div>
+                  <div class="analytics-sub">Realtime Review Feed</div>
+                  <strong>Latest ingested ecommerce reviews</strong>
+                </div>
+              </div>
+              <div class="review-drilldown-list" id="dashboardRealtimeReviewList">
+                <div class="mini-note">Realtime reviews will appear here after the first live ingest.</div>
+              </div>
             </section>
           </div>
         </section>
@@ -829,7 +936,7 @@
             <div>
               <div class="eyebrow">Single Review Scan</div>
               <h1 class="view-title">Sentiment Inspection</h1>
-              <p class="view-copy">Analyze one review with sentiment, confidence, and rating check.</p>
+              <p class="view-copy">Analyze one review with sentiment, confidence, rating check, and Indian-language auto-detection.</p>
             </div>
           </div>
 
@@ -837,7 +944,8 @@
             <form id="singleForm">
               <div class="field">
                 <label for="singleReviewText">Review Text</label>
-                <textarea id="singleReviewText" class="single-review-text" name="review_text" placeholder="Paste a review to inspect sentiment signal..."></textarea>
+                <textarea id="singleReviewText" class="single-review-text" name="review_text" placeholder="Paste a review in Hindi, Tamil, Telugu, Malayalam, or Kannada..."></textarea>
+                <p class="field-note single-review-note" id="singleReviewNote">Required. Paste one customer review here before prediction.</p>
               </div>
               <div class="form-grid single-form-grid">
                 <div class="field">
@@ -873,7 +981,7 @@
               <div class="inline-actions single-actions">
                 <button class="action-btn" id="singlePredictButton" type="submit">Predict Sentiment</button>
               </div>
-              <p class="single-helper">Review text is required. Rating mismatch is checked automatically.</p>
+              <p class="single-helper">Review text is required. Language is auto-detected and normalized before scoring. Rating mismatch is checked automatically.</p>
             </form>
 
             <section class="result-shell is-empty" id="singleResultShell" aria-live="polite">
@@ -902,7 +1010,7 @@
             <div>
               <div class="eyebrow">Batch Sweep</div>
               <h1 class="view-title">Queue Multiple Reviews</h1>
-              <p class="view-copy">Run multiple reviews and inspect the result summary.</p>
+              <p class="view-copy">Run multiple reviews and inspect the result summary with Indian-language auto-detection per review.</p>
             </div>
           </div>
 
@@ -911,7 +1019,7 @@
               <form id="batchForm">
                 <div class="field">
                   <label for="batchReviewText">Reviews, one per line</label>
-                  <textarea id="batchReviewText" placeholder="Excellent quality and timely delivery&#10;Packaging was damaged and support was slow&#10;Decent value for the price"></textarea>
+                  <textarea id="batchReviewText" placeholder="डिलीवरी बहुत लेट हुई और पैकेज डैमेज था&#10;மிகவும் மோசம், ரிஃபண்ட் கிடைக்கவில்லை&#10;చాలా చెడు, రిఫండ్ రాలేదు"></textarea>
                 </div>
                 <label class="checkline" for="saveToDataset">
                   <input id="saveToDataset" type="checkbox">
@@ -919,7 +1027,7 @@
                 </label>
                 <div class="inline-actions">
                   <button class="action-btn" id="batchRunButton" type="submit">Run Batch</button>
-                  <span class="signal-note">Enter one review per line.</span>
+                  <span class="signal-note">Enter one review per line. Languages are detected automatically.</span>
                 </div>
               </form>
             </section>
@@ -949,13 +1057,14 @@
               <thead>
                 <tr>
                   <th>Review ID</th>
+                  <th>Language</th>
                   <th>Sentiment</th>
                   <th>Confidence</th>
                 </tr>
               </thead>
               <tbody id="batchTableBody">
                 <tr>
-                  <td colspan="3" class="signal-note">No batch results available yet.</td>
+                  <td colspan="4" class="signal-note">No batch results available yet.</td>
                 </tr>
               </tbody>
             </table>
@@ -1024,38 +1133,38 @@
               <button class="ghost-btn" id="refreshModelButton" type="button">Refresh Model</button>
             </div>
           </div>
-          <section class="admin-control-grid">
-            <article class="admin-control-card">
+          <section class="admin-control-grid admin-control-grid--metrics">
+            <article class="admin-control-card admin-control-card--metric admin-control-card--metric-hero">
               <b>Model</b>
               <strong id="modelPageName">Waiting</strong>
               <span>Selected artifact</span>
               <p>Latest saved model identifier from training output.</p>
             </article>
-            <article class="admin-control-card">
+            <article class="admin-control-card admin-control-card--metric">
               <b>Accuracy</b>
               <strong id="modelPageAccuracy">0%</strong>
               <span>Test accuracy</span>
               <p>Current evaluation accuracy for the deployed sentiment model.</p>
             </article>
-            <article class="admin-control-card">
+            <article class="admin-control-card admin-control-card--metric">
               <b>F1 Score</b>
               <strong id="modelPageF1">0%</strong>
               <span>Macro F1</span>
               <p>Macro F1 gives a more balanced view across sentiment classes.</p>
             </article>
-            <article class="admin-control-card">
+            <article class="admin-control-card admin-control-card--metric">
               <b>Validation</b>
               <strong id="modelPageValidation">0%</strong>
               <span>Validation accuracy</span>
               <p>Last validation accuracy recorded during model selection.</p>
             </article>
-            <article class="admin-control-card">
+            <article class="admin-control-card admin-control-card--metric">
               <b>Loss</b>
               <strong id="modelPageLoss">0.000</strong>
               <span>Test log loss</span>
               <p>Lower log loss indicates more stable confidence calibration.</p>
             </article>
-            <article class="admin-control-card">
+            <article class="admin-control-card admin-control-card--metric">
               <b>Training Time</b>
               <strong id="modelPageTrainedAt">Waiting</strong>
               <span>Last run</span>

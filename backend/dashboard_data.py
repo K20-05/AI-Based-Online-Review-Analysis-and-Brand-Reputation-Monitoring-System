@@ -8,8 +8,8 @@ import re
 
 import pandas as pd
 
-from backend.brand_score import calculate_brand_score
-from backend.config import BRAND_SCORE_PATH, PREDICTIONS_PATH
+from backend.brand_score import calculate_brand_score, scoring_frame
+from backend.config import BRAND_SCORE_PATH, PREDICTIONS_PATH, REALTIME_REVIEWS_PATH
 
 
 def normalize_brand_key(value: str) -> str:
@@ -17,22 +17,28 @@ def normalize_brand_key(value: str) -> str:
 
 
 @lru_cache(maxsize=1)
-def _prediction_frame_cached(cache_key: tuple[str, int, int]) -> pd.DataFrame:
-    return pd.read_csv(
-        cache_key[0],
-        dtype={"review_id": "string", "platform": "string", "brand": "string"},
-        low_memory=False,
-    )
+def _prediction_frame_cached(cache_key: tuple) -> pd.DataFrame:
+    return scoring_frame()
 
 
-def predictions_cache_key() -> tuple[str, int, int]:
+def predictions_cache_key() -> tuple:
     if not PREDICTIONS_PATH.exists():
         raise FileNotFoundError("Prediction dataset not found. Run prediction first.")
-    file_stats = PREDICTIONS_PATH.stat()
+    prediction_stats = PREDICTIONS_PATH.stat()
+    if REALTIME_REVIEWS_PATH.exists():
+        realtime_stats = REALTIME_REVIEWS_PATH.stat()
+        realtime_signature = (
+            str(REALTIME_REVIEWS_PATH.resolve()),
+            int(realtime_stats.st_mtime_ns),
+            int(realtime_stats.st_size),
+        )
+    else:
+        realtime_signature = ("", 0, 0)
     return (
         str(PREDICTIONS_PATH.resolve()),
-        int(file_stats.st_mtime_ns),
-        int(file_stats.st_size),
+        int(prediction_stats.st_mtime_ns),
+        int(prediction_stats.st_size),
+        *realtime_signature,
     )
 
 
@@ -149,6 +155,48 @@ def review_samples(
         }
         for _, row in working.iterrows()
     ]
+
+
+def random_brand_review(brand: str = "") -> dict | None:
+    df = prediction_frame()
+    source_series = df.get("review_text")
+    if source_series is None:
+        source_series = df.get("cleaned_review")
+    if source_series is None:
+        return None
+
+    working = df.copy()
+    normalized_brand = normalize_brand_key(brand)
+    if normalized_brand:
+        brand_filtered = working[
+            working.get("brand", pd.Series(dtype="string")).fillna("").astype(str).map(normalize_brand_key) == normalized_brand
+        ].copy()
+        if not brand_filtered.empty:
+            working = brand_filtered
+        else:
+            return random_brand_review("")
+
+    working["display_review"] = source_series.fillna("").astype(str).str.strip()
+    working = working[working["display_review"] != ""].copy()
+    if working.empty:
+        if normalized_brand:
+            return random_brand_review("")
+        return None
+
+    sample = working.sample(n=1).iloc[0]
+    rating = sample.get("rating")
+    if pd.isna(rating):
+        rating = None
+    elif hasattr(rating, "item"):
+        rating = rating.item()
+    return {
+        "review_text": str(sample.get("display_review", "")),
+        "brand": str(sample.get("brand", "") or ""),
+        "platform": str(sample.get("platform", "") or ""),
+        "review_date": str(sample.get("review_date", "") or ""),
+        "rating": rating,
+        "predicted_sentiment": str(sample.get("predicted_sentiment", "") or ""),
+    }
 
 
 @lru_cache(maxsize=64)

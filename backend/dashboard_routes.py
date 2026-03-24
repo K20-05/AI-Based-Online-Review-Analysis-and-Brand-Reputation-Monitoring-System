@@ -26,8 +26,11 @@ def create_dashboard_blueprint(deps: dict) -> Blueprint:
     trend_counts_frame = deps["trend_counts_frame"]
     dashboard_keywords_payload = deps["dashboard_keywords_payload"]
     review_samples = deps["review_samples"]
+    random_brand_review = deps["random_brand_review"]
     dashboard_data = deps["dashboard_data"]
     BRAND_REPUTATION_BY_BRAND_PATH = deps["BRAND_REPUTATION_BY_BRAND_PATH"]
+    latest_realtime_reviews = deps["latest_realtime_reviews"]
+    realtime_review_summary = deps["realtime_review_summary"]
 
     @bp.get("/api/dashboard/summary")
     @require_auth
@@ -44,17 +47,22 @@ def create_dashboard_blueprint(deps: dict) -> Blueprint:
             payload = calculate_brand_score()
             rows = payload.get("brand_scores", [])
 
-        availability = trend_brand_availability()
+        include_trend_availability = str(request.args.get("include_trend_availability", "")).strip().lower() in {
+            "1",
+            "true",
+            "yes",
+        }
+        availability = trend_brand_availability() if include_trend_availability else {}
         normalized_rows = []
         for row in rows:
             next_row = dict(row)
-            next_row["has_trend_data"] = bool(availability.get(normalize_brand_key(next_row.get("brand", "")), False))
+            next_row["has_trend_data"] = bool(availability.get(normalize_brand_key(next_row.get("brand", "")), True))
             normalized_rows.append(next_row)
         return jsonify({"brands": normalized_rows})
 
     @bp.get("/api/dashboard/insights")
     @require_auth
-    @require_roles("marketing_staff")
+    @require_roles("admin", "marketing_staff")
     def dashboard_insights():
         brand = str(request.args.get("brand", "")).strip()
         if not brand:
@@ -63,7 +71,7 @@ def create_dashboard_blueprint(deps: dict) -> Blueprint:
 
     @bp.get("/api/dashboard/similar")
     @require_auth
-    @require_roles("marketing_staff")
+    @require_roles("admin", "marketing_staff")
     def dashboard_similar():
         brand = str(request.args.get("brand", "")).strip()
         if not brand:
@@ -74,7 +82,7 @@ def create_dashboard_blueprint(deps: dict) -> Blueprint:
 
     @bp.get("/api/dashboard/compare")
     @require_auth
-    @require_roles("marketing_staff")
+    @require_roles("admin", "marketing_staff")
     def dashboard_compare():
         brand_a = str(request.args.get("brand_a", "")).strip()
         brand_b = str(request.args.get("brand_b", "")).strip()
@@ -100,7 +108,7 @@ def create_dashboard_blueprint(deps: dict) -> Blueprint:
 
     @bp.get("/api/dashboard/trends")
     @require_auth
-    @require_roles("analyst", "marketing_staff")
+    @require_roles("admin", "analyst", "marketing_staff")
     def dashboard_trends():
         grouped = trend_counts_frame()
         brand_filter = str(request.args.get("brand", "")).strip()
@@ -145,7 +153,7 @@ def create_dashboard_blueprint(deps: dict) -> Blueprint:
 
     @bp.get("/api/dashboard/reviews")
     @require_auth
-    @require_roles("analyst")
+    @require_roles("admin", "analyst")
     def dashboard_review_samples():
         sentiment = str(request.args.get("sentiment", "")).strip()
         if not sentiment:
@@ -156,11 +164,42 @@ def create_dashboard_blueprint(deps: dict) -> Blueprint:
         samples = review_samples(sentiment=sentiment, brand=brand, months=months, limit=limit)
         return jsonify({"sentiment": sentiment, "brand": brand or None, "months": months, "samples": samples})
 
+    @bp.get("/api/dashboard/random-review")
+    @require_auth
+    @require_roles("admin", "analyst")
+    def dashboard_random_review():
+        brand = str(request.args.get("brand", "")).strip()
+        sample = random_brand_review(brand=brand)
+        if not sample:
+            return json_error("No review sample found for the selected brand", 404)
+        return jsonify({"brand": brand or sample.get("brand") or None, "sample": sample})
+
     @bp.get("/api/dashboard/platforms")
     @require_auth
-    @require_roles("analyst", "marketing_staff")
+    @require_roles("admin", "analyst", "marketing_staff")
     def dashboard_platforms():
         return jsonify({"platforms": dashboard_data.platform_breakdown()})
+
+    @bp.get("/api/dashboard/realtime-reviews")
+    @require_auth
+    @require_roles("admin", "analyst", "marketing_staff")
+    def dashboard_realtime_reviews():
+        limit = max(1, min(int(request.args.get("limit", 20) or 20), 100))
+        brand = str(request.args.get("brand", "")).strip()
+        platform = str(request.args.get("platform", "")).strip()
+        return jsonify(
+            {
+                "reviews": latest_realtime_reviews(limit=limit, brand=brand, platform=platform),
+                "brand": brand or None,
+                "platform": platform or None,
+            }
+        )
+
+    @bp.get("/api/dashboard/realtime-summary")
+    @require_auth
+    @require_roles("admin", "analyst", "marketing_staff")
+    def dashboard_realtime_summary():
+        return jsonify(realtime_review_summary())
 
     @bp.post("/api/dashboard/refresh")
     @require_auth

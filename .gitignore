@@ -1,5 +1,10 @@
 __pycache__/
 *.pyc
+.venv/
+.vscode/
+.env
+
+dataset/
 
 backend/dataset/cleaned_reviews.csv
 backend/dataset/feature_dataset.csv
@@ -11,3 +16,9 @@ backend/dataset/model_metrics.csv
 backend/dataset/final_predictions.csv
 backend/dataset/brand_score.json
 backend/dataset/brand_reputation_by_brand.csv
+backend/dataset/dashboard_users.json
+backend/dataset/connector_state.json
+backend/dataset/connector_scheduler.json
+backend/dataset/realtime_reviews.csv
+backend/dataset/platform_summary.csv
+backend/dataset/sentiment_trends.csv

@@ -10,7 +10,9 @@ if __package__ is None or __package__ == "":
 
 from backend.config import (
     MONGO_DB_NAME,
+    MONGO_CONNECT_TIMEOUT_MS,
     MONGO_PREDICTIONS_COLLECTION,
+    MONGO_REALTIME_REVIEWS_COLLECTION,
     MONGO_REVIEWS_COLLECTION,
     MONGO_URI,
 )
@@ -24,7 +26,7 @@ except ImportError:  # pragma: no cover
 
 
 def mongo_enabled() -> bool:
-    return MongoClient is not None
+    return MongoClient is not None and bool(str(MONGO_URI).strip())
 
 
 def format_mongo_error(error: Exception) -> str:
@@ -41,7 +43,7 @@ def format_mongo_error(error: Exception) -> str:
 def get_database():
     if not mongo_enabled():
         return None
-    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=2000)
+    client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=MONGO_CONNECT_TIMEOUT_MS)
     return client[MONGO_DB_NAME]
 
 
@@ -49,7 +51,10 @@ def write_dataframe(df: pd.DataFrame, collection_name: str, replace: bool = True
     if not mongo_enabled() or df.empty:
         return False
     try:
-        collection = get_database()[collection_name]
+        database = get_database()
+        if database is None:
+            return False
+        collection = database[collection_name]
         if replace:
             collection.delete_many({})
         records = df.where(pd.notnull(df), None).to_dict(orient="records")
@@ -65,7 +70,10 @@ def read_dataframe(collection_name: str) -> pd.DataFrame:
     if not mongo_enabled():
         return pd.DataFrame()
     try:
-        collection = get_database()[collection_name]
+        database = get_database()
+        if database is None:
+            return pd.DataFrame()
+        collection = database[collection_name]
         return pd.DataFrame(list(collection.find({}, {"_id": 0})))
     except PyMongoError as error:
         print(f"MongoDB read failed for {collection_name}: {format_mongo_error(error)}")
@@ -78,3 +86,11 @@ def write_processed_reviews(df: pd.DataFrame, replace: bool = True) -> bool:
 
 def write_predictions(df: pd.DataFrame, replace: bool = True) -> bool:
     return write_dataframe(df, MONGO_PREDICTIONS_COLLECTION, replace=replace)
+
+
+def append_dataframe(df: pd.DataFrame, collection_name: str) -> bool:
+    return write_dataframe(df, collection_name, replace=False)
+
+
+def append_realtime_reviews(df: pd.DataFrame) -> bool:
+    return append_dataframe(df, MONGO_REALTIME_REVIEWS_COLLECTION)

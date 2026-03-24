@@ -9,41 +9,47 @@ import sys
 
 from flask import Flask, jsonify, request, send_file, send_from_directory, session
 from flask_cors import CORS
-import joblib
 import pandas as pd
 from werkzeug.security import check_password_hash, generate_password_hash
 
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from backend.brand_score import calculate_brand_score, summarize_sentiment_counts
+from backend.brand_score import calculate_brand_score
 from backend.config import (
     BRAND_REPUTATION_BY_BRAND_PATH,
     DASHBOARD_ADMIN_EMAIL,
     DASHBOARD_ADMIN_PASSWORD,
     FRONTEND_DIR,
+    LOGIN_ILLUSTRATION_PATH,
     MODEL_METRICS_PATH,
     MODEL_PATH,
     MODEL_REPORT_PATH,
     PREDICTIONS_PATH,
+    REALTIME_REVIEWS_PATH,
     SECRET_KEY,
     USER_STORE_PATH,
     VECTORIZER_PATH,
 )
+from backend.database import mongo_enabled
 from backend import dashboard_data
 from backend.admin_routes import create_admin_blueprint
 from backend.auth_routes import create_auth_blueprint
 from backend.dashboard_routes import create_dashboard_blueprint
 from backend.feature_extraction import build_feature_dataset
 from backend.model_training import train_models
+from backend.connector_scheduler import ensure_scheduler_started, scheduler_status, update_scheduler_config
+from backend.connectors import list_connectors, poll_connector
+from backend.model_artifacts import load_model_artifacts
 from backend.predict import predict_dataset
-from backend.preprocessing import clean_text, preprocess_reviews
+from backend.prediction_service import parse_predict_payload, predict_batch_reviews, predict_single_review
+from backend.realtime_reviews import ingest_realtime_reviews, latest_realtime_reviews, realtime_review_summary
+from backend.preprocessing import preprocess_reviews
 from backend.visualization import generate_visualizations
 
 app = Flask(__name__, static_folder=str(FRONTEND_DIR), static_url_path="")
 app.config["SECRET_KEY"] = SECRET_KEY
 CORS(app, supports_credentials=True)
-LOGIN_ILLUSTRATION_PATH = Path(r"C:\Users\ADMIN\OneDrive\Pictures\1.png!sw800")
 
 API_DOCS = {
     "name": "BrandPulse AI",
@@ -112,21 +118,24 @@ API_DOCS = {
             {
                 "method": "POST",
                 "path": "/api/predict",
-                "summary": "Predict sentiment for a single review.",
+                "summary": "Predict sentiment for a single review with Indian-language normalization.",
                 "auth_required": True,
                 "request_body": {
-                    "review_text": "Delivery was quick and smooth.",
-                    "platform": "Amazon",
-                    "brand": "Amazon",
-                    "rating": 5,
+                    "review_text": "\u0921\u093f\u0932\u0940\u0935\u0930\u0940 \u092c\u0939\u0941\u0924 \u0932\u0947\u091f \u0939\u0941\u0908 \u0914\u0930 \u092a\u0948\u0915\u0947\u091c \u0921\u0948\u092e\u0947\u091c \u0925\u093e\u0964",
+                    "platform": "Nykaa",
+                    "brand": "Nykaa",
+                    "rating": 1,
                 },
                 "response": {
-                    "review_text": "Delivery was quick and smooth.",
-                    "cleaned_review": "delivery quick smooth",
-                    "rating": 5,
-                    "platform": "Amazon",
-                    "brand": "Amazon",
-                    "predicted_sentiment": "Positive",
+                    "review_text": "\u0921\u093f\u0932\u0940\u0935\u0930\u0940 \u092c\u0939\u0941\u0924 \u0932\u0947\u091f \u0939\u0941\u0908 \u0914\u0930 \u092a\u0948\u0915\u0947\u091c \u0921\u0948\u092e\u0947\u091c \u0925\u093e\u0964",
+                    "cleaned_review": "delivery late package damaged",
+                    "source_language": "hi",
+                    "source_language_label": "Hindi",
+                    "translation_applied": True,
+                    "rating": 1,
+                    "platform": "Nykaa",
+                    "brand": "Nykaa",
+                    "predicted_sentiment": "Negative",
                 },
                 "error_responses": [
                     {"status": 400, "body": {"success": False, "error": "review_text is required"}},
@@ -137,7 +146,7 @@ API_DOCS = {
             {
                 "method": "POST",
                 "path": "/api/predict/batch",
-                "summary": "Predict sentiment for the cleaned review dataset and refresh brand score outputs.",
+                "summary": "Predict sentiment for submitted reviews or the cleaned dataset with Indian-language normalization.",
                 "auth_required": True,
                 "request_body": {},
                 "response": {
@@ -214,6 +223,8 @@ API_DOCS = {
             {"method": "GET", "path": "/api/dashboard/keywords", "summary": "Get top processed keywords.", "auth_required": True},
             {"method": "GET", "path": "/api/dashboard/platforms", "summary": "Get platform sentiment breakdown.", "auth_required": True},
             {"method": "GET", "path": "/api/dashboard/brands", "summary": "Get brand-level reputation rows.", "auth_required": True},
+            {"method": "GET", "path": "/api/dashboard/realtime-reviews", "summary": "Get the latest ingested realtime ecommerce reviews.", "auth_required": True},
+            {"method": "GET", "path": "/api/dashboard/realtime-summary", "summary": "Get realtime review storage summary.", "auth_required": True},
             {"method": "POST", "path": "/api/dashboard/refresh", "summary": "Refresh dashboard visual outputs and score files.", "auth_required": True},
         ],
         "system": [
@@ -268,10 +279,73 @@ API_DOCS = {
             },
             {"method": "GET", "path": "/api/docs", "summary": "Read API contract and examples."},
             {"method": "GET", "path": "/api/openapi.json", "summary": "Read API contract in machine-friendly JSON."},
+            {
+                "method": "POST",
+                "path": "/api/reviews/realtime",
+                "summary": "Ingest one or more realtime ecommerce reviews, predict sentiment immediately, and persist them.",
+                "auth_required": True,
+                "request_body": {
+                    "reviews": [
+                        {
+                            "review_text": "Delivery was late and the refund is still pending.",
+                            "platform": "Flipkart",
+                            "brand": "Flipkart",
+                            "rating": 1,
+                            "source_type": "api",
+                        }
+                    ]
+                },
+            },
+            {"method": "GET", "path": "/api/connectors", "summary": "List available realtime review connectors.", "auth_required": True},
+            {
+                "method": "POST",
+                "path": "/api/connectors/poll",
+                "summary": "Poll a configured connector and ingest fetched reviews into realtime storage.",
+                "auth_required": True,
+                "request_body": {
+                    "connector": "mock_marketplace",
+                    "limit": 10,
+                    "reset_cursor": False,
+                    "options": {"platform": "Demo Store", "brand": "Demo Store"},
+                },
+            },
+            {
+                "method": "POST",
+                "path": "/api/connectors/poll",
+                "summary": "Poll a Kafka topic and ingest JSON review messages into realtime storage.",
+                "auth_required": True,
+                "request_body": {
+                    "connector": "kafka_topic",
+                    "limit": 10,
+                    "reset_cursor": False,
+                    "options": {
+                        "bootstrap_servers": "localhost:9092",
+                        "topic": "brandpulse.reviews",
+                        "group_id": "brandpulse-realtime",
+                        "platform": "Nykaa",
+                        "brand": "Nykaa",
+                        "auto_offset_reset": "latest",
+                    },
+                },
+            },
+            {"method": "GET", "path": "/api/connectors/scheduler", "summary": "Read automatic connector polling scheduler status.", "auth_required": True},
+            {
+                "method": "POST",
+                "path": "/api/connectors/scheduler",
+                "summary": "Update automatic connector polling scheduler configuration.",
+                "auth_required": True,
+                "request_body": {
+                    "enabled": True,
+                    "connector": "mock_marketplace",
+                    "interval_seconds": 15,
+                    "limit": 1,
+                    "reset_cursor_on_start": False,
+                    "options": {"platform": "Auto Demo Store", "brand": "Auto Demo Store"},
+                },
+            },
         ],
     },
 }
-
 
 @app.errorhandler(FileNotFoundError)
 def handle_missing_file(error):
@@ -286,11 +360,6 @@ def handle_value_error(error):
 @app.errorhandler(Exception)
 def handle_unexpected_error(error):
     return jsonify({"success": False, "error": str(error)}), 500
-
-def load_artifacts():
-    if not MODEL_PATH.exists() or not VECTORIZER_PATH.exists():
-        raise FileNotFoundError("Model artifacts are missing. Run training first.")
-    return joblib.load(MODEL_PATH), joblib.load(VECTORIZER_PATH)
 
 
 def prediction_frame() -> pd.DataFrame:
@@ -326,6 +395,10 @@ def review_samples(
     limit: int = 5,
 ) -> list[dict]:
     return dashboard_data.review_samples(sentiment=sentiment, brand=brand, months=months, limit=limit)
+
+
+def random_brand_review(brand: str = "") -> dict | None:
+    return dashboard_data.random_brand_review(brand=brand)
 
 
 def trend_brand_availability() -> dict[str, bool]:
@@ -476,22 +549,6 @@ def require_roles(*roles: str):
     return decorator
 
 
-def parse_predict_payload(payload: dict) -> dict:
-    review_text = str(payload.get("review_text", "")).strip()
-    if not review_text:
-        raise ValueError("review_text is required")
-
-    platform = str(payload.get("platform", "Manual Input")).strip() or "Manual Input"
-    brand = str(payload.get("brand", platform)).strip() or platform
-    rating = payload.get("rating")
-    return {
-        "review_text": review_text,
-        "platform": platform,
-        "brand": brand,
-        "rating": rating,
-    }
-
-
 app.register_blueprint(
     create_auth_blueprint(
         {
@@ -560,8 +617,11 @@ app.register_blueprint(
             "trend_counts_frame": trend_counts_frame,
             "dashboard_keywords_payload": dashboard_keywords_payload,
             "review_samples": review_samples,
+            "random_brand_review": random_brand_review,
             "dashboard_data": dashboard_data,
             "BRAND_REPUTATION_BY_BRAND_PATH": BRAND_REPUTATION_BY_BRAND_PATH,
+            "latest_realtime_reviews": latest_realtime_reviews,
+            "realtime_review_summary": realtime_review_summary,
         }
     )
 )
@@ -581,6 +641,10 @@ def health():
             "vectorizer_exists": VECTORIZER_PATH.exists(),
             "predictions_exist": PREDICTIONS_PATH.exists(),
             "report_exists": MODEL_REPORT_PATH.exists(),
+            "realtime_reviews_exist": REALTIME_REVIEWS_PATH.exists(),
+            "user_store_exists": USER_STORE_PATH.exists(),
+            "login_illustration_exists": LOGIN_ILLUSTRATION_PATH.exists(),
+            "mongo_configured": mongo_enabled(),
         }
     )
 
@@ -633,34 +697,8 @@ def train_endpoint():
 def predict_single():
     payload = request.get_json(force=True, silent=False) or {}
     request_data = parse_predict_payload(payload)
-
-    model, vectorizer = load_artifacts()
-    cleaned_review = clean_text(request_data["review_text"])
-    features = vectorizer.transform([cleaned_review])
-    predicted_sentiment = model.predict(features)[0]
-    class_probabilities = {}
-    prediction_confidence = None
-    if hasattr(model, "predict_proba") and hasattr(model, "classes_"):
-        probabilities = model.predict_proba(features)[0]
-        class_probabilities = {
-            str(label): float(probability)
-            for label, probability in zip(model.classes_, probabilities)
-        }
-        prediction_confidence = float(class_probabilities.get(str(predicted_sentiment), 0.0))
-
-    return jsonify(
-        {
-            "success": True,
-            "review_text": request_data["review_text"],
-            "cleaned_review": cleaned_review,
-            "rating": request_data["rating"],
-            "platform": request_data["platform"],
-            "brand": request_data["brand"],
-            "predicted_sentiment": predicted_sentiment,
-            "class_probabilities": class_probabilities,
-            "prediction_confidence": prediction_confidence,
-        }
-    )
+    response_payload = predict_single_review(request_data, load_model_artifacts)
+    return jsonify({"success": True, **response_payload})
 
 
 @app.post("/api/predict/batch")
@@ -673,92 +711,8 @@ def predict_batch():
 
     # Fast path: predict only submitted batch rows from UI text input.
     if isinstance(reviews, list) and reviews and not save_to_dataset:
-        model, vectorizer = load_artifacts()
-        prepared = []
-        for index, item in enumerate(reviews):
-            if isinstance(item, dict):
-                review_text = str(item.get("review_text", "")).strip()
-                review_id = item.get("review_id", index + 1)
-                platform = str(item.get("platform", "Manual Batch")).strip() or "Manual Batch"
-                brand = str(item.get("brand", platform)).strip() or platform
-                rating = item.get("rating")
-            else:
-                review_text = str(item).strip()
-                review_id = index + 1
-                platform = "Manual Batch"
-                brand = "Manual Batch"
-                rating = None
-            if not review_text:
-                continue
-            prepared.append(
-                {
-                    "review_id": review_id,
-                    "review_text": review_text,
-                    "cleaned_review": clean_text(review_text),
-                    "platform": platform,
-                    "brand": brand,
-                    "rating": rating,
-                }
-            )
-
-        if not prepared:
-            return json_error("Batch input requires at least one non-empty review_text")
-
-        features = vectorizer.transform([row["cleaned_review"] for row in prepared])
-        predictions = model.predict(features)
-        class_probabilities = model.predict_proba(features) if hasattr(model, "predict_proba") and hasattr(model, "classes_") else None
-
-        results = []
-        for index, row in enumerate(prepared):
-            sentiment = str(predictions[index])
-            confidence = None
-            probability_map = {}
-            if class_probabilities is not None:
-                probability_map = {
-                    str(label): float(probability)
-                    for label, probability in zip(model.classes_, class_probabilities[index])
-                }
-                confidence = float(probability_map.get(sentiment, 0.0))
-            results.append(
-                {
-                    "review_id": row["review_id"],
-                    "review_text": row["review_text"],
-                    "cleaned_review": row["cleaned_review"],
-                    "platform": row["platform"],
-                    "brand": row["brand"],
-                    "rating": row["rating"],
-                    "predicted_sentiment": sentiment,
-                    "class_probabilities": probability_map,
-                    "prediction_confidence": confidence,
-                }
-            )
-
-        score_df = pd.DataFrame(
-            [
-                {
-                    "brand": row["brand"],
-                    "predicted_sentiment": row["predicted_sentiment"],
-                }
-                for row in results
-            ]
-        )
-        batch_score = summarize_sentiment_counts(score_df)
-        brand_rows = []
-        for brand, group in score_df.groupby("brand", sort=True):
-            brand_row = {"brand": str(brand)}
-            brand_row.update(summarize_sentiment_counts(group))
-            brand_rows.append(brand_row)
-        batch_score["brand_scores"] = brand_rows
-
-        return jsonify(
-            {
-                "success": True,
-                "message": "Batch prediction completed",
-                "rows": len(results),
-                "results": results,
-                "brand_score": batch_score,
-            }
-        )
+        response_payload = predict_batch_reviews(reviews, load_model_artifacts)
+        return jsonify({"success": True, **response_payload})
 
     # Full refresh path: expensive dataset-wide rebuild (used when save_to_dataset is enabled).
     df = predict_dataset()
@@ -772,6 +726,91 @@ def predict_batch():
 def brand_score_endpoint():
     payload = calculate_brand_score()
     return json_success("Brand scoring completed", brand_score=payload)
+
+
+@app.post("/api/reviews/realtime")
+@require_auth
+@require_roles("admin", "analyst")
+def realtime_reviews_ingest():
+    payload = request.get_json(force=True, silent=False) or {}
+    reviews = payload.get("reviews")
+    if not isinstance(reviews, list) or not reviews:
+        single = payload if payload.get("review_text") else None
+        reviews = [single] if single else []
+    if not reviews:
+        return json_error("Provide reviews as a non-empty list or a single review_text payload")
+
+    df = ingest_realtime_reviews(reviews)
+    return jsonify(
+        {
+            "success": True,
+            "message": "Realtime reviews ingested",
+            "rows": int(len(df)),
+            "results": df.where(pd.notnull(df), None).to_dict(orient="records"),
+            "summary": realtime_review_summary(),
+        }
+    )
+
+
+@app.get("/api/connectors")
+@require_auth
+@require_roles("admin", "analyst")
+def connectors_list_endpoint():
+    return jsonify({"connectors": list_connectors()})
+
+
+@app.post("/api/connectors/poll")
+@require_auth
+@require_roles("admin", "analyst")
+def connectors_poll_endpoint():
+    payload = request.get_json(force=True, silent=False) or {}
+    connector_name = str(payload.get("connector", "")).strip()
+    if not connector_name:
+        return json_error("connector is required")
+
+    limit = max(1, min(int(payload.get("limit", 20) or 20), 100))
+    options = payload.get("options") if isinstance(payload.get("options"), dict) else {}
+    reset_cursor = bool(payload.get("reset_cursor"))
+
+    fetched = poll_connector(connector_name, limit=limit, options=options, reset_cursor=reset_cursor)
+    reviews = fetched.get("reviews", [])
+    if not reviews:
+        return jsonify({"success": True, "message": "Connector poll completed with no new reviews", **fetched})
+
+    ingested_df = ingest_realtime_reviews(reviews)
+    return jsonify(
+        {
+            "success": True,
+            "message": "Connector poll completed",
+            **fetched,
+            "ingested_rows": int(len(ingested_df)),
+            "summary": realtime_review_summary(),
+        }
+    )
+
+
+@app.get("/api/connectors/scheduler")
+@require_auth
+@require_roles("admin", "analyst")
+def connector_scheduler_status_endpoint():
+    return jsonify(scheduler_status())
+
+
+@app.post("/api/connectors/scheduler")
+@require_auth
+@require_roles("admin", "analyst")
+def connector_scheduler_update_endpoint():
+    payload = request.get_json(force=True, silent=False) or {}
+    return jsonify(
+        {
+            "success": True,
+            "message": "Connector scheduler updated",
+            **update_scheduler_config(payload),
+        }
+    )
+
+
+ensure_scheduler_started()
 
 
 if __name__ == "__main__":

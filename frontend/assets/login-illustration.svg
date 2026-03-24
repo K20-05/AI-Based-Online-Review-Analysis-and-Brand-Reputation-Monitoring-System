@@ -1,0 +1,119 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 640" role="img" aria-labelledby="title desc">
+  <title id="title">BrandPulse login illustration</title>
+  <desc id="desc">A futuristic dashboard scene with reputation signals, review analytics, and secure access panels.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#07131d" />
+      <stop offset="55%" stop-color="#0d2433" />
+      <stop offset="100%" stop-color="#153949" />
+    </linearGradient>
+    <linearGradient id="panel" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f2f43" stop-opacity="0.96" />
+      <stop offset="100%" stop-color="#081a28" stop-opacity="0.94" />
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#65f0cd" />
+      <stop offset="100%" stop-color="#67b7ff" />
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="960" height="640" fill="url(#bg)" />
+
+  <g opacity="0.18">
+    <path d="M0 520 Q180 470 360 520 T720 515 T960 505" fill="none" stroke="#8ce8ff" stroke-width="2" />
+    <path d="M0 560 Q180 510 360 560 T720 555 T960 545" fill="none" stroke="#65f0cd" stroke-width="2" />
+    <path d="M0 600 Q180 550 360 600 T720 595 T960 585" fill="none" stroke="#5aa8f2" stroke-width="2" />
+  </g>
+
+  <g opacity="0.13" stroke="#9edcff" stroke-width="1">
+    <path d="M120 70h720" />
+    <path d="M120 150h720" />
+    <path d="M120 230h720" />
+    <path d="M120 310h720" />
+    <path d="M120 390h720" />
+    <path d="M120 470h720" />
+    <path d="M120 550h720" />
+    <path d="M160 40v560" />
+    <path d="M280 40v560" />
+    <path d="M400 40v560" />
+    <path d="M520 40v560" />
+    <path d="M640 40v560" />
+    <path d="M760 40v560" />
+  </g>
+
+  <g transform="translate(88 96)">
+    <rect width="300" height="220" rx="24" fill="url(#panel)" stroke="#2e5f77" />
+    <text x="28" y="42" fill="#d8f5ff" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700">
+      Secure Access
+    </text>
+    <text x="28" y="72" fill="#8ec1d7" font-family="Segoe UI, Arial, sans-serif" font-size="14">
+      Session integrity and API gateway check
+    </text>
+    <rect x="28" y="104" width="244" height="18" rx="9" fill="#143445" />
+    <rect x="28" y="104" width="196" height="18" rx="9" fill="url(#accent)" filter="url(#glow)" />
+    <text x="28" y="148" fill="#92c6da" font-family="Consolas, monospace" font-size="13">
+      role: admin
+    </text>
+    <text x="28" y="172" fill="#92c6da" font-family="Consolas, monospace" font-size="13">
+      connectors: online
+    </text>
+    <text x="28" y="196" fill="#92c6da" font-family="Consolas, monospace" font-size="13">
+      model artifacts: ready
+    </text>
+  </g>
+
+  <g transform="translate(430 70)">
+    <circle cx="180" cy="180" r="150" fill="#0a2231" stroke="#29536a" stroke-width="2" />
+    <circle cx="180" cy="180" r="115" fill="none" stroke="#2d6179" stroke-width="1.5" />
+    <circle cx="180" cy="180" r="80" fill="none" stroke="#2d6179" stroke-width="1.5" />
+    <circle cx="180" cy="180" r="45" fill="none" stroke="#2d6179" stroke-width="1.5" />
+    <path d="M180 30v300M30 180h300" stroke="#2d6179" stroke-width="1.5" />
+    <path d="M180 180L305 118" stroke="#65f0cd" stroke-width="4" stroke-linecap="round" filter="url(#glow)" />
+    <circle cx="305" cy="118" r="8" fill="#65f0cd" />
+    <circle cx="118" cy="242" r="7" fill="#67b7ff" />
+    <circle cx="232" cy="84" r="6" fill="#ffce6c" />
+    <circle cx="214" cy="248" r="6" fill="#ff8f7b" />
+    <text x="103" y="366" fill="#d8f5ff" font-family="Segoe UI, Arial, sans-serif" font-size="22" font-weight="700">
+      Reputation Radar
+    </text>
+    <text x="68" y="392" fill="#8ec1d7" font-family="Segoe UI, Arial, sans-serif" font-size="14">
+      Live sentiment and trust-pressure monitoring
+    </text>
+  </g>
+
+  <g transform="translate(120 360)">
+    <rect width="320" height="170" rx="22" fill="url(#panel)" stroke="#2e5f77" />
+    <text x="24" y="36" fill="#d8f5ff" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">
+      Review Flow
+    </text>
+    <path d="M26 122C72 80 112 86 148 104S220 142 286 82" fill="none" stroke="#67b7ff" stroke-width="5" stroke-linecap="round" />
+    <path d="M26 136C78 152 112 122 156 120S226 110 286 136" fill="none" stroke="#65f0cd" stroke-width="5" stroke-linecap="round" />
+    <path d="M26 146C72 138 118 172 158 154S230 92 286 108" fill="none" stroke="#ff8f7b" stroke-width="5" stroke-linecap="round" />
+    <text x="24" y="156" fill="#8ec1d7" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+      Positive
+    </text>
+    <text x="116" y="156" fill="#8ec1d7" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+      Neutral
+    </text>
+    <text x="204" y="156" fill="#8ec1d7" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+      Negative
+    </text>
+  </g>
+
+  <g transform="translate(500 430)">
+    <rect width="300" height="88" rx="20" fill="url(#panel)" stroke="#2e5f77" />
+    <text x="24" y="34" fill="#d8f5ff" font-family="Segoe UI, Arial, sans-serif" font-size="18" font-weight="700">
+      BrandPulse AI
+    </text>
+    <text x="24" y="58" fill="#8ec1d7" font-family="Segoe UI, Arial, sans-serif" font-size="13">
+      Multilingual review intelligence for ecommerce reputation monitoring
+    </text>
+  </g>
+</svg>

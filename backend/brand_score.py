@@ -16,6 +16,32 @@ from backend.config import (
     PREDICTIONS_PATH,
     SENTIMENT_TRENDS_PATH,
 )
+from backend.realtime_reviews import load_realtime_reviews
+
+
+def scoring_frame() -> pd.DataFrame:
+    base_df = pd.read_csv(
+        PREDICTIONS_PATH,
+        dtype={"review_id": "string", "platform": "string", "brand": "string"},
+        low_memory=False,
+    )
+    realtime_df = load_realtime_reviews()
+    if realtime_df.empty:
+        return base_df
+
+    realtime_df = realtime_df.copy()
+    if "source_file" not in realtime_df.columns:
+        realtime_df["source_file"] = realtime_df.get("source_type", "realtime")
+    if "sentiment_label" not in realtime_df.columns:
+        realtime_df["sentiment_label"] = None
+
+    preferred_columns = list(dict.fromkeys([*base_df.columns.tolist(), *realtime_df.columns.tolist()]))
+    base_df = base_df.reindex(columns=preferred_columns)
+    realtime_df = realtime_df.reindex(columns=preferred_columns)
+    merged = pd.concat([base_df, realtime_df], ignore_index=True)
+    if "review_id" in merged.columns:
+        merged = merged.drop_duplicates(subset=["review_id"], keep="last")
+    return merged
 
 
 def summarize_sentiment_counts(df: pd.DataFrame) -> dict:
@@ -56,6 +82,8 @@ def format_brand_score_report(payload: dict) -> str:
         "BRAND REPUTATION SUMMARY",
         "=" * 78,
         f"Total Reviews            : {payload.get('total_reviews', 0):,}",
+        f"Baseline Reviews         : {payload.get('baseline_total_reviews', 0):,}",
+        f"Realtime Reviews         : {payload.get('realtime_total_reviews', 0):,}",
         f"Positive Reviews         : {payload.get('positive', 0):,} ({payload.get('positive_pct', 0):.2f}%)",
         f"Neutral Reviews          : {payload.get('neutral', 0):,} ({payload.get('neutral_pct', 0):.2f}%)",
         f"Negative Reviews         : {payload.get('negative', 0):,} ({payload.get('negative_pct', 0):.2f}%)",
@@ -89,15 +117,19 @@ def format_brand_score_report(payload: dict) -> str:
 
 
 def calculate_brand_score() -> dict:
-    df = pd.read_csv(
+    base_df = pd.read_csv(
         PREDICTIONS_PATH,
         dtype={"review_id": "string", "platform": "string", "brand": "string"},
         low_memory=False,
     )
+    realtime_df = load_realtime_reviews()
+    df = scoring_frame()
 
     if df.empty:
         payload = summarize_sentiment_counts(df)
         payload["brand_scores"] = []
+        payload["baseline_total_reviews"] = 0
+        payload["realtime_total_reviews"] = 0
         BRAND_SCORE_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
         pd.DataFrame(
             columns=[
@@ -128,6 +160,8 @@ def calculate_brand_score() -> dict:
     )
 
     payload = summarize_sentiment_counts(df)
+    payload["baseline_total_reviews"] = int(len(base_df))
+    payload["realtime_total_reviews"] = int(len(realtime_df))
 
     brand_rows = []
     for brand, group in df.groupby(brand_column, sort=True):

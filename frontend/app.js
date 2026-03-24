@@ -19,12 +19,20 @@ const HISTORY_KEY = "brandpulse-control-room-history";
       customerVoiceKeywordCache: {},
       brands: [],
       users: [],
+      usersLoaded: false,
       platforms: [],
+      realtimeSummary: {
+        total_reviews: 0,
+        platforms: [],
+        brands: [],
+        latest_ingested_at: null
+      },
+      latestRealtimeReviews: [],
       modelMetrics: null,
       modelTrainingAt: "",
       adminNotifications: [],
       trendDrilldownSentiment: "",
-      watchlist: storageRead(WATCHLIST_KEY, []),
+      watchlist: [],
       navButtons: null,
       openNavGroup: {},
       trendWindow: "all",
@@ -35,8 +43,14 @@ const HISTORY_KEY = "brandpulse-control-room-history";
       customerVoiceRequestSeq: 0,
       trendRequestSeq: 0,
       userRole: "analyst",
+      currentView: "dashboard",
       insightRequestSeq: 0,
-      compareRequestSeq: 0
+      compareRequestSeq: 0,
+      usersLoading: false,
+      dashboardAutoRefreshTimer: null,
+      dashboardAutoRefreshInFlight: false,
+      storageScope: "guest",
+      sessionRevision: 0
     };
     let confirmResolve = null;
 
@@ -151,6 +165,57 @@ const HISTORY_KEY = "brandpulse-control-room-history";
       } catch (error) {
         return;
       }
+    }
+
+    function emptyBrandScore() {
+      return {
+        total_reviews: 0,
+        positive_pct: 0,
+        neutral_pct: 0,
+        negative_pct: 0,
+        brand_reputation_score: 0
+      };
+    }
+
+    function emptyRealtimeSummary() {
+      return {
+        total_reviews: 0,
+        platforms: [],
+        brands: [],
+        latest_ingested_at: null
+      };
+    }
+
+    function normalizeStorageScope(identity) {
+      const normalized = String(identity || "guest")
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9@._-]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+      return normalized || "guest";
+    }
+
+    function scopedStorageKey(baseKey) {
+      return baseKey + "::" + normalizeStorageScope(state.storageScope || "guest");
+    }
+
+    function scopedStorageRead(baseKey, fallback) {
+      return storageRead(scopedStorageKey(baseKey), fallback);
+    }
+
+    function scopedStorageWrite(baseKey, value) {
+      storageWrite(scopedStorageKey(baseKey), value);
+    }
+
+    function sessionStorageIdentityForUser(user) {
+      if (user && typeof user === "object") {
+        return user.email || user.name || user.role || "guest";
+      }
+      return user || "guest";
+    }
+
+    function sameSessionRevision(revision) {
+      return revision === state.sessionRevision;
     }
 
     function toast(message, type = "info") {
@@ -339,6 +404,7 @@ const HISTORY_KEY = "brandpulse-control-room-history";
       const eyebrow = document.querySelector("#view-dashboard .eyebrow");
       const title = document.querySelector("#view-dashboard .view-title");
       const copy = document.querySelector("#view-dashboard .view-copy");
+      const dashboardLayout = $("#dashboardLayout");
       const syncButton = $("#dashboardSyncButton");
       const refreshButton = $("#refreshScoreButton");
       const brandQuickSection = $("#dashboardBrandSection");
@@ -359,6 +425,7 @@ const HISTORY_KEY = "brandpulse-control-room-history";
       const signalRadarWidget = $("#signalRadarWidget");
       const trendVectorsWidget = $("#signalTrendVectorsWidget");
       renderRoleDashboardPanel();
+      renderDashboardOverview(state.brandScore || normalizeBrandScore({}));
 
       if (resolved === "admin") {
         if (eyebrow) eyebrow.textContent = "ADMIN";
@@ -370,9 +437,13 @@ const HISTORY_KEY = "brandpulse-control-room-history";
         if (marketingSignalSection) marketingSignalSection.classList.add("hidden");
         if (analystFocusSection) analystFocusSection.classList.add("hidden");
         if (gaugeSection) gaugeSection.classList.add("hidden");
+        if (dashboardLayout) {
+          dashboardLayout.classList.add("dashboard-layout--stats-only");
+          dashboardLayout.classList.remove("dashboard-layout--hero-only");
+        }
         if (statsSection) {
           statsSection.classList.remove("hidden");
-          statsSection.classList.add("stats-strip--wide");
+          statsSection.classList.remove("stats-strip--wide");
         }
         if (summarySection) summarySection.classList.add("hidden");
         if (adminControlHub) adminControlHub.classList.remove("hidden");
@@ -400,7 +471,11 @@ const HISTORY_KEY = "brandpulse-control-room-history";
         if (brandQuickSection) brandQuickSection.classList.add("hidden");
         if (marketingSignalSection) marketingSignalSection.classList.remove("hidden");
         if (analystFocusSection) analystFocusSection.classList.add("hidden");
-        if (gaugeSection) gaugeSection.classList.add("hidden");
+        if (gaugeSection) gaugeSection.classList.remove("hidden");
+        if (dashboardLayout) {
+          dashboardLayout.classList.remove("dashboard-layout--stats-only");
+          dashboardLayout.classList.add("dashboard-layout--hero-only");
+        }
         if (statsSection) {
           statsSection.classList.add("hidden");
           statsSection.classList.remove("stats-strip--wide");
@@ -428,7 +503,11 @@ const HISTORY_KEY = "brandpulse-control-room-history";
       if (brandQuickSection) brandQuickSection.classList.add("hidden");
       if (marketingSignalSection) marketingSignalSection.classList.add("hidden");
       if (analystFocusSection) analystFocusSection.classList.remove("hidden");
-      if (gaugeSection) gaugeSection.classList.add("hidden");
+      if (gaugeSection) gaugeSection.classList.remove("hidden");
+      if (dashboardLayout) {
+        dashboardLayout.classList.remove("dashboard-layout--stats-only");
+        dashboardLayout.classList.add("dashboard-layout--hero-only");
+      }
       if (statsSection) {
         statsSection.classList.add("hidden");
         statsSection.classList.remove("stats-strip--wide");
@@ -449,12 +528,13 @@ const HISTORY_KEY = "brandpulse-control-room-history";
       renderSignalRadar(state.brandScore || normalizeBrandScore({}));
     }
 
-    function applyRoleAccess(role) {
+    function applyRoleAccess(role, options = {}) {
+      const { loadAdminData = true } = options;
       state.userRole = normalizeAccessRole(role);
       applyRoleNavLabels(state.userRole);
       applyDashboardRolePresentation(state.userRole);
       applyAnalyticsSummaryPresentation(state.userRole);
-      if (state.userRole === "admin" && !state.modelMetrics) loadAdminModelPerformance();
+      if (loadAdminData && state.userRole === "admin" && !state.modelMetrics) loadAdminModelPerformance();
       renderNavAccordion(state.userRole);
     }
 
@@ -484,6 +564,95 @@ const HISTORY_KEY = "brandpulse-control-room-history";
       return (parts[0][0] + parts[1][0]).toUpperCase();
     }
 
+    function resetTrendDrilldownPanel() {
+      setTrendDrilldownActive("");
+      $("#trendDrilldownTitle").textContent = "Interactive Chart Drill-down";
+      $("#trendDrilldownCopy").textContent = "Click a sentiment to load review samples.";
+      $("#trendReviewDrilldown").innerHTML = '<div class="mini-note">Review samples will appear here after you click a sentiment line or legend item.</div>';
+    }
+
+    function resetSingleResultView() {
+      $("#singleResultShell").classList.add("is-empty");
+      $("#singleResultIntro").textContent = "Run a prediction to inspect sentiment, confidence, and rating alignment.";
+      $("#singleSentimentBadge").className = "sentiment-badge sentiment-neutral";
+      $("#singleSentimentBadge").textContent = "Standby";
+      $("#singleConfidenceBar").style.width = "0%";
+      $("#singleConfidenceText").textContent = "Unavailable";
+      $("#singleTechnicalJson").textContent = "{}";
+      $("#ratingWarning").classList.remove("is-visible");
+      $("#ratingWarning").textContent = "";
+    }
+
+    function resetBatchResultView() {
+      $("#batchProcessedCount").textContent = "0";
+      $("#batchTechnicalJson").textContent = "{}";
+      renderGauge($("#batchGauge"), 0, {
+        displayValue: "0.0",
+        label: "Batch Confidence",
+        suffix: "%",
+        caption: "Waiting for batch response.",
+        color: "var(--accent)"
+      });
+      renderBatchTable([]);
+    }
+
+    function resetSessionScopedState(options = {}) {
+      const nextRole = normalizeAccessRole(options.role || "analyst");
+      const storageIdentity = options.storageIdentity || "guest";
+      state.sessionRevision += 1;
+      state.storageScope = normalizeStorageScope(storageIdentity);
+      state.brandScore = emptyBrandScore();
+      state.latestSource = "No endpoint call yet";
+      state.latestConfidence = null;
+      state.latestSentiment = "Standby";
+      state.trends = [];
+      state.keywords = [];
+      state.customerVoiceKeywords = [];
+      state.customerVoiceKeywordCache = {};
+      state.brands = [];
+      state.users = [];
+      state.usersLoaded = false;
+      state.usersLoading = false;
+      state.platforms = [];
+      state.realtimeSummary = emptyRealtimeSummary();
+      state.latestRealtimeReviews = [];
+      state.modelMetrics = null;
+      state.modelTrainingAt = "";
+      state.adminNotifications = [];
+      state.trendDrilldownSentiment = "";
+      state.watchlist = scopedStorageRead(WATCHLIST_KEY, []);
+      state.openNavGroup = {};
+      state.trendWindow = "all";
+      state.trendBrand = "";
+      state.customerVoiceWindow = "all";
+      state.customerVoiceBrand = "";
+      state.customerVoiceKeywordsLoading = false;
+      state.customerVoiceRequestSeq += 1;
+      state.trendRequestSeq += 1;
+      state.insightRequestSeq += 1;
+      state.compareRequestSeq += 1;
+      state.usersLoading = false;
+      state.dashboardAutoRefreshInFlight = false;
+
+      applyRoleAccess(nextRole, { loadAdminData: false });
+      updateDashboard(state.brandScore);
+      updateSignalPanel(state.brandScore);
+      updateConfidenceSignal(null, "Neutral");
+      renderDashboardAnalyticsState();
+      renderTrendChart([]);
+      renderTrendMomentum();
+      renderTrendMonthlyComparison();
+      renderTrendReviewVolume();
+      resetTrendDrilldownPanel();
+      renderAdminModelPerformance();
+      renderUsersTable([]);
+      renderAdminNotifications();
+      updateAdminNotificationBadge();
+      resetSingleResultView();
+      resetBatchResultView();
+      renderHistory();
+    }
+
     function getAllBrandNames() {
       const fromState = (state.brands || [])
         .map((item) => String(item.brand || "").trim())
@@ -502,11 +671,11 @@ const HISTORY_KEY = "brandpulse-control-room-history";
       if (!host) return;
       const role = normalizeAccessRole(state.userRole);
       if (!Array.isArray(brands) || !brands.length) {
-        if (eyebrow) eyebrow.textContent = role === "admin" ? "Brand List" : "Brand Leaderboard";
+        if (eyebrow) eyebrow.textContent = role === "admin" ? "Portfolio Directory" : "Portfolio Leaderboard";
         if (title) title.textContent = role === "admin" ? "Available brands" : "Top brand reputation performers";
         const emptyCopy = role === "admin"
-          ? "Brand list will appear after analytics data loads."
-          : "Brand leaderboard will appear after analytics data loads.";
+          ? "Brand directory will appear after analytics data loads."
+          : "Portfolio leaderboard will appear after analytics data loads.";
         if (note) note.textContent = emptyCopy;
         host.innerHTML = '<div class="mini-note">' + emptyCopy + "</div>";
         return;
@@ -515,7 +684,7 @@ const HISTORY_KEY = "brandpulse-control-room-history";
         .slice()
         .filter((item) => String(item.brand || "").trim());
       if (role === "admin") {
-        if (eyebrow) eyebrow.textContent = "Brand List";
+        if (eyebrow) eyebrow.textContent = "Portfolio Directory";
         if (title) title.textContent = "Available brands";
         if (note) note.textContent = "Open any brand to inspect details.";
         const sorted = filtered
@@ -525,7 +694,7 @@ const HISTORY_KEY = "brandpulse-control-room-history";
         }).join("");
         return;
       }
-      if (eyebrow) eyebrow.textContent = "Brand Leaderboard";
+      if (eyebrow) eyebrow.textContent = "Portfolio Leaderboard";
       if (title) title.textContent = "Top brand reputation performers";
       if (note) note.textContent = "Current top-ranked brands.";
       const sorted = filtered
@@ -660,6 +829,11 @@ const HISTORY_KEY = "brandpulse-control-room-history";
     }
 
     async function refreshCustomerVoiceKeywords() {
+      if (normalizeAccessRole(state.userRole) !== "analyst") {
+        state.customerVoiceKeywordsLoading = false;
+        state.customerVoiceKeywords = [];
+        return;
+      }
       const host = $("#analystComplaintTopicsList");
       const note = $("#analystComplaintTopicsNote");
       const requestSeq = ++state.customerVoiceRequestSeq;
@@ -742,7 +916,7 @@ const HISTORY_KEY = "brandpulse-control-room-history";
 
     function saveWatchlist(nextWatchlist) {
       state.watchlist = Array.from(new Set((nextWatchlist || []).map((item) => String(item || "").trim()).filter(Boolean))).slice(0, 8);
-      storageWrite(WATCHLIST_KEY, state.watchlist);
+      scopedStorageWrite(WATCHLIST_KEY, state.watchlist);
       renderBrandWatchlist();
     }
 
@@ -867,19 +1041,25 @@ const HISTORY_KEY = "brandpulse-control-room-history";
         $("#sessionChip").title = "";
         $("#sessionAvatar").textContent = sessionInitials(user || "Active");
       }
+      resetSessionScopedState({
+        role,
+        storageIdentity: sessionStorageIdentityForUser(user)
+      });
       applyRoleAccess(role);
       hideLogin();
       viewRouter(defaultViewForRole(role));
+      startDashboardAutoRefresh();
     }
 
     function clearSessionUi() {
+      stopDashboardAutoRefresh();
+      resetSessionScopedState({ role: "analyst", storageIdentity: "guest" });
       $("#sessionChip").classList.add("hidden");
       $("#logoutButton").classList.add("hidden");
       $("#sessionUser").textContent = "Offline";
       $("#sessionRole").textContent = "No session";
       $("#sessionChip").title = "";
       $("#sessionAvatar").textContent = "--";
-      applyRoleAccess("analyst");
       viewRouter("dashboard");
     }
 
@@ -948,6 +1128,18 @@ const HISTORY_KEY = "brandpulse-control-room-history";
       window.setTimeout(() => element.classList.remove("is-invalid"), 320);
     }
 
+    function setSingleReviewValidationState(message = "") {
+      const field = $("#singleReviewText")?.closest(".field");
+      const note = $("#singleReviewNote");
+      if (!field || !note) return;
+      const hasError = Boolean(message);
+      field.classList.toggle("has-error", hasError);
+      $("#singleReviewText").setAttribute("aria-invalid", hasError ? "true" : "false");
+      note.textContent = hasError
+        ? message
+        : "Required. Paste one customer review here before prediction.";
+    }
+
     function getApiCandidates(path) {
       const normalized = path.startsWith("/") ? path : "/" + path;
       const urls = [];
@@ -963,8 +1155,14 @@ const HISTORY_KEY = "brandpulse-control-room-history";
         return urls;
       }
 
-      add(normalized);
+      if (normalized.startsWith("/api/")) {
+        add(normalized);
+        add("http://127.0.0.1:5000" + normalized);
+        return urls;
+      }
+
       add("/api" + normalized);
+      add(normalized);
       add("http://127.0.0.1:5000/api" + normalized);
       return urls;
     }
@@ -1069,6 +1267,199 @@ const HISTORY_KEY = "brandpulse-control-room-history";
       clock.textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
     }
 
+    function formatRealtimeTimestamp(value) {
+      if (!value) return "Waiting";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return "Waiting";
+      return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    }
+
+    function riskLevelFromClassName(className) {
+      if (className === "risk-low") return "low";
+      if (className === "risk-high") return "high";
+      return "medium";
+    }
+
+    function dashboardSourceLabel(value) {
+      const text = String(value || "").trim();
+      if (!text || text === "No endpoint call yet") return "Awaiting sync";
+      const firstSpace = text.indexOf(" ");
+      const method = firstSpace === -1 ? "GET" : text.slice(0, firstSpace);
+      const rawTarget = firstSpace === -1 ? text : text.slice(firstSpace + 1).trim();
+      try {
+        const parsed = new URL(rawTarget);
+        return method + " " + (parsed.pathname || parsed.host || rawTarget);
+      } catch (error) {
+        return text.length > 36 ? text.slice(0, 33) + "..." : text;
+      }
+    }
+
+    function dashboardRoleContent(role) {
+      const resolved = normalizeAccessRole(role);
+      if (resolved === "admin") {
+        return {
+          label: "Admin Control",
+          meta: "Platform health and access control.",
+          mode: "Operations sync."
+        };
+      }
+      if (resolved === "marketing_staff") {
+        return {
+          label: "Marketing Monitor",
+          meta: "Brand watch, leaderboard, and alerts.",
+          mode: "Campaign sync."
+        };
+      }
+      return {
+        label: "Analyst Mode",
+        meta: "Trend and complaint monitoring mode.",
+        mode: "Signal sync."
+      };
+    }
+
+    function renderDashboardOverview(score) {
+      const roleContent = dashboardRoleContent(state.userRole);
+      const risk = riskMeta(score.brand_reputation_score, score.negative_pct);
+      const riskLevel = riskLevelFromClassName(risk.className);
+      const realtimeCount = Number(state.realtimeSummary?.total_reviews || 0);
+      const realtimeStamp = formatRealtimeTimestamp(state.realtimeSummary?.latest_ingested_at);
+      const realtimePlatforms = Array.isArray(state.realtimeSummary?.platforms)
+        ? state.realtimeSummary.platforms.filter((item) => String(item || "").trim())
+        : [];
+      const leader = getScoreExtremes().leader;
+      const sourceLabel = dashboardSourceLabel(state.latestSource);
+
+      const roleLabel = $("#dashboardRoleLabel");
+      const roleMeta = $("#dashboardRoleMeta");
+      const sourceBadge = $("#dashboardSourceBadge");
+      const sourceMeta = $("#dashboardSourceMeta");
+      const liveBadge = $("#dashboardLiveBadge");
+      const liveMeta = $("#dashboardLiveMeta");
+      const riskPill = $("#dashboardRiskPill");
+      const riskBadge = $("#dashboardRiskBadge");
+      const riskMetaCopy = $("#dashboardRiskMeta");
+      const quickRealtimeShare = $("#dashboardQuickRealtimeShare");
+      const quickNeutral = $("#dashboardQuickNeutral");
+      const quickLeader = $("#dashboardQuickLeader");
+      const modeLabel = $("#dashboardModeLabel");
+      const sourceText = $("#dashboardSource");
+      const liveUpdate = $("#dashboardLiveUpdate");
+      const riskChip = $("#dashboardRiskChip");
+      const portfolioTotal = Number(score.total_reviews || 0);
+      const realtimeShare = portfolioTotal > 0 ? (realtimeCount / portfolioTotal) * 100 : 0;
+
+      if (roleLabel) roleLabel.textContent = roleContent.label;
+      if (roleMeta) roleMeta.textContent = roleContent.meta;
+      if (sourceBadge) sourceBadge.textContent = sourceLabel;
+      if (sourceMeta) {
+        sourceMeta.textContent = state.latestSource === "No endpoint call yet"
+          ? "Waiting for the first successful API sync."
+          : "Latest successful dashboard sync path.";
+      }
+      if (liveBadge) liveBadge.textContent = realtimeCount.toLocaleString() + (realtimeCount === 1 ? " review" : " reviews");
+      if (liveMeta) {
+        liveMeta.textContent = realtimeCount
+          ? (realtimePlatforms.length
+            ? "Buffer " + realtimePlatforms.slice(0, 2).join(", ") + ". "
+            : "") + "Latest ingest " + realtimeStamp + "."
+          : "No realtime activity yet.";
+      }
+      if (riskPill) riskPill.className = "dashboard-status-pill dashboard-status-pill--risk is-" + riskLevel;
+      if (riskBadge) riskBadge.textContent = risk.label;
+      if (riskMetaCopy) riskMetaCopy.textContent = "Negative share " + Number(score.negative_pct || 0).toFixed(1) + "%.";
+      if (quickRealtimeShare) quickRealtimeShare.textContent = realtimeShare.toFixed(2) + "%";
+      if (quickNeutral) quickNeutral.textContent = Number(score.neutral_pct || 0).toFixed(1) + "%";
+      if (quickLeader) quickLeader.textContent = leader ? String(leader.brand || "Waiting") : "Waiting";
+      if (modeLabel) modeLabel.textContent = roleContent.mode;
+      if (sourceText) sourceText.textContent = sourceLabel;
+      if (liveUpdate) liveUpdate.textContent = realtimeStamp;
+      if (riskChip) {
+        riskChip.textContent = risk.label;
+        riskChip.className = "score-chip " + risk.className;
+      }
+    }
+
+    function renderDashboardRealtimeReviews() {
+      const host = $("#dashboardRealtimeReviewList");
+      if (!host) return;
+      const rows = Array.isArray(state.latestRealtimeReviews) ? state.latestRealtimeReviews : [];
+      if (!rows.length) {
+        host.innerHTML = '<div class="mini-note">Realtime reviews will appear here after the first live ingest.</div>';
+        return;
+      }
+
+      const sourceLabelForRow = (row) => {
+        const platform = String(row.platform || "Unknown").trim() || "Unknown";
+        const brand = String(row.brand || platform).trim() || platform;
+        return platform.toLowerCase() === brand.toLowerCase() ? platform : platform + " / " + brand;
+      };
+
+      const languageLabelForRow = (row) => {
+        const label = String(row.source_language_label || row.source_language || "").trim();
+        if (!label || label.toLowerCase() === "unknown") return "Language not detected";
+        return "Language: " + label;
+      };
+
+      host.innerHTML = rows.map((row) => {
+        const sentiment = String(row.predicted_sentiment || "Unknown");
+        const reviewText = String(row.review_text || row.normalized_review || "").trim() || "No review text available.";
+        const preview = reviewText.length > 180 ? reviewText.slice(0, 177) + "..." : reviewText;
+        const normalized = String(row.normalized_review || "").trim();
+        const sourceLabel = sourceLabelForRow(row);
+        const languageLabel = languageLabelForRow(row);
+        const timeLabel = formatRealtimeTimestamp(row.ingested_at);
+        const translationApplied = row.translation_applied === true || String(row.translation_applied).toLowerCase() === "true";
+        const hasNormalizedDetail = translationApplied && normalized && normalized.toLowerCase() !== reviewText.toLowerCase();
+        const hasFullReviewDetail = reviewText.length > 180;
+        const detailLabel = hasNormalizedDetail
+          ? (hasFullReviewDetail ? "View review details" : "View normalized text")
+          : (hasFullReviewDetail ? "View full review" : "View details");
+        const ratingValue = row.rating === null || row.rating === undefined || String(row.rating).trim() === ""
+          ? ""
+          : "Rating " + escapeHtml(row.rating);
+        const confidenceValue = Number(row.prediction_confidence);
+        const confidenceLabel = Number.isFinite(confidenceValue) && confidenceValue > 0
+          ? "Confidence " + (confidenceValue * 100).toFixed(1) + "%"
+          : "";
+        const sourceTypeLabel = String(row.source_type || "").trim()
+          ? "Source " + escapeHtml(String(row.source_type).replace(/^connector:/, "").replace(/_/g, " "))
+          : "";
+        const reviewIdLabel = String(row.review_id || "").trim() ? "ID " + escapeHtml(row.review_id) : "";
+        const strategyLabel = hasNormalizedDetail && String(row.multilingual_strategy || "").trim()
+          ? "Mode " + escapeHtml(row.multilingual_strategy)
+          : "";
+        const detailPills = [ratingValue, confidenceLabel, sourceTypeLabel, reviewIdLabel, strategyLabel]
+          .filter(Boolean)
+          .map((value) => "<span>" + value + "</span>")
+          .join("");
+        const detailSections = [];
+
+        if (detailPills) {
+          detailSections.push('<div class="review-drilldown-pillrow">' + detailPills + "</div>");
+        }
+        if (hasFullReviewDetail) {
+          detailSections.push('<p class="review-drilldown-text">' + escapeHtml(reviewText) + "</p>");
+        }
+        if (hasNormalizedDetail) {
+          detailSections.push('<p class="review-drilldown-text"><strong>Normalized:</strong> ' + escapeHtml(normalized) + "</p>");
+        }
+        if (!detailSections.length) {
+          detailSections.push('<p class="review-drilldown-text">This live record is short, so the preview already shows the full review. Use this panel for record metadata.</p>');
+        }
+
+        return [
+          '<details class="review-drilldown-item" data-tone="' + sentiment + '">',
+          "<summary>",
+          '<div class="review-drilldown-head"><span>' + escapeHtml(sourceLabel) + '</span><span>' + escapeHtml(timeLabel) + "</span></div>",
+          '<div class="review-drilldown-preview"><p>' + escapeHtml(preview) + '</p><span class="score-chip ' + sentimentClass(sentiment) + '">' + escapeHtml(sentiment) + "</span></div>",
+          '<div class="review-drilldown-head"><span>' + escapeHtml(languageLabel) + '</span><span>' + escapeHtml(detailLabel) + "</span></div>",
+          "</summary>",
+          '<div class="review-drilldown-body">' + detailSections.join("") + "</div>",
+          "</details>"
+        ].join("");
+      }).join("");
+    }
+
     function setTrendIcon(icon, direction) {
       const stroke = direction === "up" ? "var(--positive)" : direction === "down" ? "var(--negative)" : "var(--neutral)";
       if (icon) icon.setAttribute("stroke", stroke);
@@ -1076,13 +1467,17 @@ const HISTORY_KEY = "brandpulse-control-room-history";
 
     function updateDashboard(score) {
       const narrative = scoreNarrative(score.brand_reputation_score);
+      const sentimentMargin = Number(score.positive_pct || 0) - Number(score.negative_pct || 0);
       $("#statTotalReviews").textContent = score.total_reviews.toLocaleString();
       $("#statPositivePct").textContent = score.positive_pct.toFixed(2) + "%";
       $("#statNegativePct").textContent = score.negative_pct.toFixed(2) + "%";
-      $("#statBrandScore").textContent = score.brand_reputation_score.toFixed(1);
+      $("#statSentimentMargin").textContent = sentimentMargin.toFixed(1);
+      $("#statRealtimeReviews").textContent = Number(state.realtimeSummary?.total_reviews || 0).toLocaleString();
+      $("#statRealtimeUpdated").textContent = formatRealtimeTimestamp(state.realtimeSummary?.latest_ingested_at);
       $("#dashboardNarrative").textContent = narrative[0];
       $("#dashboardNarrativeCopy").textContent = narrative[1];
-      $("#dashboardSource").textContent = state.latestSource;
+      renderDashboardOverview(score);
+      renderDashboardRealtimeReviews();
 
       const gaugeColor = score.brand_reputation_score >= 40
         ? "var(--positive)"
@@ -1311,8 +1706,10 @@ const HISTORY_KEY = "brandpulse-control-room-history";
 
     async function loadAdminModelPerformance() {
       if (normalizeAccessRole(state.userRole) !== "admin") return;
+      const sessionRevision = state.sessionRevision;
       try {
         const payload = await callApi("/admin/model-performance");
+        if (!sameSessionRevision(sessionRevision) || normalizeAccessRole(state.userRole) !== "admin") return;
         state.modelMetrics = payload.metrics || null;
         state.modelTrainingAt = payload.last_training_at || "";
         renderAdminModelPerformance();
@@ -1320,6 +1717,7 @@ const HISTORY_KEY = "brandpulse-control-room-history";
         renderAdminOps();
         renderRoleDashboardPanel();
       } catch (error) {
+        if (!sameSessionRevision(sessionRevision)) return;
         if (handleAuthError(error)) return;
         state.modelMetrics = null;
         state.modelTrainingAt = "";
@@ -1423,11 +1821,11 @@ const HISTORY_KEY = "brandpulse-control-room-history";
         });
       }
 
-      if ((state.users || []).length <= 1) {
+      if (state.usersLoaded && (state.users || []).length <= 1) {
         notifications.push({
           title: "Low user coverage",
           level: "info",
-          summary: "Only " + Number((state.users || []).length || 0).toLocaleString() + " account is active. Add backup operator access if needed."
+          summary: "Only " + Number((state.users || []).length || 0).toLocaleString() + " account" + ((state.users || []).length === 1 ? " is" : "s are") + " active. Add backup operator access if needed."
         });
       }
 
@@ -1534,16 +1932,19 @@ const HISTORY_KEY = "brandpulse-control-room-history";
 
     async function runAdminPipelineAction(endpoint, button, idleLabel, workingLabel, successMessage) {
       if (normalizeAccessRole(state.userRole) !== "admin") return;
+      const sessionRevision = state.sessionRevision;
       setButtonLoading(button, true, idleLabel, workingLabel);
       $("#pipelineActionStatus").textContent = workingLabel;
       try {
         await callApi(endpoint, { method: "POST", timeoutMs: endpoint === "/train" ? 120000 : 30000 });
+        if (!sameSessionRevision(sessionRevision) || normalizeAccessRole(state.userRole) !== "admin") return;
         $("#pipelineActionStatus").textContent = successMessage;
         toast(successMessage, "success");
         if (endpoint === "/train") {
           await loadAdminModelPerformance();
         }
       } catch (error) {
+        if (!sameSessionRevision(sessionRevision)) return;
         if (handleAuthError(error)) return;
         $("#pipelineActionStatus").textContent = error.message || "Pipeline action failed.";
         toast(error.message || "Pipeline action failed.", "error");
@@ -1671,6 +2072,7 @@ const HISTORY_KEY = "brandpulse-control-room-history";
     async function loadTrendDrilldown(sentiment) {
       const role = normalizeAccessRole(state.userRole);
       if (role !== "analyst" && role !== "admin") return;
+      const sessionRevision = state.sessionRevision;
       const title = $("#trendDrilldownTitle");
       const copy = $("#trendDrilldownCopy");
       const host = $("#trendReviewDrilldown");
@@ -1689,8 +2091,10 @@ const HISTORY_KEY = "brandpulse-control-room-history";
         });
         if (state.trendBrand) params.set("brand", state.trendBrand);
         const payload = await callApi("/dashboard/reviews?" + params.toString());
+        if (!sameSessionRevision(sessionRevision)) return;
         renderTrendDrilldownSamples(Array.isArray(payload.samples) ? payload.samples : [], chosen);
       } catch (error) {
+        if (!sameSessionRevision(sessionRevision)) return;
         if (handleAuthError(error)) return;
         copy.textContent = "Unable to load review samples: " + (error.message || "request failed") + ".";
         host.innerHTML = '<div class="mini-note">Review drill-down is unavailable right now.</div>';
@@ -2089,7 +2493,8 @@ const HISTORY_KEY = "brandpulse-control-room-history";
     function formatRoleCards(items) {
       return (items || []).map((item) => {
         const className = item.view ? "role-mini-card is-link" : "role-mini-card";
-        const attrs = item.view ? ' data-view="' + item.view + '" role="button" tabindex="0"' : "";
+        const scrollTargetAttr = item.scrollTarget ? ' data-scroll-target="' + item.scrollTarget + '"' : "";
+        const attrs = item.view ? ' data-view="' + item.view + '"' + scrollTargetAttr + ' role="button" tabindex="0"' : "";
         return [
           '<article class="' + className + '"' + attrs + '>',
           '<span class="role-mini-label">' + item.label + "</span>",
@@ -2104,6 +2509,9 @@ const HISTORY_KEY = "brandpulse-control-room-history";
     function renderRoleDashboardPanel() {
       const role = normalizeAccessRole(state.userRole);
       const score = state.brandScore || normalizeBrandScore({});
+      const realtimeSummary = state.realtimeSummary || {};
+      const realtimeCount = Number(realtimeSummary.total_reviews || 0).toLocaleString();
+      const realtimeStamp = formatRealtimeTimestamp(realtimeSummary.latest_ingested_at);
       const extremes = getScoreExtremes();
       const currentTrend = Array.isArray(state.trends) && state.trends.length ? state.trends[state.trends.length - 1] : null;
       const previousTrend = Array.isArray(state.trends) && state.trends.length > 1 ? state.trends[state.trends.length - 2] : null;
@@ -2123,22 +2531,24 @@ const HISTORY_KEY = "brandpulse-control-room-history";
         copy = "Access, readiness, and oversight.";
         cards = [
           {
-            label: "Active Users",
+            label: "User Coverage",
             value: String((state.users || []).length || 0),
             copy: "Current accounts."
           },
           {
-            label: "Tracked Brands",
+            label: "Coverage Set",
             value: String((state.brands || []).length || 0),
             copy: "Covered brands."
           },
           {
-            label: "Platform Status",
-            value: risk.label === "High Risk" ? "Watch" : "Ready",
-            copy: "Current system state."
+            label: "Last Sync",
+            value: realtimeStamp,
+            copy: realtimeSummary.latest_ingested_at
+              ? "Latest realtime ingest."
+              : "Waiting for realtime sync."
           },
           {
-            label: "Model Accuracy",
+            label: "Model QA",
             value: state.modelMetrics && Number.isFinite(Number(state.modelMetrics.test_accuracy))
               ? (Number(state.modelMetrics.test_accuracy) * 100).toFixed(1) + "%"
               : "Waiting",
@@ -2151,21 +2561,21 @@ const HISTORY_KEY = "brandpulse-control-room-history";
         eyebrow = "Brand Monitoring";
         title = "Marketing Snapshot";
         copy = "Brand score, ranking, comparison, and signal.";
-        const comparePair = extremes.leader && extremes.needsAttention
-          ? extremes.leader.brand + " vs " + extremes.needsAttention.brand
+        const comparePair = extremes.leader && extremes.lagger
+          ? extremes.leader.brand + " vs " + extremes.lagger.brand
           : (extremes.leader ? extremes.leader.brand + " lead" : "Waiting");
         cards = [
           {
-            label: "Brand Score",
+            label: "Reputation Score",
             value: Number(score.brand_reputation_score || 0).toFixed(1),
             copy: "Current score.",
             view: "brand-insights"
           },
           {
-            label: "Leaderboard",
+            label: "Market Leader",
             value: extremes.leader ? extremes.leader.brand : "Waiting",
             copy: extremes.leader ? "Top-ranked brand." : "Waiting",
-            view: "brand-insights"
+            view: "analytics-summary"
           },
           {
             label: "Comparison",
@@ -2177,13 +2587,14 @@ const HISTORY_KEY = "brandpulse-control-room-history";
             label: "Insight Signal",
             value: Array.isArray(state.keywords) && state.keywords[0] ? "#" + state.keywords[0].word : "Waiting",
             copy: "Current keyword cue.",
-            view: "analytics-summary"
+            view: "keyword-frequency"
           },
           {
-            label: "Alert",
-            value: risk.label,
-            copy: "Current warning state.",
-            view: "brand-insights"
+            label: "Live Sync",
+            value: realtimeStamp,
+            copy: "Latest realtime review ingest.",
+            view: "dashboard",
+            scrollTarget: "dashboardRealtimeReviewList"
           }
         ];
       } else {
@@ -2195,7 +2606,7 @@ const HISTORY_KEY = "brandpulse-control-room-history";
           : (Array.isArray(state.keywords) && state.keywords[0] ? "#" + state.keywords[0].word : "Waiting");
         cards = [
           {
-            label: "Review Trends",
+            label: "Trend Window",
             value: Array.isArray(state.trends) ? String(state.trends.length || 0) + " months" : "0 months",
             copy: "Loaded months.",
             view: "review-trends"
@@ -2217,10 +2628,16 @@ const HISTORY_KEY = "brandpulse-control-room-history";
             view: "customer-intelligence"
           },
           {
-            label: "Review Volume",
+            label: "Coverage Volume",
             value: Number(score.total_reviews || 0).toLocaleString(),
             copy: "Review count.",
             view: "review-trends"
+          },
+          {
+            label: "Realtime Buffer",
+            value: realtimeCount,
+            copy: "Realtime ingested reviews.",
+            view: "dashboard"
           }
         ];
       }
@@ -2641,20 +3058,67 @@ const HISTORY_KEY = "brandpulse-control-room-history";
       }).join("");
     }
 
-    async function refreshDashboardAnalytics() {
+    function renderDashboardAnalyticsState() {
+      renderKeywords(state.keywords);
+      renderBrandSelectors(state.brands);
+      renderBrandQuickList(state.brands);
+      renderBrandSideLists(state.brands);
+      renderBrandWatchlist();
+      renderBrandInsights();
+      renderBrandComparison();
+      renderAnalystCustomerVoice();
+      renderAnalystFocusPanel();
+      renderSmartInsight();
+      renderAnalyticsSummaryContext();
+      renderRoleDashboardPanel();
+    }
+
+    async function refreshDashboardAnalyticsSupplementary(role, options = {}) {
+      const sessionRevision = Number.isFinite(Number(options.sessionRevision)) ? Number(options.sessionRevision) : state.sessionRevision;
       try {
-        const role = normalizeAccessRole(state.userRole);
+        const keywordsPayload = await callApi("/dashboard/keywords", { timeoutMs: 65000 });
+        if (!sameSessionRevision(sessionRevision)) return;
+        state.keywords = Array.isArray(keywordsPayload.keywords) ? keywordsPayload.keywords : [];
+      } catch (error) {
+        if (!sameSessionRevision(sessionRevision)) return;
+        if (handleAuthError(error)) return;
+        state.keywords = [];
+        $("#keywordList").innerHTML = '<div class="keyword-caption">Unable to load keyword chart.</div>';
+      }
+
+      if (!sameSessionRevision(sessionRevision)) return;
+      if (role === "analyst") {
+        refreshCustomerVoiceKeywords();
+      }
+      renderDashboardAnalyticsState();
+
+      try {
+        await refreshTrendView();
+      } catch (trendError) {
+        if (!sameSessionRevision(sessionRevision)) return;
+        if (handleAuthError(trendError)) return;
+        $("#trendCaption").textContent = "Unable to load trend graph: " + (trendError.message || "request failed") + ".";
+      }
+
+      if (!sameSessionRevision(sessionRevision)) return;
+      renderAnalyticsSummaryContext();
+      renderRoleDashboardPanel();
+    }
+
+    async function refreshDashboardAnalytics(options = {}) {
+      const role = normalizeAccessRole(state.userRole);
+      const sessionRevision = Number.isFinite(Number(options.sessionRevision)) ? Number(options.sessionRevision) : state.sessionRevision;
+      try {
         const requests = [
-          callApi("/dashboard/keywords"),
-          callApi("/dashboard/brands")
+          callApi("/dashboard/brands", { timeoutMs: 20000 })
         ];
         if (role === "admin") {
           requests.push(callApi("/admin/model-performance"));
         } else if (role === "marketing_staff" || role === "analyst") {
           requests.push(callApi("/dashboard/platforms"));
         }
-        const [keywordsPayload, brandsPayload, optionalPayload] = await Promise.all(requests);
-        state.keywords = Array.isArray(keywordsPayload.keywords) ? keywordsPayload.keywords : [];
+        const [brandsPayload, optionalPayload] = await Promise.all(requests);
+        if (!sameSessionRevision(sessionRevision)) return;
         state.brands = Array.isArray(brandsPayload.brands) ? brandsPayload.brands.map(normalizeBrandRow) : [];
         if (role === "admin") {
           state.modelMetrics = optionalPayload && optionalPayload.metrics ? optionalPayload.metrics : null;
@@ -2668,28 +3132,12 @@ const HISTORY_KEY = "brandpulse-control-room-history";
           state.platforms = optionalPayload && Array.isArray(optionalPayload.platforms) ? optionalPayload.platforms : [];
         }
 
-        // Render brand-driven UI immediately so it is not blocked by trend latency/errors.
-        renderKeywords(state.keywords);
-        renderBrandSelectors(state.brands);
-        renderBrandQuickList(state.brands);
-        renderBrandSideLists(state.brands);
-        renderBrandWatchlist();
-        renderBrandInsights();
-        renderBrandComparison();
-        renderAnalystCustomerVoice();
-        renderAnalystFocusPanel();
-        refreshCustomerVoiceKeywords();
-        renderSmartInsight();
-        renderAnalyticsSummaryContext();
-
-        try {
-          await refreshTrendView();
-        } catch (trendError) {
-          if (handleAuthError(trendError)) return;
-          $("#trendCaption").textContent = "Unable to load trend graph: " + (trendError.message || "request failed") + ".";
-        }
+        renderDashboardAnalyticsState();
+        refreshDashboardAnalyticsSupplementary(role, { sessionRevision }).catch(() => {});
       } catch (error) {
+        if (!sameSessionRevision(sessionRevision)) return;
         if (handleAuthError(error)) return;
+        state.brands = [];
         state.platforms = [];
         state.modelMetrics = null;
         state.modelTrainingAt = "";
@@ -2700,10 +3148,7 @@ const HISTORY_KEY = "brandpulse-control-room-history";
         $("#keywordList").innerHTML = '<div class="keyword-caption">Unable to load keyword chart.</div>';
         $("#compareSummary").textContent = "Unable to load brand comparison data.";
         $("#similarBrandList").innerHTML = '<div class="mini-note">Unable to load similar brand data.</div>';
-        renderAnalystCustomerVoice();
-        renderAnalystFocusPanel();
-        renderSmartInsight();
-        renderAnalyticsSummaryContext();
+        renderDashboardAnalyticsState();
       }
     }
 
@@ -2725,7 +3170,12 @@ const HISTORY_KEY = "brandpulse-control-room-history";
     }
 
     function extractConfidence(payload, sentiment) {
-      const candidates = [payload.confidence, payload.prediction_confidence, payload.final_confidence];
+      const candidates = [
+        payload.final_confidence,
+        payload.prediction_confidence,
+        payload.decision_confidence,
+        payload.confidence
+      ];
       for (const item of candidates) {
         if (Number.isFinite(Number(item))) {
           const value = Number(item);
@@ -2747,10 +3197,17 @@ const HISTORY_KEY = "brandpulse-control-room-history";
     function updateSingleResult(payload, submittedRating) {
       const sentiment = extractSentiment(payload);
       const confidence = extractConfidence(payload, sentiment);
+      const languageLabel = payload.source_language_label || payload.source_language || "Unknown";
+      const translationNote = payload.translation_applied
+        ? " Multilingual bridge applied before scoring."
+        : "";
+      const adjustmentNote = payload.sentiment_adjustment_reason
+        ? " Multilingual sentiment guard corrected the raw model output."
+        : "";
       state.latestConfidence = confidence;
       state.latestSentiment = sentiment;
       $("#singleResultShell").classList.remove("is-empty");
-      $("#singleResultIntro").textContent = "Prediction complete. Inspect sentiment, confidence, and any rating mismatch below.";
+      $("#singleResultIntro").textContent = "Prediction complete for " + languageLabel + " input." + translationNote + adjustmentNote + " Inspect sentiment, confidence, and any rating mismatch below.";
 
       const badge = $("#singleSentimentBadge");
       badge.className = "sentiment-badge " + sentimentClass(sentiment);
@@ -2792,6 +3249,7 @@ const HISTORY_KEY = "brandpulse-control-room-history";
             const confidence = extractConfidence(item, sentiment);
             return {
               review_id: item.review_id || item.id || index + 1,
+              language: item.source_language_label || item.source_language || "Unknown",
               sentiment,
               confidence
             };
@@ -2801,6 +3259,7 @@ const HISTORY_KEY = "brandpulse-control-room-history";
 
       return submittedLines.slice(0, 10).map((line, index) => ({
         review_id: index + 1,
+        language: "Pending",
         sentiment: "Processed",
         confidence: null
       }));
@@ -2809,7 +3268,7 @@ const HISTORY_KEY = "brandpulse-control-room-history";
     function renderBatchTable(rows) {
       const tbody = $("#batchTableBody");
       if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="3" class="signal-note">No batch results available yet.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="4" class="signal-note">No batch results available yet.</td></tr>';
         return;
       }
 
@@ -2818,6 +3277,7 @@ const HISTORY_KEY = "brandpulse-control-room-history";
         return [
           "<tr>",
           "<td>" + row.review_id + "</td>",
+          "<td>" + (row.language || "Unknown") + "</td>",
           '<td><span class="tag ' + sentimentTagClass(row.sentiment) + '">' + row.sentiment + "</span></td>",
           "<td>" + confidenceText + "</td>",
           "</tr>"
@@ -2826,13 +3286,13 @@ const HISTORY_KEY = "brandpulse-control-room-history";
     }
 
     function getHistory() {
-      const data = storageRead(HISTORY_KEY, []);
+      const data = scopedStorageRead(HISTORY_KEY, []);
       return Array.isArray(data) ? data : [];
     }
 
     function storeHistory(entry) {
       const next = [entry, ...getHistory()].slice(0, 10);
-      storageWrite(HISTORY_KEY, next);
+      scopedStorageWrite(HISTORY_KEY, next);
       renderHistory();
     }
 
@@ -2865,12 +3325,37 @@ const HISTORY_KEY = "brandpulse-control-room-history";
       window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     }
 
+    function scrollStageToTarget(targetId) {
+      const target = document.getElementById(targetId);
+      const stage = document.querySelector(".stage");
+      if (!target) return;
+      if (stage) {
+        const stageRect = stage.getBoundingClientRect();
+        const targetRect = target.getBoundingClientRect();
+        const nextTop = stage.scrollTop + (targetRect.top - stageRect.top) - 18;
+        stage.scrollTo({ top: Math.max(0, nextTop), behavior: "smooth" });
+        return;
+      }
+      target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function navigateRoleDashboardCard(card) {
+      if (!card) return;
+      const view = card.dataset.view || "";
+      const scrollTarget = card.dataset.scrollTarget || "";
+      viewRouter(view);
+      if (scrollTarget) {
+        window.setTimeout(() => scrollStageToTarget(scrollTarget), 60);
+      }
+    }
+
     function viewRouter(nextView) {
       const hashView = (location.hash || "").replace("#", "");
       const view = nextView || hashView || defaultViewForRole(state.userRole);
       const validViews = allowedViewsForRole(state.userRole);
       const fallbackView = validViews[0] || "dashboard";
       const resolved = validViews.includes(view) ? view : fallbackView;
+      state.currentView = resolved;
       const activeGroup = groupForView(state.userRole, resolved);
       if (activeGroup) {
         state.openNavGroup[normalizeAccessRole(state.userRole)] = activeGroup.id;
@@ -2893,6 +3378,7 @@ const HISTORY_KEY = "brandpulse-control-room-history";
       document.body.classList.remove("drawer-open");
       $("#signalDrawerToggle").setAttribute("aria-expanded", "false");
       resetViewScroll();
+      syncDashboardAutoRefresh();
     }
 
     function applyTheme(theme) {
@@ -2906,34 +3392,112 @@ const HISTORY_KEY = "brandpulse-control-room-history";
       storageWrite(THEME_KEY, resolved);
     }
 
-    async function refreshBrandScore() {
+    async function refreshBrandScore(options = {}) {
+      const { showToast = true, withButton = true, includeAnalytics = true } = options;
       const button = $("#refreshScoreButton");
-      setButtonLoading(button, true, "Refresh Brand Score");
+      const sessionRevision = state.sessionRevision;
+      if (withButton && button) setButtonLoading(button, true, "Refresh Brand Score");
       try {
-        const payload = await callApi("/dashboard/summary");
+        const [payload, realtimeSummaryPayload, realtimeReviewsPayload] = await Promise.all([
+          callApi("/dashboard/summary"),
+          callApi("/dashboard/realtime-summary"),
+          callApi("/dashboard/realtime-reviews?limit=5")
+        ]);
+        if (!sameSessionRevision(sessionRevision)) return;
         const score = normalizeBrandScore(payload);
+        state.realtimeSummary = {
+          total_reviews: Number(realtimeSummaryPayload.total_reviews || 0),
+          platforms: Array.isArray(realtimeSummaryPayload.platforms) ? realtimeSummaryPayload.platforms : [],
+          brands: Array.isArray(realtimeSummaryPayload.brands) ? realtimeSummaryPayload.brands : [],
+          latest_ingested_at: realtimeSummaryPayload.latest_ingested_at || null
+        };
+        state.latestRealtimeReviews = Array.isArray(realtimeReviewsPayload.reviews) ? realtimeReviewsPayload.reviews : [];
         state.brandScore = score;
         updateDashboard(score);
         updateSignalPanel(score);
-        refreshDashboardAnalytics();
-        toast("Brand score refreshed successfully.", "success");
+        if (includeAnalytics) {
+          await refreshDashboardAnalytics({ sessionRevision });
+        }
+        if (showToast) toast("Brand score refreshed successfully.", "success");
       } catch (error) {
+        if (!sameSessionRevision(sessionRevision)) return;
         if (handleAuthError(error)) return;
-        toast(error.message || "Failed to refresh brand score.", "error");
+        if (showToast) toast(error.message || "Failed to refresh brand score.", "error");
       } finally {
-        setButtonLoading(button, false, "Refresh Brand Score");
+        if (withButton && button) setButtonLoading(button, false, "Refresh Brand Score");
       }
+    }
+
+    function shouldAutoRefreshDashboard() {
+      const sessionChip = $("#sessionChip");
+      return Boolean(
+        sessionChip &&
+        !sessionChip.classList.contains("hidden") &&
+        state.currentView === "dashboard" &&
+        document.visibilityState !== "hidden"
+      );
+    }
+
+    async function autoRefreshDashboardNumbers() {
+      if (!shouldAutoRefreshDashboard()) return;
+      if (state.dashboardAutoRefreshInFlight) return;
+      state.dashboardAutoRefreshInFlight = true;
+      try {
+        await refreshBrandScore({ showToast: false, withButton: false, includeAnalytics: false });
+      } finally {
+        state.dashboardAutoRefreshInFlight = false;
+      }
+    }
+
+    function startDashboardAutoRefresh() {
+      if (state.dashboardAutoRefreshTimer) return;
+      state.dashboardAutoRefreshTimer = window.setInterval(autoRefreshDashboardNumbers, 10000);
+    }
+
+    function stopDashboardAutoRefresh() {
+      if (state.dashboardAutoRefreshTimer) {
+        window.clearInterval(state.dashboardAutoRefreshTimer);
+        state.dashboardAutoRefreshTimer = null;
+      }
+      state.dashboardAutoRefreshInFlight = false;
+    }
+
+    function syncDashboardAutoRefresh() {
+      if (shouldAutoRefreshDashboard()) {
+        startDashboardAutoRefresh();
+        return;
+      }
+      stopDashboardAutoRefresh();
     }
 
     async function handleSingleSubmit(event) {
       event.preventDefault();
+      const sessionRevision = state.sessionRevision;
       const shell = $("#singleFormShell");
-      const reviewText = $("#singleReviewText").value.trim();
+      const reviewInput = $("#singleReviewText");
+      let reviewText = reviewInput.value.trim();
       if (!reviewText) {
+        const requestedBrand = String($("#singleBrand").value.trim() || $("#singlePlatform").value.trim() || "").trim();
+        if (requestedBrand) {
+          try {
+            const sample = await loadRandomBrandReview({ showToastMessage: false });
+            reviewText = String(sample?.review_text || "").trim();
+            if (reviewText) {
+              toast("Loaded a random review for prediction.", "info");
+            }
+          } catch (error) {
+            if (handleAuthError(error)) return;
+          }
+        }
+      }
+      if (!reviewText) {
+        setSingleReviewValidationState("Review text is required before prediction.");
         shake(shell);
+        reviewInput.focus();
         toast("Single review text is required.", "error");
         return;
       }
+      setSingleReviewValidationState("");
 
       const ratingValue = $("#singleRating").value.trim();
       const rating = ratingValue ? Number(ratingValue) : null;
@@ -2949,32 +3513,78 @@ const HISTORY_KEY = "brandpulse-control-room-history";
       if (Number.isFinite(rating)) payload.rating = rating;
 
       try {
-        const data = await callApi("/predict", { method: "POST", body: payload });
+        const data = await callApi("/predict", { method: "POST", body: payload, timeoutMs: 30000 });
+        if (!sameSessionRevision(sessionRevision)) return;
         updateSingleResult(data, rating);
         storeHistory({
           title: "Single review prediction",
           time: new Date().toLocaleString(),
-          summary: "Sentiment: " + extractSentiment(data) + (Number.isFinite(state.latestConfidence) ? " with " + state.latestConfidence.toFixed(1) + "% confidence." : ".")
+          summary: (data.source_language_label || data.source_language || "Unknown") + " review scored as " + extractSentiment(data) +
+            (Number.isFinite(state.latestConfidence) ? " with " + state.latestConfidence.toFixed(1) + "% confidence." : ".") +
+            (data.translation_applied ? " Multilingual normalization applied." : "")
         });
         toast("Single review prediction completed.", "success");
       } catch (error) {
+        if (!sameSessionRevision(sessionRevision)) return;
         if (handleAuthError(error)) return;
-        $("#singleTechnicalJson").textContent = JSON.stringify({ error: error.message || "Request failed" }, null, 2);
+        const message = error.message || "Request failed";
+        $("#singleTechnicalJson").textContent = JSON.stringify({ error: message }, null, 2);
         $("#singleResultShell").classList.remove("is-empty");
-        $("#singleResultIntro").textContent = "Prediction failed. Review the error payload and try again.";
+        $("#singleResultIntro").textContent = "Prediction failed: " + message;
         $("#singleSentimentBadge").className = "sentiment-badge sentiment-negative";
         $("#singleSentimentBadge").textContent = "Error";
         $("#singleConfidenceBar").style.width = "0%";
         $("#singleConfidenceText").textContent = "Unavailable";
         $("#ratingWarning").classList.remove("is-visible");
+        $("#ratingWarning").textContent = "";
         toast(error.message || "Prediction failed.", "error");
       } finally {
         setButtonLoading(button, false, "Predict Sentiment");
       }
     }
 
+    async function loadRandomBrandReview(options = {}) {
+      const { showToastMessage = true } = options;
+      const sessionRevision = state.sessionRevision;
+      const button = $("#singleRandomReviewButton");
+      const brandInput = $("#singleBrand");
+      const platformInput = $("#singlePlatform");
+      const reviewInput = $("#singleReviewText");
+      const ratingInput = $("#singleRating");
+      const requestedBrand = String((brandInput?.value || platformInput?.value || "")).trim();
+      if (!reviewInput) return;
+      if (button) setButtonLoading(button, true, "Use Random Brand Review", "Loading sample...");
+      try {
+        const query = requestedBrand ? "?brand=" + encodeURIComponent(requestedBrand) : "";
+        const payload = await callApi("/dashboard/random-review" + query);
+        if (!sameSessionRevision(sessionRevision)) return;
+        const sample = payload.sample || {};
+        const reviewText = String(sample.review_text || "").trim();
+        if (!reviewText) throw new Error("No review sample found for the selected brand");
+        reviewInput.value = reviewText;
+        if (brandInput) brandInput.value = String(sample.brand || requestedBrand || "");
+        if (platformInput) platformInput.value = String(sample.platform || sample.brand || requestedBrand || "");
+        if (ratingInput && (sample.rating ?? "") !== "") ratingInput.value = String(sample.rating);
+        setSingleReviewValidationState("");
+        if (showToastMessage) {
+          toast("Loaded a random review" + (sample.brand ? " for " + sample.brand : "") + ".", "success");
+        }
+        return sample;
+      } catch (error) {
+        if (!sameSessionRevision(sessionRevision)) return;
+        if (handleAuthError(error)) return;
+        if (showToastMessage) {
+          toast(error.message || "Unable to load a random review.", "error");
+        }
+        throw error;
+      } finally {
+        if (button) setButtonLoading(button, false, "Use Random Brand Review");
+      }
+    }
+
     async function handleBatchSubmit(event) {
       event.preventDefault();
+      const sessionRevision = state.sessionRevision;
       const shell = $("#batchFormShell");
       const lines = $("#batchReviewText").value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
       if (!lines.length) {
@@ -2992,7 +3602,8 @@ const HISTORY_KEY = "brandpulse-control-room-history";
       };
 
       try {
-        const data = await callApi("/predict/batch", { method: "POST", body: payload });
+        const data = await callApi("/predict/batch", { method: "POST", body: payload, timeoutMs: 60000 });
+        if (!sameSessionRevision(sessionRevision)) return;
         $("#batchTechnicalJson").textContent = JSON.stringify(data, null, 2);
         const score = normalizeBrandScore(data);
         const results = Array.isArray(data.results) ? data.results : [];
@@ -3029,11 +3640,12 @@ const HISTORY_KEY = "brandpulse-control-room-history";
         storeHistory({
           title: "Batch run",
           time: new Date().toLocaleString(),
-          summary: "Processed " + Number(data.rows || lines.length).toLocaleString() + " reviews." +
+          summary: "Processed " + Number(data.rows || lines.length).toLocaleString() + " reviews with Indian-language detection." +
             (Number.isFinite(averageConfidence) ? " Average confidence: " + (averageConfidence * 100).toFixed(1) + "%." : "")
         });
         toast("Batch prediction completed.", "success");
       } catch (error) {
+        if (!sameSessionRevision(sessionRevision)) return;
         if (handleAuthError(error)) return;
         $("#batchTechnicalJson").textContent = JSON.stringify({ error: error.message || "Request failed" }, null, 2);
         renderBatchTable([]);
@@ -3044,7 +3656,7 @@ const HISTORY_KEY = "brandpulse-control-room-history";
     }
 
     function clearHistory() {
-      storageWrite(HISTORY_KEY, []);
+      scopedStorageWrite(HISTORY_KEY, []);
       renderHistory();
       toast("Local history cleared.", "info");
     }
@@ -3091,19 +3703,29 @@ const HISTORY_KEY = "brandpulse-control-room-history";
     }
 
     async function loadUsersManagement() {
+      if (state.usersLoading) return;
+      const sessionRevision = state.sessionRevision;
+      state.usersLoading = true;
       const button = $("#refreshUsersButton");
       if (button) setButtonLoading(button, true, "Refresh Users");
       try {
         const payload = await callApi("/admin/users");
+        if (!sameSessionRevision(sessionRevision) || normalizeAccessRole(state.userRole) !== "admin") return;
         const users = Array.isArray(payload.users) ? payload.users : [];
         state.users = users;
+        state.usersLoaded = true;
         renderUsersTable(users);
+        renderAdminControlHub();
+        buildAdminNotifications();
         renderRoleDashboardPanel();
       } catch (error) {
+        if (!sameSessionRevision(sessionRevision)) return;
         if (handleAuthError(error)) return;
+        state.usersLoaded = false;
         renderUsersTable([]);
         toast(error.message || "Failed to load users.", "error");
       } finally {
+        state.usersLoading = false;
         if (button) setButtonLoading(button, false, "Refresh Users");
       }
     }
@@ -3111,6 +3733,7 @@ const HISTORY_KEY = "brandpulse-control-room-history";
     async function handleUsersTableAction(event) {
       const button = event.target.closest("button[data-action]");
       if (!button) return;
+      const sessionRevision = state.sessionRevision;
       const action = button.dataset.action || "";
       const email = button.dataset.email || "";
       const role = button.dataset.role || "";
@@ -3129,6 +3752,7 @@ const HISTORY_KEY = "brandpulse-control-room-history";
             method: "POST",
             body: { email }
           });
+          if (!sameSessionRevision(sessionRevision) || normalizeAccessRole(state.userRole) !== "admin") return;
           toast("User deleted.", "success");
         } else if (action === "set-role") {
           if (!role) return;
@@ -3136,12 +3760,14 @@ const HISTORY_KEY = "brandpulse-control-room-history";
             method: "POST",
             body: { email, role }
           });
+          if (!sameSessionRevision(sessionRevision) || normalizeAccessRole(state.userRole) !== "admin") return;
           toast("User role updated.", "success");
         } else {
           return;
         }
         await loadUsersManagement();
       } catch (error) {
+        if (!sameSessionRevision(sessionRevision)) return;
         if (handleAuthError(error)) return;
         toast(error.message || "User update failed.", "error");
       } finally {
@@ -3167,6 +3793,7 @@ const HISTORY_KEY = "brandpulse-control-room-history";
       });
 
       window.addEventListener("hashchange", () => viewRouter());
+      document.addEventListener("visibilitychange", syncDashboardAutoRefresh);
       $("#themeToggle").addEventListener("click", () => {
         const nextTheme = document.body.getAttribute("data-theme") === "dark" ? "light" : "dark";
         applyTheme(nextTheme);
@@ -3184,6 +3811,8 @@ const HISTORY_KEY = "brandpulse-control-room-history";
       $("#compareBrandA").addEventListener("change", renderBrandComparison);
       $("#compareBrandB").addEventListener("change", renderBrandComparison);
       $("#singleForm").addEventListener("submit", handleSingleSubmit);
+      $("#singleReviewText").addEventListener("input", () => setSingleReviewValidationState(""));
+      if ($("#singleRandomReviewButton")) $("#singleRandomReviewButton").addEventListener("click", loadRandomBrandReview);
       $("#batchForm").addEventListener("submit", handleBatchSubmit);
       $("#clearHistoryButton").addEventListener("click", clearHistory);
       $("#confirmOkButton").addEventListener("click", () => closeConfirmDialog(true));
@@ -3206,14 +3835,14 @@ const HISTORY_KEY = "brandpulse-control-room-history";
       if ($("#roleDashboardCards")) $("#roleDashboardCards").addEventListener("click", (event) => {
         const card = event.target.closest(".role-mini-card[data-view]");
         if (!card) return;
-        viewRouter(card.dataset.view || "");
+        navigateRoleDashboardCard(card);
       });
       if ($("#roleDashboardCards")) $("#roleDashboardCards").addEventListener("keydown", (event) => {
         if (event.key !== "Enter" && event.key !== " ") return;
         const card = event.target.closest(".role-mini-card[data-view]");
         if (!card) return;
         event.preventDefault();
-        viewRouter(card.dataset.view || "");
+        navigateRoleDashboardCard(card);
       });
       $$(".analyst-focus-btn[data-analyst-view]").forEach((button) => {
         button.addEventListener("click", () => viewRouter(button.dataset.analystView || ""));
@@ -3303,7 +3932,7 @@ const HISTORY_KEY = "brandpulse-control-room-history";
           });
           setSession(normalizeSessionUser(payload) || email);
           toast("Login successful.", "success");
-          refreshBrandScore();
+          await refreshBrandScore();
         } catch (error) {
           $("#authError").textContent = error.message || "Login failed.";
         } finally {
@@ -3391,7 +4020,7 @@ const HISTORY_KEY = "brandpulse-control-room-history";
         const sessionState = await callApi("/auth/session");
         if (sessionState && sessionState.authenticated) {
           setSession(normalizeSessionUser(sessionState));
-          refreshBrandScore();
+          await refreshBrandScore({ showToast: false });
         } else {
           clearSessionUi();
           showLogin();

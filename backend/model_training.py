@@ -7,6 +7,7 @@ import warnings
 import joblib
 import matplotlib.pyplot as plt
 import pandas as pd
+from sklearn.calibration import CalibratedClassifierCV
 from sklearn.base import clone
 from sklearn.exceptions import ConvergenceWarning
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -18,7 +19,9 @@ if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from backend.config import (
+    CALIBRATION_REPORT_PATH,
     CLEANED_DATA_PATH,
+    LANGUAGE_EVALUATION_PATH,
     MODEL_METRICS_CHART_PATH,
     MODEL_METRICS_PATH,
     MODEL_PATH,
@@ -27,7 +30,12 @@ from backend.config import (
     TRAINING_HISTORY_PATH,
     VECTORIZER_PATH,
 )
-from backend.preprocessing import label_from_rating
+from backend.model_evaluation import (
+    build_calibration_frame,
+    build_language_evaluation_frame,
+    expected_calibration_error,
+)
+from backend.preprocessing import STOP_WORDS, label_from_rating
 
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
@@ -59,6 +67,9 @@ def _load_training_frame() -> tuple[pd.DataFrame, str]:
 
     df[text_column] = df[text_column].fillna("").astype(str)
     df["sentiment_label"] = df["sentiment_label"].fillna("").astype(str)
+    if "source_language" not in df.columns:
+        df["source_language"] = "unknown"
+    df["source_language"] = df["source_language"].fillna("unknown").astype(str)
     df = df[df[text_column].str.strip() != ""].copy()
     df = df[df["sentiment_label"].str.strip() != ""].copy()
     if df.empty:
@@ -82,19 +93,22 @@ def train_models() -> pd.DataFrame:
 
     X = df[text_column]
     y = df["sentiment_label"]
+    languages = df["source_language"]
     print(f"Dataset size: {len(df)}")
 
-    X_train_val, X_test, y_train_val, y_test = train_test_split(
+    X_train_val, X_test, y_train_val, y_test, language_train_val, language_test = train_test_split(
         X,
         y,
+        languages,
         test_size=0.2,
         random_state=RANDOM_STATE,
         stratify=y,
     )
 
-    X_train, X_val, y_train, y_val = train_test_split(
+    X_train, X_val, y_train, y_val, language_train, language_val = train_test_split(
         X_train_val,
         y_train_val,
+        language_train_val,
         test_size=0.1,
         random_state=RANDOM_STATE,
         stratify=y_train_val,
@@ -107,7 +121,7 @@ def train_models() -> pd.DataFrame:
     vectorizer = TfidfVectorizer(
         max_features=50000,
         ngram_range=(1, 2),
-        stop_words="english",
+        stop_words=sorted(STOP_WORDS),
         min_df=2,
         max_df=0.98,
         sublinear_tf=True,
@@ -177,14 +191,18 @@ def train_models() -> pd.DataFrame:
     vectorizer = TfidfVectorizer(
         max_features=50000,
         ngram_range=(1, 2),
-        stop_words="english",
+        stop_words=sorted(STOP_WORDS),
         min_df=2,
         max_df=0.98,
         sublinear_tf=True,
     )
     X_train_val_vec = vectorizer.fit_transform(X_train_val)
     X_test_vec = vectorizer.transform(X_test)
-    model = best_model
+    model = CalibratedClassifierCV(
+        estimator=clone(best_model),
+        method="sigmoid",
+        cv=3,
+    )
     model.fit(X_train_val_vec, y_train_val)
     y_train_pred = model.predict(X_train_val_vec)
     y_pred = model.predict(X_test_vec)
@@ -205,13 +223,26 @@ def train_models() -> pd.DataFrame:
 
     train_loss = None
     test_loss = None
+    train_ece = None
+    test_ece = None
+    language_eval_df = build_language_evaluation_frame(y_test, y_pred, language_test)
+    language_eval_df.to_csv(LANGUAGE_EVALUATION_PATH, index=False)
+
+    calibration_df = pd.DataFrame()
     if hasattr(model, "predict_proba"):
         y_train_proba = model.predict_proba(X_train_val_vec)
         y_proba = model.predict_proba(X_test_vec)
         train_loss = float(log_loss(y_train_val, y_train_proba, labels=model.classes_))
         test_loss = float(log_loss(y_test, y_proba, labels=model.classes_))
+        train_ece = expected_calibration_error(y_train_val, y_train_proba, model.classes_)
+        test_ece = expected_calibration_error(y_test, y_proba, model.classes_)
+        calibration_df = build_calibration_frame(y_test, y_proba, model.classes_)
+        calibration_df.to_csv(CALIBRATION_REPORT_PATH, index=False)
         metrics_row["train_log_loss"] = train_loss
         metrics_row["log_loss"] = test_loss
+        metrics_row["train_ece"] = train_ece
+        metrics_row["ece"] = test_ece
+        metrics_row["probability_calibration"] = "sigmoid_cv3"
 
     metrics_df = pd.DataFrame([metrics_row])
     metrics_df.to_csv(MODEL_METRICS_PATH, index=False)
@@ -259,7 +290,17 @@ def train_models() -> pd.DataFrame:
         plt.savefig(TRAINING_HISTORY_CHART_PATH, dpi=140)
         plt.close()
 
-    report = classification_report(y_test, y_pred)
+    report = classification_report(y_test, y_pred, zero_division=0)
+    language_report = (
+        language_eval_df.to_string(index=False)
+        if not language_eval_df.empty
+        else "No language metadata available."
+    )
+    calibration_report = (
+        calibration_df.to_string(index=False)
+        if not calibration_df.empty
+        else "Calibration probabilities unavailable."
+    )
 
     ranked_models = sorted(model_scores, key=lambda item: (item[1], item[2]), reverse=True)
     best_val_name, best_val_acc, best_val_f1 = ranked_models[0]
@@ -276,8 +317,12 @@ def train_models() -> pd.DataFrame:
     print(f"Test Accuracy: {accuracy:.4f}")
     if train_loss is not None and test_loss is not None:
         print(f"Loss: train={train_loss:.4f} | test={test_loss:.4f}")
+    if train_ece is not None and test_ece is not None:
+        print(f"Calibration ECE: train={train_ece:.4f} | test={test_ece:.4f}")
     print("\nClassification Report (Test):")
     print(report)
+    print("\nLanguage Evaluation (Test):")
+    print(language_report)
 
     MODEL_REPORT_PATH.write_text(
         "Train Accuracy: " + str(train_accuracy) + "\n"
@@ -286,8 +331,14 @@ def train_models() -> pd.DataFrame:
         + "Test Macro F1: " + str(macro_f1) + "\n"
         + ("Train Log Loss: " + str(train_loss) + "\n" if train_loss is not None else "")
         + ("Test Log Loss: " + str(test_loss) + "\n" if test_loss is not None else "")
+        + ("Train ECE: " + str(train_ece) + "\n" if train_ece is not None else "")
+        + ("Test ECE: " + str(test_ece) + "\n" if test_ece is not None else "")
         + "\n"
-        + report,
+        + report
+        + "\n\nLanguage Evaluation (Test)\n"
+        + language_report
+        + "\n\nCalibration Report (Test)\n"
+        + calibration_report,
         encoding="utf-8",
     )
 
@@ -298,6 +349,9 @@ def train_models() -> pd.DataFrame:
     print(f"Saved vectorizer: {VECTORIZER_PATH}")
     print(f"Saved metrics: {MODEL_METRICS_PATH}")
     print(f"Saved history: {TRAINING_HISTORY_PATH}")
+    print(f"Saved language evaluation: {LANGUAGE_EVALUATION_PATH}")
+    if not calibration_df.empty:
+        print(f"Saved calibration report: {CALIBRATION_REPORT_PATH}")
     print(f"Saved gain graph: {MODEL_METRICS_CHART_PATH}")
     if train_loss is not None and test_loss is not None:
         print(f"Saved loss graph: {TRAINING_HISTORY_CHART_PATH}")

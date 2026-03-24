@@ -8,3 +8,4 @@ matplotlib
 seaborn
 pymongo[srv]
 nltk
+kafka-python
