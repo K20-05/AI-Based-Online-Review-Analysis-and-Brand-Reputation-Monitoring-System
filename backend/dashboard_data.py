@@ -46,10 +46,24 @@ def prediction_frame() -> pd.DataFrame:
     return _prediction_frame_cached(predictions_cache_key()).copy()
 
 
-def dashboard_brand_payload() -> dict:
-    if BRAND_SCORE_PATH.exists():
+def brand_score_is_stale() -> bool:
+    if not BRAND_SCORE_PATH.exists():
+        return True
+
+    brand_score_mtime = BRAND_SCORE_PATH.stat().st_mtime_ns
+    for dependency_path in (PREDICTIONS_PATH, REALTIME_REVIEWS_PATH):
+        if dependency_path.exists() and dependency_path.stat().st_mtime_ns > brand_score_mtime:
+            return True
+    return False
+
+
+def dashboard_brand_payload(refresh: bool = False) -> dict:
+    if refresh or brand_score_is_stale():
+        return calculate_brand_score()
+    try:
         return json.loads(BRAND_SCORE_PATH.read_text(encoding="utf-8"))
-    return calculate_brand_score()
+    except (FileNotFoundError, json.JSONDecodeError):
+        return calculate_brand_score()
 
 
 @lru_cache(maxsize=1)

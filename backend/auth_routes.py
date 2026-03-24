@@ -20,15 +20,17 @@ def create_auth_blueprint(deps: dict) -> Blueprint:
     save_user_store = deps["save_user_store"]
     find_user = deps["find_user"]
     current_user = deps["current_user"]
+    current_user_record = deps["current_user_record"]
+    current_user_role = deps["current_user_role"]
     serialize_user = deps["serialize_user"]
     normalize_public_role = deps["normalize_public_role"]
     validate_password_strength = deps["validate_password_strength"]
+    require_auth = deps["require_auth"]
 
     @bp.get("/api/auth/session")
     def auth_session():
-        user_email = current_user()
-        user = find_user(user_email) if user_email else None
-        return jsonify({"authenticated": bool(user_email), "user": serialize_user(user)})
+        user = current_user_record()
+        return jsonify({"authenticated": bool(user), "user": serialize_user(user)})
 
     @bp.post("/api/auth/register")
     def auth_register():
@@ -78,9 +80,12 @@ def create_auth_blueprint(deps: dict) -> Blueprint:
         return json_success("Login successful", user=serialize_user(user))
 
     @bp.post("/api/auth/reset-password")
+    @require_auth
     def auth_reset_password():
         payload = request.get_json(force=True, silent=False) or {}
-        email = str(payload.get("email", "")).strip().lower()
+        active_user = current_user_record()
+        active_email = str((active_user or {}).get("email", "")).strip().lower()
+        email = str(payload.get("email", active_email)).strip().lower()
         new_password = str(payload.get("new_password", ""))
 
         if not email or not new_password:
@@ -88,6 +93,8 @@ def create_auth_blueprint(deps: dict) -> Blueprint:
         password_error = validate_password_strength(new_password)
         if password_error:
             return json_error(password_error)
+        if current_user_role() != "admin" and email != active_email:
+            return json_error("You can only reset your own password", 403)
 
         users = load_user_store()
         updated = False

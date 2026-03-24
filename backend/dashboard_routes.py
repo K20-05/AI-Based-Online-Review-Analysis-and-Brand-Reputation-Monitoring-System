@@ -32,20 +32,25 @@ def create_dashboard_blueprint(deps: dict) -> Blueprint:
     latest_realtime_reviews = deps["latest_realtime_reviews"]
     realtime_review_summary = deps["realtime_review_summary"]
 
+    def wants_live_refresh() -> bool:
+        return str(request.args.get("refresh", "")).strip().lower() in {"1", "true", "yes"}
+
+    def require_known_brand(brand_name: str) -> dict:
+        try:
+            return find_brand_row(brand_name)
+        except KeyError as error:
+            raise FileNotFoundError(f"Unknown brand: {brand_name}") from error
+
     @bp.get("/api/dashboard/summary")
     @require_auth
     def dashboard_summary():
-        return jsonify(dashboard_brand_payload())
+        return jsonify(dashboard_brand_payload(refresh=wants_live_refresh()))
 
     @bp.get("/api/dashboard/brands")
     @require_auth
     def dashboard_brands():
-        if BRAND_REPUTATION_BY_BRAND_PATH.exists():
-            df = pd.read_csv(BRAND_REPUTATION_BY_BRAND_PATH, low_memory=False)
-            rows = df.to_dict(orient="records")
-        else:
-            payload = calculate_brand_score()
-            rows = payload.get("brand_scores", [])
+        payload = dashboard_brand_payload(refresh=wants_live_refresh())
+        rows = payload.get("brand_scores", [])
 
         include_trend_availability = str(request.args.get("include_trend_availability", "")).strip().lower() in {
             "1",
@@ -67,7 +72,7 @@ def create_dashboard_blueprint(deps: dict) -> Blueprint:
         brand = str(request.args.get("brand", "")).strip()
         if not brand:
             return json_error("brand query parameter is required")
-        return jsonify(build_brand_insights(find_brand_row(brand)))
+        return jsonify(build_brand_insights(require_known_brand(brand)))
 
     @bp.get("/api/dashboard/similar")
     @require_auth
@@ -77,7 +82,7 @@ def create_dashboard_blueprint(deps: dict) -> Blueprint:
         if not brand:
             return json_error("brand query parameter is required")
         limit = max(1, min(int(request.args.get("limit", 3) or 3), 10))
-        row = find_brand_row(brand)
+        row = require_known_brand(brand)
         return jsonify({"brand": row["brand"], "similar": similar_brand_rows(row, limit)})
 
     @bp.get("/api/dashboard/compare")
@@ -89,8 +94,8 @@ def create_dashboard_blueprint(deps: dict) -> Blueprint:
         if not brand_a or not brand_b:
             return json_error("brand_a and brand_b query parameters are required")
 
-        row_a = find_brand_row(brand_a)
-        row_b = find_brand_row(brand_b)
+        row_a = require_known_brand(brand_a)
+        row_b = require_known_brand(brand_b)
         leader = row_a if row_a["brand_reputation_score"] >= row_b["brand_reputation_score"] else row_b
         lagger = row_b if leader is row_a else row_a
         summary = (
@@ -208,6 +213,6 @@ def create_dashboard_blueprint(deps: dict) -> Blueprint:
         df = prediction_frame()
         generate_visualizations(df)
         score = calculate_brand_score()
-        return jsonify({"message": "Dashboard refreshed", "brand_score": score})
+        return jsonify({"success": True, "message": "Dashboard refreshed", "brand_score": score})
 
     return bp

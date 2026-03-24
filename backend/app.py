@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, UTC
 from functools import wraps
 import json
+import os
 from pathlib import Path
 import re
 import sys
@@ -218,7 +219,7 @@ API_DOCS = {
             }
         ],
         "dashboard": [
-            {"method": "GET", "path": "/api/dashboard/summary", "summary": "Get overall dashboard summary and brand scores.", "auth_required": True},
+            {"method": "GET", "path": "/api/dashboard/summary", "summary": "Get overall dashboard summary and brand scores. Add ?refresh=1 to force a live recalculation.", "auth_required": True},
             {"method": "GET", "path": "/api/dashboard/trends", "summary": "Get monthly sentiment trend data.", "auth_required": True},
             {"method": "GET", "path": "/api/dashboard/keywords", "summary": "Get top processed keywords.", "auth_required": True},
             {"method": "GET", "path": "/api/dashboard/platforms", "summary": "Get platform sentiment breakdown.", "auth_required": True},
@@ -254,11 +255,14 @@ API_DOCS = {
             {
                 "method": "POST",
                 "path": "/api/auth/reset-password",
-                "summary": "Reset a dashboard user's password.",
-                "request_body": {"email": "aarav@brandpulse.ai", "new_password": "newsecure123"},
+                "summary": "Reset the active user's password, or any user's password if the session belongs to an admin.",
+                "auth_required": True,
+                "request_body": {"email": "aarav@brandpulse.ai", "new_password": "newSecure123!"},
                 "response": {"success": True, "message": "Password updated", "user": "aarav@brandpulse.ai"},
                 "error_responses": [
                     {"status": 400, "body": {"success": False, "error": "email and new_password are required"}},
+                    {"status": 401, "body": {"success": False, "error": "Authentication required"}},
+                    {"status": 403, "body": {"success": False, "error": "You can only reset your own password"}},
                     {"status": 404, "body": {"success": False, "error": "No account found for this email"}},
                 ],
             },
@@ -376,8 +380,8 @@ def json_error(message: str, status_code: int = 400):
     return jsonify({"success": False, "error": message}), status_code
 
 
-def dashboard_brand_payload() -> dict:
-    return dashboard_data.dashboard_brand_payload()
+def dashboard_brand_payload(refresh: bool = False) -> dict:
+    return dashboard_data.dashboard_brand_payload(refresh=refresh)
 
 
 def normalize_brand_key(value: str) -> str:
@@ -429,15 +433,27 @@ def similar_brand_rows(base_row: dict, limit: int = 3) -> list[dict]:
     return dashboard_data.similar_brand_rows(base_row, limit=limit)
 
 
+def session_user_email() -> str | None:
+    email = str(session.get("user_email", "")).strip().lower()
+    return email or None
+
+
 def current_user() -> str | None:
-    return session.get("user_email")
+    user = current_user_record()
+    if not user:
+        return None
+    return str(user.get("email", "")).strip().lower() or None
 
 
 def current_user_record() -> dict | None:
-    user_email = current_user()
+    user_email = session_user_email()
     if not user_email:
         return None
-    return find_user(user_email)
+    user = find_user(user_email)
+    if user:
+        return user
+    session.pop("user_email", None)
+    return None
 
 
 def current_user_role() -> str:
@@ -522,7 +538,7 @@ def validate_password_strength(password: str) -> str | None:
 def require_auth(view_func):
     @wraps(view_func)
     def wrapped(*args, **kwargs):
-        if not current_user():
+        if not current_user_record():
             return json_error("Authentication required", 401)
         return view_func(*args, **kwargs)
 
@@ -535,7 +551,7 @@ def require_roles(*roles: str):
     def decorator(view_func):
         @wraps(view_func)
         def wrapped(*args, **kwargs):
-            if not current_user():
+            if not current_user_record():
                 return json_error("Authentication required", 401)
             active_role = current_user_role()
             if active_role == "admin":
@@ -565,9 +581,12 @@ app.register_blueprint(
             "save_user_store": save_user_store,
             "find_user": find_user,
             "current_user": current_user,
+            "current_user_record": current_user_record,
+            "current_user_role": current_user_role,
             "serialize_user": serialize_user,
             "normalize_public_role": normalize_public_role,
             "validate_password_strength": validate_password_strength,
+            "require_auth": require_auth,
         }
     )
 )
@@ -793,6 +812,7 @@ def connectors_poll_endpoint():
 @require_auth
 @require_roles("admin", "analyst")
 def connector_scheduler_status_endpoint():
+    start_background_services(app.debug)
     return jsonify(scheduler_status())
 
 
@@ -800,6 +820,7 @@ def connector_scheduler_status_endpoint():
 @require_auth
 @require_roles("admin", "analyst")
 def connector_scheduler_update_endpoint():
+    start_background_services(app.debug)
     payload = request.get_json(force=True, silent=False) or {}
     return jsonify(
         {
@@ -810,8 +831,18 @@ def connector_scheduler_update_endpoint():
     )
 
 
-ensure_scheduler_started()
+def should_start_scheduler(debug_enabled: bool) -> bool:
+    if not debug_enabled:
+        return True
+    return os.getenv("WERKZEUG_RUN_MAIN") == "true"
+
+
+def start_background_services(debug_enabled: bool) -> None:
+    if should_start_scheduler(debug_enabled):
+        ensure_scheduler_started()
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    debug_mode = True
+    start_background_services(debug_mode)
+    app.run(host="127.0.0.1", port=5000, debug=debug_mode)

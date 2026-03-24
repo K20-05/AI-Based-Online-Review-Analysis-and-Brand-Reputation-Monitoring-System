@@ -3393,13 +3393,14 @@ const HISTORY_KEY = "brandpulse-control-room-history";
     }
 
     async function refreshBrandScore(options = {}) {
-      const { showToast = true, withButton = true, includeAnalytics = true } = options;
+      const { showToast = true, withButton = true, includeAnalytics = true, forceRecalculate = false } = options;
       const button = $("#refreshScoreButton");
       const sessionRevision = state.sessionRevision;
       if (withButton && button) setButtonLoading(button, true, "Refresh Brand Score");
       try {
+        const summaryEndpoint = forceRecalculate ? "/dashboard/summary?refresh=1" : "/dashboard/summary";
         const [payload, realtimeSummaryPayload, realtimeReviewsPayload] = await Promise.all([
-          callApi("/dashboard/summary"),
+          callApi(summaryEndpoint, { timeoutMs: forceRecalculate ? 65000 : 12000 }),
           callApi("/dashboard/realtime-summary"),
           callApi("/dashboard/realtime-reviews?limit=5")
         ]);
@@ -3803,8 +3804,8 @@ const HISTORY_KEY = "brandpulse-control-room-history";
         document.body.classList.toggle("drawer-open", next);
         $("#signalDrawerToggle").setAttribute("aria-expanded", String(next));
       });
-      $("#refreshScoreButton").addEventListener("click", refreshBrandScore);
-      $("#dashboardSyncButton").addEventListener("click", refreshBrandScore);
+      $("#refreshScoreButton").addEventListener("click", () => refreshBrandScore({ forceRecalculate: true }));
+      $("#dashboardSyncButton").addEventListener("click", () => refreshBrandScore({ forceRecalculate: true }));
       $("#brandInsightSelect").addEventListener("change", () => {
         renderBrandInsights();
       });
