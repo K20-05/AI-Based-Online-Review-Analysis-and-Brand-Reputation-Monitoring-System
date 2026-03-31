@@ -11,6 +11,7 @@ from pandas.errors import EmptyDataError
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parent.parent))
 
+from backend.aspect_analysis import analyze_review_aspects
 from backend.config import REALTIME_REVIEWS_PATH
 from backend.database import append_realtime_reviews
 from backend.model_artifacts import load_model_artifacts
@@ -33,6 +34,9 @@ REALTIME_COLUMNS = [
     "multilingual_strategy",
     "predicted_sentiment",
     "prediction_confidence",
+    "primary_aspect",
+    "primary_aspect_sentiment",
+    "aspect_summary",
     "ingested_at",
     "review_date",
     "source_type",
@@ -84,6 +88,9 @@ def _prepare_realtime_row(item: dict, index: int) -> dict:
         "multilingual_strategy": multilingual_payload["strategy"],
         "predicted_sentiment": None,
         "prediction_confidence": None,
+        "primary_aspect": None,
+        "primary_aspect_sentiment": None,
+        "aspect_summary": "",
         "ingested_at": datetime.now(UTC).isoformat(),
         "review_date": review_date,
         "source_type": source_type,
@@ -120,6 +127,14 @@ def ingest_realtime_reviews(reviews: list[dict]) -> pd.DataFrame:
             None,
             row["normalized_review"],
         )
+        aspect_payload = analyze_review_aspects(
+            row["review_text"],
+            sentiment,
+            row["normalized_review"],
+        )
+        row["primary_aspect"] = aspect_payload["primary_aspect"]
+        row["primary_aspect_sentiment"] = aspect_payload["primary_aspect_sentiment"]
+        row["aspect_summary"] = aspect_payload["aspect_summary"]
 
     new_df = pd.DataFrame(prepared, columns=REALTIME_COLUMNS)
     history_df = load_realtime_reviews()

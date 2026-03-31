@@ -46,6 +46,7 @@ class PredictionServiceTests(unittest.TestCase):
         self.assertEqual(response["source_language"], "hi")
         self.assertIn("prediction_confidence", response)
         self.assertIn("raw_model_confidence", response)
+        self.assertIn("aspect_sentiments", response)
 
     def test_predict_single_review_marks_okish_as_neutral(self):
         response = predict_single_review(
@@ -75,6 +76,7 @@ class PredictionServiceTests(unittest.TestCase):
         self.assertEqual(response["rows"], 1)
         self.assertEqual(response["results"][0]["predicted_sentiment"], "Positive")
         self.assertIn("brand_score", response)
+        self.assertIn("aspect_summary", response)
 
 
 if __name__ == "__main__":

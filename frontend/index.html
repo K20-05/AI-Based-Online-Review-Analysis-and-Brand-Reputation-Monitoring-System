@@ -4,13 +4,21 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BrandPulse Control Room</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="/styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Monoton&family=Orbitron:wght@500;700;800&family=Sora:wght@400;500;600;700;800&family=Syne:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/premium-theme.css?v=20260330k">
 
 </head>
-<body data-theme="dark">
+<body>
   <div class="app">
+    <div class="app-backdrop" aria-hidden="true">
+      <span class="app-backdrop__mesh"></span>
+      <span class="app-backdrop__blob app-backdrop__blob--one"></span>
+      <span class="app-backdrop__blob app-backdrop__blob--two"></span>
+      <span class="app-backdrop__blob app-backdrop__blob--three"></span>
+      <span class="app-backdrop__grain"></span>
+    </div>
     <header class="topbar">
       <div class="brandmark" aria-label="BrandPulse">
         <svg viewBox="0 0 64 64" role="img" aria-hidden="true">
@@ -26,8 +34,8 @@
           <circle cx="30" cy="32" r="3" fill="#89e3e5"></circle>
           <circle cx="42" cy="39" r="3" fill="#9ff3c7"></circle>
         </svg>
-        <div>
-          BrandPulse
+        <div class="brandmark-copy">
+          <span class="brandmark-title" data-text="BrandPulse">BrandPulse</span>
           <small>Control Room</small>
         </div>
       </div>
@@ -49,28 +57,21 @@
           </svg>
           Signals
         </button>
-        <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false">
-          <span class="toggle-state">
-            <svg id="themeIcon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="4"></circle>
-              <path d="M12 2v2.5"></path>
-              <path d="M12 19.5V22"></path>
-              <path d="M4.9 4.9l1.8 1.8"></path>
-              <path d="M17.3 17.3l1.8 1.8"></path>
-              <path d="M2 12h2.5"></path>
-              <path d="M19.5 12H22"></path>
-              <path d="M4.9 19.1l1.8-1.8"></path>
-              <path d="M17.3 6.7l1.8-1.8"></path>
-            </svg>
-            <span id="themeLabel">Light Mode</span>
-          </span>
-        </button>
         <button class="ghost-btn hidden" id="logoutButton" type="button">Logout</button>
       </div>
     </header>
 
     <div class="shell">
-      <nav class="nav-rail" id="navRail" aria-label="Primary">
+      <aside class="sidebar-stack">
+        <div class="topbar-status-strip topbar-status-strip--sidebar" aria-label="Executive status">
+          <div class="topbar-chip topbar-chip--live topbar-chip--compact" id="executiveStatusChip">
+            <span class="topbar-chip__label">Platform</span>
+            <strong id="executiveStatusValue">Live operations</strong>
+            <span class="topbar-chip__meta" id="executiveStatusMeta">Awaiting refresh</span>
+          </div>
+        </div>
+
+        <nav class="nav-rail" id="navRail" aria-label="Primary">
         <button class="nav-item is-active" type="button" data-view="dashboard">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M3 13h8V3H3z"></path>
@@ -85,15 +86,7 @@
             <path d="M12 20h9"></path>
             <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"></path>
           </svg>
-          <span>Single Review</span>
-        </button>
-        <button class="nav-item" type="button" data-view="batch">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M4 5h16"></path>
-            <path d="M4 12h16"></path>
-            <path d="M4 19h10"></path>
-          </svg>
-          <span>Batch</span>
+          <span>Review Analysis</span>
         </button>
         <button class="nav-item" type="button" data-view="history">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -132,21 +125,14 @@
             <path d="M3 3v18h18"></path>
             <path d="M7 15l3-3 3 2 4-6"></path>
           </svg>
-          <span>Brand Insights</span>
-        </button>
-        <button class="nav-item" type="button" data-view="brand-comparison">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <rect x="3" y="4" width="8" height="16" rx="2"></rect>
-            <rect x="13" y="4" width="8" height="16" rx="2"></rect>
-          </svg>
-          <span>Brand Compare</span>
+          <span>Brand Intelligence</span>
         </button>
         <button class="nav-item" type="button" data-view="sentiment-distribution">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M21.2 15a9 9 0 1 1-6.2-11.2"></path>
             <path d="M12 12L20 8"></path>
           </svg>
-          <span>Sentiment Mix</span>
+          <span>Sentiment Insights</span>
         </button>
         <button class="nav-item" type="button" data-view="review-trends">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -154,15 +140,6 @@
             <path d="M14 7h7v7"></path>
           </svg>
           <span>Review Trends</span>
-        </button>
-        <button class="nav-item" type="button" data-view="keyword-frequency">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M5 9h14"></path>
-            <path d="M3 15h14"></path>
-            <path d="M9 3L7 21"></path>
-            <path d="M17 3l-2 18"></path>
-          </svg>
-          <span>Keywords</span>
         </button>
         <button class="nav-item" type="button" data-view="customer-intelligence">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -189,7 +166,8 @@
           </svg>
           <span>About</span>
         </button>
-      </nav>
+        </nav>
+      </aside>
 
       <main class="stage" tabindex="-1">
         <section class="view is-active" id="view-dashboard">
@@ -197,27 +175,27 @@
             <div>
               <div class="eyebrow">Mission Overview</div>
               <h1 class="view-title">BrandPulse Control Room</h1>
-              <p class="view-copy">Live reputation score, review coverage, and sentiment pressure.</p>
+              <p class="view-copy">Core score, live intake, and risk in one executive view.</p>
             </div>
             <div class="inline-actions">
-              <button class="ghost-btn" id="dashboardSyncButton" type="button">Signal Sync</button>
-              <button class="action-btn" id="refreshScoreButton" type="button">Refresh Brand Score</button>
+              <button class="ghost-btn" id="dashboardSyncButton" type="button">Sync</button>
+              <button class="action-btn" id="refreshScoreButton" type="button">Refresh</button>
             </div>
           </div>
 
-          <section class="dashboard-command-strip" id="dashboardCommandStrip" aria-label="Dashboard quick status">
+          <section class="dashboard-command-strip hidden" id="dashboardCommandStrip" aria-label="Dashboard quick status">
             <article class="dashboard-status-pill">
-              <span class="dashboard-status-pill__label">Role Mode</span>
+              <span class="dashboard-status-pill__label">Role</span>
               <strong id="dashboardRoleLabel">Analyst Workspace</strong>
               <span class="dashboard-status-pill__meta" id="dashboardRoleMeta">Trend and complaint monitoring mode.</span>
             </article>
             <article class="dashboard-status-pill">
-              <span class="dashboard-status-pill__label">Sync Route</span>
-              <strong id="dashboardSourceBadge">Awaiting sync</strong>
-              <span class="dashboard-status-pill__meta" id="dashboardSourceMeta">Last successful dashboard API call.</span>
+              <span class="dashboard-status-pill__label">Time</span>
+              <strong id="dashboardSourceBadge">--:--:--</strong>
+              <span class="dashboard-status-pill__meta" id="dashboardSourceMeta">Workspace local time.</span>
             </article>
             <article class="dashboard-status-pill">
-              <span class="dashboard-status-pill__label">Stream Volume</span>
+              <span class="dashboard-status-pill__label">Live Feed</span>
               <strong id="dashboardLiveBadge">0 reviews</strong>
               <span class="dashboard-status-pill__meta" id="dashboardLiveMeta">No realtime activity yet.</span>
             </article>
@@ -228,7 +206,7 @@
             </article>
           </section>
 
-          <section class="surface role-dashboard-panel" id="roleDashboardPanel">
+          <section class="surface role-dashboard-panel hidden" id="roleDashboardPanel">
             <div class="role-dashboard-head">
               <div class="analytics-sub" id="roleDashboardEyebrow">Snapshot</div>
               <strong id="roleDashboardTitle">Snapshot</strong>
@@ -237,6 +215,15 @@
             <div class="role-dashboard-cards" id="roleDashboardCards"></div>
           </section>
 
+          <details class="dashboard-disclosure hidden" id="dashboardDisclosure">
+            <summary>
+              <div>
+                <span class="dashboard-disclosure__eyebrow">Detailed View</span>
+                <strong>Diagnostics and supporting signals</strong>
+              </div>
+              <span class="dashboard-disclosure__hint">Open</span>
+            </summary>
+            <div class="dashboard-disclosure__body">
           <section class="analyst-focus-grid hidden" id="analystFocusSection">
             <article class="analyst-focus-card">
               <div class="analytics-sub">Live Analysis Focus</div>
@@ -263,13 +250,13 @@
               <div class="analytics-sub">Quick Actions</div>
               <div class="analyst-focus-actions">
                 <button class="analyst-focus-btn" type="button" data-analyst-view="review-trends">Open Review Trends</button>
-                <button class="analyst-focus-btn" type="button" data-analyst-view="keyword-frequency">Open Keyword Analysis</button>
+                <button class="analyst-focus-btn" type="button" data-analyst-view="sentiment-distribution">Open Sentiment Insights</button>
                 <button class="analyst-focus-btn" type="button" data-analyst-view="customer-intelligence">Open Customer Voice</button>
               </div>
             </article>
           </section>
 
-          <section class="surface" id="dashboardBrandSection" style="margin-bottom: 18px;">
+          <section class="surface hidden" id="dashboardBrandSection" style="margin-bottom: 18px;">
               <div class="split-head">
                 <div>
                 <div class="analytics-sub" id="dashboardBrandEyebrow">Portfolio Directory</div>
@@ -330,8 +317,8 @@
             <section class="dashboard-block dashboard-block--coverage">
                 <div class="dashboard-block__head">
                   <div class="analytics-sub">Workspace Coverage</div>
-                  <strong>People, brands, and dataset scale</strong>
-                  <p>User access, monitored brands, and review volume in one row.</p>
+                  <strong>User Access, Brand Coverage, and Review Volume</strong>
+                  <p>A consolidated view of active users, tracked brands, and total review volume.</p>
                 </div>
                 <div class="dashboard-block__cards">
                 <article class="admin-control-card">
@@ -355,6 +342,8 @@
               </div>
             </section>
           </section>
+            </div>
+          </details>
 
           <div class="dashboard-layout" id="dashboardLayout">
             <section class="surface gauge-chamber" id="dashboardGaugeSection">
@@ -369,7 +358,7 @@
               <div class="gauge-stack">
                 <div class="summary-ribbon summary-ribbon--hero">
                   <div class="summary-ribbon__content">
-                    <span class="summary-ribbon__label">Live Narrative</span>
+                    <span class="summary-ribbon__label">Executive Insight</span>
                     <strong id="dashboardNarrative">Telemetry standby</strong>
                     <p class="summary-ribbon__copy" id="dashboardNarrativeCopy">Refresh to load score metrics.</p>
                   </div>
@@ -377,28 +366,33 @@
                 </div>
                 <div class="dashboard-quick-grid">
                   <article class="dashboard-quick-stat">
-                    <span class="dashboard-quick-stat__label">Realtime Share</span>
-                    <strong id="dashboardQuickRealtimeShare">0.0%</strong>
-                    <span class="dashboard-quick-stat__meta">Portion of monitored reviews coming from the live buffer.</span>
+                    <span class="dashboard-quick-stat__label">Risk</span>
+                    <strong id="dashboardQuickRisk">Standby</strong>
+                    <span class="dashboard-quick-stat__meta" id="dashboardQuickRiskMeta">Current complaint pressure will appear here after the first sync.</span>
                   </article>
                   <article class="dashboard-quick-stat">
-                    <span class="dashboard-quick-stat__label">Neutral Share</span>
-                    <strong id="dashboardQuickNeutral">0.0%</strong>
-                    <span class="dashboard-quick-stat__meta">Middle-ground sentiment in the current mix.</span>
+                    <span class="dashboard-quick-stat__label">Total Reviews</span>
+                    <strong id="dashboardQuickTotalReviews">0</strong>
+                    <span class="dashboard-quick-stat__meta" id="dashboardQuickTotalReviewsMeta">Reviews currently included in the active dashboard snapshot.</span>
                   </article>
                   <article class="dashboard-quick-stat">
-                    <span class="dashboard-quick-stat__label">Portfolio Leader</span>
-                    <strong id="dashboardQuickLeader">Waiting</strong>
-                    <span class="dashboard-quick-stat__meta">Highest reputation in the active portfolio.</span>
+                    <span class="dashboard-quick-stat__label">Pipeline</span>
+                    <strong id="dashboardQuickPipeline">Standby</strong>
+                    <span class="dashboard-quick-stat__meta" id="dashboardQuickPipelineMeta">No ingest activity detected yet.</span>
+                  </article>
+                  <article class="dashboard-quick-stat">
+                    <span class="dashboard-quick-stat__label">Alerts</span>
+                    <strong id="dashboardQuickAlerts">Clear</strong>
+                    <span class="dashboard-quick-stat__meta" id="dashboardQuickAlertsMeta">No active alerts in the current admin snapshot.</span>
                   </article>
                 </div>
-                <div class="summary-ribbon summary-ribbon--meta">
+                <div class="summary-ribbon summary-ribbon--meta hidden">
                   <div>
-                    <strong>Monitoring Mode</strong>
+                      <strong>Mode</strong>
                     <span id="dashboardModeLabel">Live reputation sync.</span>
                   </div>
                   <div>
-                    <strong>Sync Route</strong>
+                      <strong>Sync</strong>
                     <span id="dashboardSource">Waiting</span>
                   </div>
                   <div>
@@ -409,7 +403,7 @@
               </div>
             </section>
 
-            <aside class="stats-strip stats-strip--dashboard" id="dashboardStatsSection">
+            <aside class="stats-strip stats-strip--dashboard hidden" id="dashboardStatsSection">
               <section class="stats-cluster stats-cluster--primary">
                 <div class="stats-cluster__head">
                   <div class="analytics-sub">Portfolio Metrics</div>
@@ -465,22 +459,22 @@
             </aside>
           </div>
 
-          <div class="dashboard-summary-grid" id="dashboardSummarySection">
+          <div class="dashboard-summary-grid hidden" id="dashboardSummarySection">
             <section class="surface">
-              <div class="analytics-sub">Alert</div>
+              <div class="analytics-sub">Executive Note</div>
               <strong id="dashboardAlertTitle">Monitoring</strong>
               <p class="users-note" id="dashboardAlertCopy">Alert updates after refresh.</p>
             </section>
-            <section class="surface">
-              <div class="analytics-sub">Insight Engine</div>
+            <section class="surface hidden" id="dashboardInsightCard">
+              <div class="analytics-sub">Insight</div>
               <strong id="dashboardInsightTitle">Insight standby</strong>
               <p class="users-note" id="dashboardInsightCopy">Insight updates after analytics load.</p>
             </section>
             <section class="surface" style="grid-column: 1 / -1;">
               <div class="split-head">
                 <div>
-                  <div class="analytics-sub">Realtime Review Feed</div>
-                  <strong>Latest ingested ecommerce reviews</strong>
+                  <div class="analytics-sub">Recent Activity</div>
+                  <strong>Latest live reviews</strong>
                 </div>
               </div>
               <div class="review-drilldown-list" id="dashboardRealtimeReviewList">
@@ -493,9 +487,9 @@
         <section class="view" id="view-brand-insights">
           <div class="view-head">
             <div>
-              <div class="eyebrow">Insights</div>
-              <h1 class="view-title">Brand Insights</h1>
-              <p class="view-copy">Focused brand-level reasoning, strengths, risks, and recommendations.</p>
+              <div class="eyebrow">Brand Workspace</div>
+              <h1 class="view-title">Brand Intelligence</h1>
+              <p class="view-copy">Inspect one brand in detail and compare two brands from the same workspace.</p>
             </div>
           </div>
           <div class="insights-grid">
@@ -537,14 +531,36 @@
             <section class="surface insight-card">
               <div class="split-head">
                 <div>
-                  <div class="analytics-sub">Quick Brand List</div>
-                  <strong>Jump directly into any tracked brand</strong>
+                  <div class="analytics-sub">Brand Comparison</div>
+                  <strong>Side-by-side signal comparison</strong>
                 </div>
               </div>
-              <div class="brand-quick-list" id="brandInsightQuickList">
-                <div class="mini-note">Brand list will appear after analytics data loads.</div>
+              <div class="field">
+                <label for="compareBrandA">Brand A</label>
+                <select class="control-select" id="compareBrandA"></select>
               </div>
-              <p class="mini-note">Use the quick list to switch insights without reopening the selector.</p>
+              <div class="field">
+                <label for="compareBrandB">Brand B</label>
+                <select class="control-select" id="compareBrandB"></select>
+              </div>
+              <div class="compare-grid">
+                <div class="compare-row">
+                  <strong>Score</strong>
+                  <div class="compare-bar"><span id="compareScoreA" style="background:linear-gradient(90deg,var(--accent),rgba(103,211,255,0.45));"></span><span id="compareScoreB" style="background:linear-gradient(90deg,rgba(159,243,199,0.4),var(--accent-2));"></span></div>
+                  <span id="compareScoreText">0 vs 0</span>
+                </div>
+                <div class="compare-row">
+                  <strong>Positive</strong>
+                  <div class="compare-bar"><span id="comparePositiveA" style="background:linear-gradient(90deg,var(--positive),rgba(97,247,177,0.45));"></span><span id="comparePositiveB" style="background:linear-gradient(90deg,rgba(159,243,199,0.4),var(--positive));"></span></div>
+                  <span id="comparePositiveText">0% vs 0%</span>
+                </div>
+                <div class="compare-row">
+                  <strong>Negative</strong>
+                  <div class="compare-bar"><span id="compareNegativeA" style="background:linear-gradient(90deg,var(--negative),rgba(255,107,137,0.45));"></span><span id="compareNegativeB" style="background:linear-gradient(90deg,rgba(255,107,137,0.25),var(--negative));"></span></div>
+                  <span id="compareNegativeText">0% vs 0%</span>
+                </div>
+              </div>
+              <p class="compare-meta" id="compareSummary">Choose two brands to compare advantage, risk, and sentiment balance.</p>
             </section>
             <section class="surface insight-card">
               <div class="split-head">
@@ -573,70 +589,12 @@
           </div>
         </section>
 
-        <section class="view" id="view-brand-comparison">
-          <div class="view-head">
-            <div>
-              <div class="eyebrow">Comparison</div>
-              <h1 class="view-title">Brand Comparison</h1>
-              <p class="view-copy">Compare two brands side-by-side on score and sentiment balance.</p>
-            </div>
-          </div>
-          <div class="insights-grid">
-          <section class="surface insight-card">
-            <div class="split-head">
-              <div>
-                <div class="analytics-sub">Compare Two Brands</div>
-                <strong>Side-by-side signal comparison</strong>
-              </div>
-            </div>
-            <div class="field">
-              <label for="compareBrandA">Brand A</label>
-              <select class="control-select" id="compareBrandA"></select>
-            </div>
-            <div class="field">
-              <label for="compareBrandB">Brand B</label>
-              <select class="control-select" id="compareBrandB"></select>
-            </div>
-            <div class="compare-grid">
-              <div class="compare-row">
-                <strong>Score</strong>
-                <div class="compare-bar"><span id="compareScoreA" style="background:linear-gradient(90deg,var(--accent),rgba(103,211,255,0.45));"></span><span id="compareScoreB" style="background:linear-gradient(90deg,rgba(159,243,199,0.4),var(--accent-2));"></span></div>
-                <span id="compareScoreText">0 vs 0</span>
-              </div>
-              <div class="compare-row">
-                <strong>Positive</strong>
-                <div class="compare-bar"><span id="comparePositiveA" style="background:linear-gradient(90deg,var(--positive),rgba(97,247,177,0.45));"></span><span id="comparePositiveB" style="background:linear-gradient(90deg,rgba(159,243,199,0.4),var(--positive));"></span></div>
-                <span id="comparePositiveText">0% vs 0%</span>
-              </div>
-              <div class="compare-row">
-                <strong>Negative</strong>
-                <div class="compare-bar"><span id="compareNegativeA" style="background:linear-gradient(90deg,var(--negative),rgba(255,107,137,0.45));"></span><span id="compareNegativeB" style="background:linear-gradient(90deg,rgba(255,107,137,0.25),var(--negative));"></span></div>
-                <span id="compareNegativeText">0% vs 0%</span>
-              </div>
-            </div>
-            <p class="compare-meta" id="compareSummary">Choose two brands to compare advantage, risk, and sentiment balance.</p>
-          </section>
-          <section class="surface insight-card">
-            <div class="split-head">
-              <div>
-                <div class="analytics-sub">Quick Brand List</div>
-                <strong>Select two brands faster</strong>
-              </div>
-            </div>
-            <div class="brand-quick-list" id="brandCompareQuickList">
-              <div class="mini-note">Brand list will appear after analytics data loads.</div>
-            </div>
-            <p class="mini-note">Click a brand once to fill Brand A, then again to fill Brand B.</p>
-          </section>
-          </div>
-        </section>
-
         <section class="view" id="view-sentiment-distribution">
           <div class="view-head">
             <div>
-              <div class="eyebrow">Distribution</div>
-              <h1 class="view-title">Sentiment Distribution</h1>
-              <p class="view-copy">Current sentiment mix across the dataset.</p>
+              <div class="eyebrow">Sentiment Intelligence</div>
+              <h1 class="view-title">Sentiment Insights</h1>
+              <p class="view-copy">Current sentiment mix and top review keywords in one workspace.</p>
             </div>
           </div>
           <section class="surface analytics-card">
@@ -664,6 +622,17 @@
               </div>
             </div>
             <p class="dist-caption" id="distCaption">Distribution bars update from the current brand score payload.</p>
+          </section>
+          <section class="surface analytics-card">
+            <div class="analytics-head">
+              <div>
+                <div class="analytics-sub">Keyword Frequency</div>
+                <strong>Keyword distribution</strong>
+              </div>
+            </div>
+            <div class="keyword-list" id="keywordList">
+              <div class="keyword-caption">Keyword chart waiting for `/dashboard/keywords` data.</div>
+            </div>
           </section>
         </section>
 
@@ -748,27 +717,6 @@
             </div>
             <div class="review-drilldown-list" id="trendReviewDrilldown">
               <div class="mini-note">Review samples will appear here after you click a sentiment line or legend item.</div>
-            </div>
-          </section>
-        </section>
-
-        <section class="view" id="view-keyword-frequency">
-          <div class="view-head">
-            <div>
-              <div class="eyebrow">Language Signals</div>
-              <h1 class="view-title">Keyword Frequency</h1>
-              <p class="view-copy">Top terms extracted from review text.</p>
-            </div>
-          </div>
-          <section class="surface analytics-card">
-            <div class="analytics-head">
-              <div>
-                <div class="analytics-sub">Keyword Frequency</div>
-                <strong>Keyword distribution</strong>
-              </div>
-            </div>
-            <div class="keyword-list" id="keywordList">
-              <div class="keyword-caption">Keyword chart waiting for `/dashboard/keywords` data.</div>
             </div>
           </section>
         </section>
@@ -890,24 +838,6 @@
               </div>
             </div>
             <div class="summary-ribbon">
-              <div style="flex:1 1 100%">
-                <strong>Trend Pulse</strong>
-                <span id="summaryTrendPulse">Trend pulse will appear after trend data loads.</span>
-              </div>
-              <div style="flex:1 1 320px" class="progress-shell">
-                <div class="progress-meta"><span>Positive</span><strong id="summaryPositiveBarText">0.0%</strong></div>
-                <div class="progress-bar"><span id="summaryPositiveBar"></span></div>
-              </div>
-              <div style="flex:1 1 320px" class="progress-shell">
-                <div class="progress-meta"><span>Neutral</span><strong id="summaryNeutralBarText">0.0%</strong></div>
-                <div class="progress-bar"><span id="summaryNeutralBar"></span></div>
-              </div>
-              <div style="flex:1 1 320px" class="progress-shell">
-                <div class="progress-meta"><span>Negative</span><strong id="summaryNegativeBarText">0.0%</strong></div>
-                <div class="progress-bar"><span id="summaryNegativeBar"></span></div>
-              </div>
-            </div>
-            <div class="summary-ribbon">
               <div style="flex:1 1 360px">
                 <strong>Keyword Highlights</strong>
                 <div class="pill-list" id="summaryKeywordPills"></div>
@@ -934,13 +864,29 @@
         <section class="view" id="view-single">
           <div class="view-head">
             <div>
-              <div class="eyebrow">Single Review Scan</div>
-              <h1 class="view-title">Sentiment Inspection</h1>
-              <p class="view-copy">Analyze one review with sentiment, confidence, rating check, and Indian-language auto-detection.</p>
+              <div class="eyebrow">Review Workspace</div>
+              <h1 class="view-title">Review Analysis</h1>
+              <p class="view-copy">Run single-review and batch analysis from one workspace.</p>
             </div>
           </div>
 
-          <div class="form-shell surface" id="singleFormShell">
+          <section class="analysis-step-strip" aria-label="Review analysis steps">
+            <article class="analysis-step-strip__card analysis-step-strip__card--single">
+              <div class="analytics-sub">STEP 1</div>
+              <strong class="analysis-step-strip__title">SINGLE REVIEW ANALYSIS</strong>
+            </article>
+            <article class="analysis-step-strip__card analysis-step-strip__card--batch">
+              <div class="analytics-sub">STEP 2</div>
+              <strong class="analysis-step-strip__title">BATCH ANALYSIS</strong>
+            </article>
+          </section>
+
+          <section class="analysis-section">
+            <div class="analysis-section__head">
+              <div class="analytics-sub">STEP 1</div>
+            </div>
+
+            <div class="form-shell surface" id="singleFormShell">
             <form id="singleForm">
               <div class="field">
                 <label for="singleReviewText">Review Text</label>
@@ -979,14 +925,15 @@
                 </div>
               </div>
               <div class="inline-actions single-actions">
+                <button class="ghost-btn" id="singleRandomReviewButton" type="button">Load Random Review</button>
                 <button class="action-btn" id="singlePredictButton" type="submit">Predict Sentiment</button>
               </div>
-              <p class="single-helper">Review text is required. Language is auto-detected and normalized before scoring. Rating mismatch is checked automatically.</p>
+              <p class="single-helper">Review text is required. Language is auto-detected and normalized before scoring. Aspect analysis and rating mismatch are checked automatically.</p>
             </form>
 
             <section class="result-shell is-empty" id="singleResultShell" aria-live="polite">
               <div class="sentiment-badge sentiment-neutral" id="singleSentimentBadge">Standby</div>
-              <p class="result-empty-copy" id="singleResultIntro">Run a prediction to inspect sentiment, confidence, and rating alignment.</p>
+              <p class="result-empty-copy" id="singleResultIntro">Run a prediction to inspect sentiment, confidence, aspect signals, and rating alignment.</p>
               <div class="progress-shell">
                 <div class="progress-meta">
                   <span>Confidence Meter</span>
@@ -997,24 +944,33 @@
                 </div>
               </div>
               <div class="warning-panel" id="ratingWarning"></div>
+              <section class="single-aspect-panel hidden" id="singleAspectPanel" aria-live="polite">
+                <div class="single-aspect-head">
+                  <div>
+                    <span class="single-aspect-label">Aspect Analysis</span>
+                    <strong id="singleAspectTitle">Aspect Analysis</strong>
+                  </div>
+                  <span class="tag neutral" id="singleAspectPrimary">Waiting</span>
+                </div>
+                <p class="users-note" id="singleAspectSummary">Aspect signals will appear after prediction.</p>
+                <div class="review-drilldown-pillrow" id="singleAspectTags">
+                  <span>No aspect signal yet.</span>
+                </div>
+              </section>
               <details class="json-panel">
                 <summary>Model Output</summary>
                 <pre id="singleTechnicalJson">{}</pre>
               </details>
             </section>
-          </div>
-        </section>
-
-        <section class="view" id="view-batch">
-          <div class="view-head">
-            <div>
-              <div class="eyebrow">Batch Sweep</div>
-              <h1 class="view-title">Queue Multiple Reviews</h1>
-              <p class="view-copy">Run multiple reviews and inspect the result summary with Indian-language auto-detection per review.</p>
             </div>
-          </div>
+          </section>
 
-          <div class="batch-layout">
+          <section class="analysis-section">
+            <div class="analysis-section__head">
+              <div class="analytics-sub">STEP 2</div>
+            </div>
+
+            <div class="batch-layout">
             <section class="surface form-shell" id="batchFormShell">
               <form id="batchForm">
                 <div class="field">
@@ -1050,9 +1006,9 @@
                 </div>
               </section>
             </aside>
-          </div>
+            </div>
 
-          <section class="table-shell" style="margin-top: 18px;">
+            <section class="table-shell analysis-results-table">
             <table aria-label="Batch results preview">
               <thead>
                 <tr>
@@ -1068,12 +1024,13 @@
                 </tr>
               </tbody>
             </table>
-          </section>
+            </section>
 
-          <details class="json-panel" style="margin-top: 18px;">
-            <summary>Model Output</summary>
-            <pre id="batchTechnicalJson">{}</pre>
-          </details>
+            <details class="json-panel analysis-json-panel">
+              <summary>Model Output</summary>
+              <pre id="batchTechnicalJson">{}</pre>
+            </details>
+          </section>
         </section>
 
         <section class="view" id="view-history">
@@ -1096,7 +1053,7 @@
             <div>
               <div class="eyebrow">Admin Control</div>
               <h1 class="view-title">Users Management</h1>
-              <p class="view-copy">Admin can manage Analyst + Marketing member accounts. Admin users are protected.</p>
+              <p class="view-copy">Promote Marketing Staff to Analyst, demote Analysts to Marketing Staff, and remove member accounts. Admin users are protected.</p>
             </div>
             <div class="inline-actions">
               <button class="ghost-btn" id="refreshUsersButton" type="button">Refresh Users</button>
@@ -1110,7 +1067,7 @@
                   <th>Name</th>
                   <th>Email</th>
                   <th>Role</th>
-                  <th>Actions</th>
+                  <th>Account Actions</th>
                 </tr>
               </thead>
               <tbody id="usersTableBody">
@@ -1215,164 +1172,58 @@
         <section class="view" id="view-about">
           <div class="view-head">
             <div>
-              <div class="eyebrow">Project Overview</div>
+              <div class="eyebrow">Company Overview</div>
               <h1 class="view-title">About BrandPulse</h1>
-              <p class="view-copy">BrandPulse is a sentiment intelligence platform that turns large review datasets into clear reputation signals, role-based dashboards, and decision-ready brand insights.</p>
+              <p class="view-copy">A simple overview of what BrandPulse does and who it is built for.</p>
             </div>
           </div>
 
-          <section class="surface">
-            <div class="about-sub">Executive Snapshot</div>
-            <div class="summary-ribbon">
-              <div>
-                <strong>Project Category</strong>
-                <span>Sentiment Intelligence Platform</span>
-              </div>
-              <div>
-                <strong>Primary Users</strong>
-                <span>Admin, Analyst, Marketing</span>
-              </div>
-              <div>
-                <strong>Core Engine</strong>
-                <span>TF-IDF + Logistic Regression</span>
-              </div>
-              <div>
-                <strong>Decision Output</strong>
-                <span>Score, trends, risk, actions</span>
-              </div>
+          <section class="surface about-summary-card about-summary-card--storyboard">
+            <div class="about-summary-card__main">
+              <div class="analytics-sub">Company Summary</div>
+              <strong>BrandPulse helps teams understand customer reviews faster.</strong>
+              <p>BrandPulse is a review intelligence platform that analyzes customer feedback and turns it into clear sentiment, reputation, and brand insights.</p>
+              <p>It gives teams one place to monitor brand performance, compare brands, review trends, and run single or batch review analysis without digging through raw feedback manually.</p>
+            </div>
+            <div class="about-summary-card__rail" aria-label="BrandPulse highlights">
+              <article class="about-spotlight about-spotlight--signal">
+                <span class="about-spotlight__eyebrow">Platform</span>
+                <strong>Review Intelligence</strong>
+                <p>Turns raw feedback into clear signals teams can act on quickly.</p>
+              </article>
+              <article class="about-spotlight about-spotlight--teams">
+                <span class="about-spotlight__eyebrow">Teams</span>
+                <strong>Admin, Analyst, Marketing</strong>
+                <p>One product with role-based focus and shared visibility.</p>
+              </article>
+              <article class="about-spotlight about-spotlight--impact">
+                <span class="about-spotlight__eyebrow">Impact</span>
+                <strong>Faster Decisions</strong>
+                <p>Less manual review and more clarity from customer opinion.</p>
+              </article>
             </div>
           </section>
 
-          <div class="about-grid">
-            <section class="surface about-card">
-              <div class="about-sub">Platform Summary</div>
-              <strong>Review analytics, sentiment modeling, and control-room monitoring in one platform</strong>
-              <p>The system converts unstructured customer feedback into measurable reputation signals that teams can monitor, compare, and act on quickly.</p>
-              <div class="about-metrics">
-                <div class="about-metric">
-                  <strong>Primary Goal</strong>
-                  <span>Faster reputation decisions</span>
-                </div>
-                <div class="about-metric">
-                  <strong>Project Type</strong>
-                  <span>Applied ML + Analytics</span>
-                </div>
-                <div class="about-metric">
-                  <strong>Core Pipeline</strong>
-                  <span>Text to insight automation</span>
-                </div>
-                <div class="about-metric">
-                  <strong>Key Output</strong>
-                  <span>Score, trends, actions</span>
-                </div>
-              </div>
+          <div class="about-simple-grid">
+            <section class="surface about-simple-card about-simple-card--what">
+              <div class="about-simple-card__index">01</div>
+              <div class="analytics-sub">What We Do</div>
+              <strong>Signals from raw feedback</strong>
+              <p>We convert customer reviews into usable insights such as sentiment, reputation signals, and brand-level summaries.</p>
             </section>
 
-            <aside class="about-stack">
-              <section class="surface about-card">
-                <div class="about-sub">Core Stack</div>
-                <div class="about-chip-list">
-                  <span class="about-chip">HTML</span>
-                  <span class="about-chip">CSS</span>
-                  <span class="about-chip">JavaScript</span>
-                  <span class="about-chip">Flask</span>
-                  <span class="about-chip">Pandas</span>
-                  <span class="about-chip">Scikit-learn</span>
-                  <span class="about-chip">TF-IDF</span>
-                  <span class="about-chip">CSV / JSON Storage</span>
-                </div>
-              </section>
-
-              <section class="surface about-card">
-                <div class="about-sub">What It Delivers</div>
-                <div class="detail-list">
-                  <div class="detail-item">
-                    <b>1</b>
-                    <strong>Monitor brand health</strong>
-                    <span>Track reputation score, sentiment balance, keywords, and competitive position.</span>
-                  </div>
-                  <div class="detail-item">
-                    <b>2</b>
-                    <strong>Run prediction workflows</strong>
-                    <span>Classify single reviews and batches with confidence-aware sentiment output.</span>
-                  </div>
-                  <div class="detail-item">
-                    <b>3</b>
-                    <strong>Support decision-making</strong>
-                    <span>Surface trend movement, complaint topics, and role-specific operational insights.</span>
-                  </div>
-                </div>
-              </section>
-
-              <section class="surface about-card">
-                <div class="about-sub">Who Benefits</div>
-                <div class="detail-list">
-                  <div class="detail-item">
-                    <b>CX</b>
-                    <strong>Customer Experience Teams</strong>
-                    <span>Identify customer complaints, suggestions, and satisfaction trends to improve service quality.</span>
-                  </div>
-                  <div class="detail-item">
-                    <b>PD</b>
-                    <strong>Product Development Teams</strong>
-                    <span>Use review insights to improve product features based on customer opinions.</span>
-                  </div>
-                </div>
-              </section>
-            </aside>
-          </div>
-
-          <div class="about-grid" style="margin-top: 18px;">
-            <section class="surface about-card">
-              <div class="about-sub">System Workflow</div>
-              <div class="workflow-list">
-                <div class="workflow-step">
-                  <b>1</b>
-                  <strong>Ingest</strong>
-                  <span>Review data enters from stored datasets or direct user input.</span>
-                </div>
-                <div class="workflow-step">
-                  <b>2</b>
-                  <strong>Prepare</strong>
-                  <span>Text is cleaned, standardized, and converted into model-ready features.</span>
-                </div>
-                <div class="workflow-step">
-                  <b>3</b>
-                  <strong>Predict</strong>
-                  <span>The sentiment model returns class labels and confidence-oriented output.</span>
-                </div>
-                <div class="workflow-step">
-                  <b>4</b>
-                  <strong>Present</strong>
-                  <span>Dashboards aggregate score, trends, topics, and role-based monitoring views.</span>
-                </div>
-              </div>
+            <section class="surface about-simple-card about-simple-card--who">
+              <div class="about-simple-card__index">02</div>
+              <div class="analytics-sub">Who It Is For</div>
+              <strong>Built for operating teams</strong>
+              <p>BrandPulse is built for admin, analyst, and marketing teams that need a quick view of customer opinion and brand performance.</p>
             </section>
 
-            <section class="surface about-card">
-              <div class="about-sub">Review Presentation Focus</div>
-              <div class="detail-list">
-                <div class="detail-item">
-                  <b>A</b>
-                  <strong>Role-based operation</strong>
-                  <span>Admin manages control and access, Analyst focuses on prediction and trend work, and Marketing focuses on brand performance monitoring.</span>
-                </div>
-                <div class="detail-item">
-                  <b>B</b>
-                  <strong>Operational clarity</strong>
-                  <span>The interface is designed to reduce noise and surface the few signals that matter most for review-driven decisions.</span>
-                </div>
-                <div class="detail-item">
-                  <b>C</b>
-                  <strong>Machine-learning backbone</strong>
-                  <span>The backend pipeline handles preprocessing, feature extraction, training, prediction, aggregation, and dashboard-ready outputs.</span>
-                </div>
-                <div class="detail-item">
-                  <b>D</b>
-                  <strong>Business impact</strong>
-                  <span>BrandPulse reduces manual review effort and improves the speed and quality of brand reputation decisions.</span>
-                </div>
-              </div>
+            <section class="surface about-simple-card about-simple-card--value">
+              <div class="about-simple-card__index">03</div>
+              <div class="analytics-sub">Core Value</div>
+              <strong>Faster, clearer action</strong>
+              <p>The platform reduces manual review effort and makes it easier to take faster, clearer decisions from review data.</p>
             </section>
           </div>
         </section>
@@ -1447,18 +1298,6 @@
           </div>
         </section>
 
-        <section class="signal-widget" id="signalConfidenceWidget">
-          <strong>Confidence Gauge</strong>
-          <div class="ring-gauge mini-ring" id="signalConfidenceGauge">
-            <div class="ring-gauge__inner">
-              <span class="ring-gauge__eyebrow" data-gauge-label>Latest Signal</span>
-              <strong class="ring-gauge__value" data-gauge-number>0</strong>
-              <span class="ring-gauge__suffix" data-gauge-suffix>%</span>
-              <span class="ring-gauge__caption" data-gauge-caption>Latest model confidence appears here after a prediction.</span>
-            </div>
-          </div>
-          <p class="signal-note" id="signalConfidenceNote">No recent prediction event.</p>
-        </section>
       </aside>
     </div>
 
@@ -1587,6 +1426,7 @@
     </div>
   </div>
 
-  <script src="/app.js"></script>
+  <script src="/app.js?v=20260330k"></script>
+  <script src="/premium-ui.js?v=20260330k"></script>
 </body>
 </html>

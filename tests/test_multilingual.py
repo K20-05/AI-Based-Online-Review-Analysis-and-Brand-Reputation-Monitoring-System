@@ -102,6 +102,42 @@ class MultilingualTests(unittest.TestCase):
         self.assertEqual(payload["detected_language"], "ta")
         self.assertEqual(payload["normalized_text"], "very bad")
 
+    def test_detect_language_marks_romanized_bengali_phrase_as_bengali(self):
+        language, confidence = detect_language("khub bhalo")
+
+        self.assertEqual(language, "bn")
+        self.assertGreater(confidence, 0.5)
+
+    def test_normalize_multilingual_text_maps_romanized_bengali_positive_phrase(self):
+        payload = normalize_multilingual_text("khub bhalo")
+
+        self.assertEqual(payload["detected_language"], "bn")
+        self.assertEqual(payload["normalized_text"], "very good")
+
+    def test_normalize_multilingual_text_maps_romanized_marathi_negative_phrase(self):
+        payload = normalize_multilingual_text("khup vait")
+
+        self.assertEqual(payload["detected_language"], "mr")
+        self.assertEqual(payload["normalized_text"], "very bad")
+
+    def test_normalize_multilingual_text_maps_romanized_gujarati_positive_phrase(self):
+        payload = normalize_multilingual_text("khub saru")
+
+        self.assertEqual(payload["detected_language"], "gu")
+        self.assertEqual(payload["normalized_text"], "very good")
+
+    def test_normalize_multilingual_text_maps_romanized_punjabi_positive_phrase(self):
+        payload = normalize_multilingual_text("bahut vadhiya")
+
+        self.assertEqual(payload["detected_language"], "pa")
+        self.assertEqual(payload["normalized_text"], "very good")
+
+    def test_normalize_multilingual_text_maps_romanized_urdu_negative_phrase(self):
+        payload = normalize_multilingual_text("bohat bura")
+
+        self.assertEqual(payload["detected_language"], "ur")
+        self.assertEqual(payload["normalized_text"], "very bad")
+
 
 if __name__ == "__main__":
     unittest.main()

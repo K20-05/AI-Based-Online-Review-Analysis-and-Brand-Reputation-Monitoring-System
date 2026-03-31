@@ -4,7 +4,11 @@ __pycache__/
 .vscode/
 .env
 tests/tmp*/
+tests/_tmp_*
+debug.log
+generated/
 
+# Legacy root dataset output is no longer used. Canonical data lives in backend/dataset/.
 dataset/
 
 backend/dataset/cleaned_reviews.csv

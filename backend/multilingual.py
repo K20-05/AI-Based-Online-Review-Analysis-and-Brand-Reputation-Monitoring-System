@@ -33,7 +33,7 @@ LANGUAGE_HINTS = {
     },
     "te": {
         "chala", "bagundi", "manchidi", "chedu", "nakili", "alasyam", "maddatu", "raddu",
-        "pani", "cheyadu", "raledu", "baledu", "baaledu", "baledhu", "baaledhu",
+        "pani", "cheyadu", "raledu", "baledu", "baaledu", "baledhu", "baaledhu", "bale", "asalu",
         "parledu", "parledhu", "parvaledu", "parvaledhu", "paravaaledu", "paravaaledhu",
     },
     "ml": {
@@ -359,6 +359,109 @@ POSITIVE_CUE_PHRASES = {
 NEUTRAL_CUE_PHRASES = set()
 
 
+# Broaden the built-in lexicon with additional Indian-language coverage.
+# This keeps the bridge maintainable while letting us expand vocabulary
+# without rewriting the core normalization flow.
+LANGUAGE_LABELS.update(
+    {
+        "bn": "Bengali",
+        "mr": "Marathi",
+        "gu": "Gujarati",
+        "pa": "Punjabi",
+        "ur": "Urdu",
+    }
+)
+
+SCRIPT_RANGES.update(
+    {
+        "bn": [(0x0980, 0x09FF)],
+        "pa": [(0x0A00, 0x0A7F)],
+        "gu": [(0x0A80, 0x0AFF)],
+        "ur": [(0x0600, 0x06FF), (0x0750, 0x077F)],
+    }
+)
+
+for language, hints in {
+    "bn": {"khub", "bhalo", "kharap", "nokol", "deri", "kaj", "korena", "refund", "paini", "uttor"},
+    "mr": {"khup", "changla", "changli", "changle", "vait", "ushir", "banavat", "paratava", "milala", "kam", "karat"},
+    "gu": {"khub", "saru", "saras", "kharab", "nakli", "modu", "nathi", "kam", "kartu", "refund", "malyo"},
+    "pa": {"vadhiya", "bahut", "kharab", "nakli", "der", "kam", "karda", "refund", "milya"},
+    "ur": {"bohat", "acha", "bura", "naqli", "dair", "kaam", "nahin", "refund", "mila", "jawab", "madad"},
+}.items():
+    LANGUAGE_HINTS.setdefault(language, set()).update(hints)
+
+PHRASE_MAP.update(
+    {
+        "khub bhalo": "very good",
+        "khub kharap": "very bad",
+        "kaj kore na": "not working",
+        "kaj korena": "not working",
+        "refund paini": "refund not received",
+        "refund pai ni": "refund not received",
+        "khub deri": "very late",
+        "nokol product": "fake product",
+        "khup changla": "very good",
+        "khup changli": "very good",
+        "khup changle": "very good",
+        "khup vait": "very bad",
+        "kam karat nahi": "not working",
+        "refund milala nahi": "refund not received",
+        "khup ushir": "very late",
+        "banavat product": "fake product",
+        "khub saru": "very good",
+        "khub saras": "very good",
+        "kam kartu nathi": "not working",
+        "refund malyo nathi": "refund not received",
+        "khub modu": "very late",
+        "bahut vadhiya": "very good",
+        "bahut kharab": "very bad",
+        "kam nahi karda": "not working",
+        "refund nahi milya": "refund not received",
+        "bahut der": "very late",
+        "nakli saman": "fake product",
+        "bohat acha": "very good",
+        "bohat bura": "very bad",
+        "kaam nahin karta": "not working",
+        "refund nahin mila": "refund not received",
+        "bohat dair": "very late",
+        "naqli product": "fake product",
+    }
+)
+
+TOKEN_MAP.update(
+    {
+        "khub": "very",
+        "khup": "very",
+        "bhalo": "good",
+        "kharap": "bad",
+        "nokol": "fake",
+        "deri": "late",
+        "nahi": "not",
+        "nahin": "not",
+        "nathi": "not",
+        "mila": "received",
+        "milala": "received",
+        "malyo": "received",
+        "milya": "received",
+        "changla": "good",
+        "changli": "good",
+        "changle": "good",
+        "vait": "bad",
+        "ushir": "late",
+        "banavat": "fake",
+        "saru": "good",
+        "saras": "good",
+        "modu": "late",
+        "vadhiya": "good",
+        "der": "late",
+        "bohat": "very",
+        "bura": "bad",
+        "naqli": "fake",
+        "dair": "late",
+    }
+)
+
+
 def _strip_accents(text: str) -> str:
     normalized = unicodedata.normalize("NFKD", text)
     return "".join(char for char in normalized if not unicodedata.combining(char))
@@ -374,7 +477,7 @@ def _normalize_surface_text(text: str) -> str:
 
 def _tokenize_unicode(text: str) -> list[str]:
     sanitized = re.sub(
-        r"[^\w\s\u0900-\u097F\u0B80-\u0BFF\u0C00-\u0C7F\u0C80-\u0CFF\u0D00-\u0D7F]+",
+        r"[^\w\s\u0600-\u06FF\u0750-\u077F\u0900-\u097F\u0980-\u09FF\u0A00-\u0A7F\u0A80-\u0AFF\u0B80-\u0BFF\u0C00-\u0C7F\u0C80-\u0CFF\u0D00-\u0D7F]+",
         " ",
         text.lower(),
         flags=re.UNICODE,
@@ -395,6 +498,13 @@ def _map_token(token: str) -> str:
     return TOKEN_MAP.get(token, token)
 
 
+def _language_score_map(tokens: list[str]) -> dict[str, int]:
+    return {
+        language: sum(1 for token in tokens if token in hints)
+        for language, hints in LANGUAGE_HINTS.items()
+    }
+
+
 def _canonicalize_sentiment_text(text: str) -> str:
     normalized = re.sub(r"\s+", " ", str(text or "").strip())
     if not normalized:
@@ -409,16 +519,14 @@ def detect_language(text: str) -> tuple[str, float]:
     if not value:
         return "unknown", 0.0
 
-    by_script = _detect_from_script(value)
-    if by_script:
-        return by_script, 0.98
-
     tokens = _tokenize_unicode(_strip_accents(value))
     if not tokens:
-        return "unknown", 0.0
+        by_script = _detect_from_script(value)
+        return (by_script, 0.98) if by_script else ("unknown", 0.0)
 
+    by_script = _detect_from_script(value)
     english_score = sum(1 for token in tokens if token in ENGLISH_HINTS)
-    scores = {language: sum(1 for token in tokens if token in hints) for language, hints in LANGUAGE_HINTS.items()}
+    scores = _language_score_map(tokens)
     best_language = max(scores, key=scores.get)
     best_score = scores[best_language]
 
@@ -427,11 +535,16 @@ def detect_language(text: str) -> tuple[str, float]:
         confidence = min(0.94, 0.5 + (english_score * 0.08))
         return "en", confidence
 
-    if best_score <= 0:
-        return ("en", 0.56) if ascii_only else ("unknown", 0.2)
+    if best_score > 0:
+        confidence = min(0.95, 0.45 + (best_score * 0.12))
+        if by_script and best_language == by_script:
+            confidence = min(0.98, confidence + 0.08)
+        return best_language, confidence
 
-    confidence = min(0.95, 0.45 + (best_score * 0.12))
-    return best_language, confidence
+    if by_script:
+        return by_script, 0.98
+
+    return ("en", 0.56) if ascii_only else ("unknown", 0.2)
 
 
 def normalize_multilingual_text(text: str) -> dict:

@@ -4,6 +4,7 @@ from typing import Callable
 
 import pandas as pd
 
+from backend.aspect_analysis import analyze_review_aspects, summarize_batch_aspects
 from backend.brand_score import summarize_sentiment_counts
 from backend.multilingual import apply_multilingual_sentiment_guard, normalize_multilingual_text
 from backend.predict import calibrate_prediction_confidence, predict_with_confidence_details
@@ -69,6 +70,11 @@ def predict_single_review(
         sentiment_adjustment_reason,
         multilingual_review["normalized_review"],
     )
+    aspect_payload = analyze_review_aspects(
+        request_data["review_text"],
+        predicted_sentiment,
+        multilingual_review["normalized_review"],
+    )
     expected_sentiment = label_from_rating(request_data["rating"]) if request_data["rating"] is not None else None
 
     return {
@@ -90,6 +96,10 @@ def predict_single_review(
         "decision_confidence": decision_confidence,
         "final_confidence": prediction_confidence,
         "prediction_confidence": prediction_confidence,
+        "aspect_sentiments": aspect_payload["aspect_sentiments"],
+        "aspect_summary": aspect_payload["aspect_summary"],
+        "primary_aspect": aspect_payload["primary_aspect"],
+        "primary_aspect_sentiment": aspect_payload["primary_aspect_sentiment"],
         "rating_expected_sentiment": expected_sentiment,
         "is_mismatch_with_rating": bool(expected_sentiment and expected_sentiment != predicted_sentiment),
         "sentiment_adjustment_reason": sentiment_adjustment_reason,
@@ -188,6 +198,11 @@ def predict_batch_reviews(
             adjustment_reason,
             row["normalized_review"],
         )
+        aspect_payload = analyze_review_aspects(
+            row["review_text"],
+            sentiment,
+            row["normalized_review"],
+        )
         expected_sentiment = label_from_rating(row["rating"]) if row["rating"] is not None else None
         results.append(
             {
@@ -210,6 +225,10 @@ def predict_batch_reviews(
                 "decision_confidence": detail["decision_confidence"],
                 "final_confidence": confidence,
                 "prediction_confidence": confidence,
+                "aspect_sentiments": aspect_payload["aspect_sentiments"],
+                "aspect_summary": aspect_payload["aspect_summary"],
+                "primary_aspect": aspect_payload["primary_aspect"],
+                "primary_aspect_sentiment": aspect_payload["primary_aspect_sentiment"],
                 "rating_expected_sentiment": expected_sentiment,
                 "is_mismatch_with_rating": bool(expected_sentiment and expected_sentiment != sentiment),
                 "sentiment_adjustment_reason": adjustment_reason,
@@ -222,4 +241,5 @@ def predict_batch_reviews(
         "rows": len(results),
         "results": results,
         "brand_score": _batch_brand_score(results),
+        "aspect_summary": summarize_batch_aspects(results),
     }

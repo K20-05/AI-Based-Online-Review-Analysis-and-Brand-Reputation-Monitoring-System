@@ -15,10 +15,13 @@ This project is close to feature-complete for an academic/demo build:
 ## Project Structure
 
 - `backend/app.py` - Flask entry point, API routes, auth/session wiring
+- `backend/config.py` - shared paths and runtime configuration
+- `backend/aspect_analysis.py` - aspect-level sentiment extraction for single, batch, and realtime flows
 - `backend/preprocessing.py` - review normalization and cleaning
 - `backend/feature_extraction.py` - TF-IDF feature dataset creation
 - `backend/model_training.py` - model training, metrics, and reports
 - `backend/predict.py` - single/batch sentiment prediction pipeline
+- `backend/prediction_service.py` - API-facing prediction orchestration and payload shaping
 - `backend/brand_score.py` - overall and per-brand reputation scoring
 - `backend/dashboard_data.py` - cached dashboard data shaping
 - `backend/dashboard_routes.py` - dashboard analytics endpoints
@@ -26,8 +29,12 @@ This project is close to feature-complete for an academic/demo build:
 - `backend/connectors.py` - realtime connector implementations
 - `backend/connector_scheduler.py` - automatic polling scheduler
 - `frontend/index.html` - dashboard markup
-- `frontend/styles.css` - dashboard styling
+- `frontend/styles.css` - base dashboard layout, components, and responsive rules
+- `frontend/premium-theme.css` - active visual theme layered on top of the base stylesheet
 - `frontend/app.js` - dashboard client logic
+- `frontend/premium-ui.js` - UI enhancement layer for animation and presentation polish
+- `docs/` - project notes and implementation references
+- `tools/` - utility scripts such as report generation helpers
 
 ## Quick Start
 
@@ -48,11 +55,10 @@ Important notes:
 
 ### 3. Place raw review CSV files
 
-Use one of these locations for raw source files:
+Use `backend/dataset/` as the single canonical data root for all project data:
 
 - `backend/dataset/raw/` for the preferred structure
 - `backend/dataset/csv/` for backward compatibility
-- `backend/dataset/` root only for legacy flat layouts
 
 Generated files like predictions, metrics, trends, and realtime review logs are not treated as raw input.
 
@@ -92,7 +98,7 @@ Generated outputs are written to `backend/dataset/`, including:
 - `sentiment_trends.csv`
 - `platform_summary.csv`
 
-Raw source files are discovered from `backend/dataset/raw/`, `backend/dataset/csv/`, and legacy top-level CSV files inside `backend/dataset/`.
+Raw source files are primarily expected in `backend/dataset/raw/` or `backend/dataset/csv/`. The backend still supports legacy flat CSVs inside `backend/dataset/` for compatibility.
 
 ## Main API Endpoints
 
@@ -143,5 +149,7 @@ Supported configuration:
 ## Notes
 
 - MongoDB integration is optional.
+- `backend/dataset/` is the only canonical dataset folder for this project.
 - Generated datasets and model artifacts are intentionally not committed when ignored by `.gitignore`.
+- `frontend/styles.css` is still required because `frontend/premium-theme.css` imports and extends it.
 - Current model performance and dashboard outputs depend on the datasets present in `backend/dataset/`.
