@@ -366,10 +366,6 @@ def handle_unexpected_error(error):
     return jsonify({"success": False, "error": str(error)}), 500
 
 
-def prediction_frame() -> pd.DataFrame:
-    return dashboard_data.prediction_frame()
-
-
 def json_success(message: str, **data):
     payload = {"success": True, "message": message}
     payload.update(data)
@@ -378,59 +374,6 @@ def json_success(message: str, **data):
 
 def json_error(message: str, status_code: int = 400):
     return jsonify({"success": False, "error": message}), status_code
-
-
-def dashboard_brand_payload(refresh: bool = False) -> dict:
-    return dashboard_data.dashboard_brand_payload(refresh=refresh)
-
-
-def normalize_brand_key(value: str) -> str:
-    return dashboard_data.normalize_brand_key(value)
-
-
-def trend_counts_frame() -> pd.DataFrame:
-    return dashboard_data.trend_counts_frame()
-
-
-def review_samples(
-    sentiment: str,
-    brand: str = "",
-    months: str = "all",
-    limit: int = 5,
-) -> list[dict]:
-    return dashboard_data.review_samples(sentiment=sentiment, brand=brand, months=months, limit=limit)
-
-
-def random_brand_review(brand: str = "") -> dict | None:
-    return dashboard_data.random_brand_review(brand=brand)
-
-
-def trend_brand_availability() -> dict[str, bool]:
-    return dashboard_data.trend_brand_availability()
-
-
-def dashboard_keywords_payload(brand: str = "", months: str = "all", sentiment: str = "") -> list[dict]:
-    return dashboard_data.dashboard_keywords_payload(brand=brand, months=months, sentiment=sentiment)
-
-
-def brand_rows() -> list[dict]:
-    return dashboard_data.brand_rows()
-
-
-def find_brand_row(brand_name: str) -> dict:
-    return dashboard_data.find_brand_row(brand_name)
-
-
-def risk_profile(score: float, negative_pct: float) -> dict:
-    return dashboard_data.risk_profile(score, negative_pct)
-
-
-def build_brand_insights(row: dict) -> dict:
-    return dashboard_data.build_brand_insights(row)
-
-
-def similar_brand_rows(base_row: dict, limit: int = 3) -> list[dict]:
-    return dashboard_data.similar_brand_rows(base_row, limit=limit)
 
 
 def session_user_email() -> str | None:
@@ -623,20 +566,20 @@ app.register_blueprint(
             "json_error": json_error,
             "require_auth": require_auth,
             "require_roles": require_roles,
-            "prediction_frame": prediction_frame,
+            "prediction_frame": dashboard_data.prediction_frame,
             "calculate_brand_score": calculate_brand_score,
             "generate_visualizations": generate_visualizations,
-            "dashboard_brand_payload": dashboard_brand_payload,
-            "trend_brand_availability": trend_brand_availability,
-            "normalize_brand_key": normalize_brand_key,
-            "build_brand_insights": build_brand_insights,
-            "find_brand_row": find_brand_row,
-            "similar_brand_rows": similar_brand_rows,
-            "risk_profile": risk_profile,
-            "trend_counts_frame": trend_counts_frame,
-            "dashboard_keywords_payload": dashboard_keywords_payload,
-            "review_samples": review_samples,
-            "random_brand_review": random_brand_review,
+            "dashboard_brand_payload": dashboard_data.dashboard_brand_payload,
+            "trend_brand_availability": dashboard_data.trend_brand_availability,
+            "normalize_brand_key": dashboard_data.normalize_brand_key,
+            "build_brand_insights": dashboard_data.build_brand_insights,
+            "find_brand_row": dashboard_data.find_brand_row,
+            "similar_brand_rows": dashboard_data.similar_brand_rows,
+            "risk_profile": dashboard_data.risk_profile,
+            "trend_counts_frame": dashboard_data.trend_counts_frame,
+            "dashboard_keywords_payload": dashboard_data.dashboard_keywords_payload,
+            "review_samples": dashboard_data.review_samples,
+            "random_brand_review": dashboard_data.random_brand_review,
             "dashboard_data": dashboard_data,
             "BRAND_REPUTATION_BY_BRAND_PATH": BRAND_REPUTATION_BY_BRAND_PATH,
             "latest_realtime_reviews": latest_realtime_reviews,

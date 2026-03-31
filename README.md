@@ -30,8 +30,13 @@ This project is close to feature-complete for an academic/demo build:
 - `backend/connector_scheduler.py` - automatic polling scheduler
 - `frontend/index.html` - dashboard markup
 - `frontend/styles.css` - base dashboard layout, components, and responsive rules
-- `frontend/premium-theme.css` - active visual theme layered on top of the base stylesheet
-- `frontend/app.js` - dashboard client logic
+- `frontend/premium-theme.css` - active theme entrypoint that imports the modular premium theme partials
+- `frontend/premium-theme-*.css` - split premium theme layers for foundation, shell, dashboard, about, workspace, and responsive rules
+- `frontend/app-shared.js` - shared frontend constants and stateless helpers loaded before the main runtime
+- `frontend/app-history.js` - local activity history helpers and timeline rendering
+- `frontend/app-admin.js` - admin-control rendering and user-management logic
+- `frontend/app-analysis.js` - single-review and batch-analysis runtime logic
+- `frontend/app.js` - core dashboard runtime, API wiring, routing, and shared view orchestration
 - `frontend/premium-ui.js` - UI enhancement layer for animation and presentation polish
 - `docs/` - project notes and implementation references
 - `tools/` - utility scripts such as report generation helpers
@@ -151,5 +156,5 @@ Supported configuration:
 - MongoDB integration is optional.
 - `backend/dataset/` is the only canonical dataset folder for this project.
 - Generated datasets and model artifacts are intentionally not committed when ignored by `.gitignore`.
-- `frontend/styles.css` is still required because `frontend/premium-theme.css` imports and extends it.
+- `frontend/styles.css` is still required because `frontend/premium-theme.css` imports it before the modular premium theme partials.
 - Current model performance and dashboard outputs depend on the datasets present in `backend/dataset/`.
