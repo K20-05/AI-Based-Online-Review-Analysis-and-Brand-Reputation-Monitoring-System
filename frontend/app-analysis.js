@@ -340,6 +340,7 @@ async function handleBatchSubmit(event) {
     });
 
     $("#batchProcessedCount").textContent = Number(data.rows || score.total_reviews || lines.length).toLocaleString();
+    setBatchSummaryVisibility(true);
     renderBatchTable(buildBatchPreview(data, lines));
     storeHistory({
       title: "Batch run",
@@ -351,8 +352,8 @@ async function handleBatchSubmit(event) {
   } catch (error) {
     if (!sameSessionRevision(sessionRevision)) return;
     if (handleAuthError(error)) return;
+    resetBatchResultView();
     $("#batchTechnicalJson").textContent = JSON.stringify({ error: error.message || "Request failed" }, null, 2);
-    renderBatchTable([]);
     toast(error.message || "Batch prediction failed.", "error");
   } finally {
     setButtonLoading(button, false, "Run Batch");

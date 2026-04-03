@@ -375,7 +375,9 @@
   position: relative;
   border-radius: 34px;
   padding: 24px;
-  max-height: calc(100vh - 154px);
+  min-height: calc(100vh - 154px);
+  max-height: none;
+  overflow: visible;
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.86), rgba(246, 250, 255, 0.78)),
     linear-gradient(160deg, rgba(255, 255, 255, 0.4), transparent);

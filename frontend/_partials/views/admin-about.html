@@ -1,0 +1,196 @@
+        <section class="view" id="view-history">
+          <div class="view-head">
+            <div>
+              <div class="eyebrow">Local Timeline</div>
+              <h1 class="view-title">Recent Activity History</h1>
+              <p class="view-copy">The last ten single predictions and batch runs are stored in local storage for quick traceability on this device.</p>
+            </div>
+            <div class="inline-actions">
+              <button class="ghost-btn" id="clearHistoryButton" type="button">Clear History</button>
+            </div>
+          </div>
+
+          <div class="timeline" id="historyTimeline"></div>
+        </section>
+
+        <section class="view" id="view-users">
+          <div class="view-head">
+            <div>
+              <div class="eyebrow">Admin Control</div>
+              <h1 class="view-title">Users Management</h1>
+            </div>
+            <div class="inline-actions">
+              <button class="ghost-btn" id="refreshUsersButton" type="button">Refresh Users</button>
+            </div>
+          </div>
+
+          <section class="table-shell">
+            <table aria-label="Users management table">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Account Actions</th>
+                </tr>
+              </thead>
+              <tbody id="usersTableBody">
+                <tr>
+                  <td colspan="4" class="users-note">Loading users...</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+        </section>
+
+        <section class="view" id="view-model-performance">
+          <div class="view-head">
+            <div>
+              <div class="eyebrow">Admin Control</div>
+              <h1 class="view-title">Model Performance</h1>
+            </div>
+            <div class="inline-actions">
+              <button class="ghost-btn" id="refreshModelButton" type="button">Refresh Model</button>
+            </div>
+          </div>
+          <section class="admin-control-grid admin-control-grid--metrics">
+            <article class="admin-control-card admin-control-card--metric admin-control-card--metric-hero">
+              <b>Model</b>
+              <strong id="modelPageName">Waiting</strong>
+              <span>Selected artifact</span>
+              <p>Latest saved model identifier from training output.</p>
+            </article>
+            <article class="admin-control-card admin-control-card--metric">
+              <b>Accuracy</b>
+              <strong id="modelPageAccuracy">0%</strong>
+              <span>Test accuracy</span>
+              <p>Current evaluation accuracy for the deployed sentiment model.</p>
+            </article>
+            <article class="admin-control-card admin-control-card--metric">
+              <b>F1 Score</b>
+              <strong id="modelPageF1">0%</strong>
+              <span>Macro F1</span>
+              <p>Macro F1 gives a more balanced view across sentiment classes.</p>
+            </article>
+            <article class="admin-control-card admin-control-card--metric">
+              <b>Validation</b>
+              <strong id="modelPageValidation">0%</strong>
+              <span>Validation accuracy</span>
+              <p>Last validation accuracy recorded during model selection.</p>
+            </article>
+            <article class="admin-control-card admin-control-card--metric">
+              <b>Loss</b>
+              <strong id="modelPageLoss">0.000</strong>
+              <span>Test log loss</span>
+              <p>Lower log loss indicates more stable confidence calibration.</p>
+            </article>
+            <article class="admin-control-card admin-control-card--metric">
+              <b>Training Time</b>
+              <strong id="modelPageTrainedAt">Waiting</strong>
+              <span>Last run</span>
+              <p>Timestamp inferred from the latest saved model metrics file.</p>
+            </article>
+          </section>
+        </section>
+
+        <section class="view" id="view-notifications">
+          <div class="view-head">
+            <div>
+              <div class="eyebrow">Admin Control</div>
+              <h1 class="view-title">System Notifications</h1>
+            </div>
+          </div>
+          <section class="surface" style="margin-bottom: 18px;">
+            <div class="split-head">
+              <div>
+                <div class="analytics-sub">Pipeline Control</div>
+                <strong>Model Operations</strong>
+              </div>
+            </div>
+            <p class="users-note" id="adminAlertsCopy">System alerts will appear after admin metrics load.</p>
+            <div class="summary-ribbon" style="margin-top: 14px;">
+              <div style="flex:1 1 320px;">
+                <strong>Pipeline Status</strong>
+                <span id="pipelineActionStatus">Run preprocessing, feature extraction, or model training from the admin workspace.</span>
+              </div>
+              <div class="inline-actions">
+                <button class="ghost-btn" id="runPreprocessButton" type="button">Preprocess</button>
+                <button class="ghost-btn" id="runFeaturesButton" type="button">Features</button>
+                <button class="action-btn" id="runTrainButton" type="button">Train Model</button>
+              </div>
+            </div>
+          </section>
+          <section class="surface">
+            <div class="split-head">
+              <div>
+                <div class="analytics-sub">Warning Center</div>
+                <strong id="notificationsHeadline">No active alerts</strong>
+              </div>
+            </div>
+            <div class="timeline" id="adminNotificationsList"></div>
+          </section>
+        </section>
+
+        <section class="view" id="view-about">
+          <div class="view-head">
+            <div>
+              <div class="eyebrow">Company Overview</div>
+              <h1 class="view-title">About</h1>
+            </div>
+          </div>
+
+          <section class="surface about-summary-card about-summary-card--storyboard">
+            <div class="about-summary-card__main">
+              <div class="analytics-sub">Company Summary</div>
+              <strong>BrandPulse turns customer reviews into clear business signals.</strong>
+              <p>BrandPulse is a review intelligence platform that analyzes customer feedback and organizes it into sentiment, confidence, reputation, and brand-level insights teams can read quickly.</p>
+              <p>It gives teams one place to monitor brand health, compare performance, track review trends, and run single or batch analysis without digging through raw review text manually.</p>
+              <div class="about-summary-card__pills" aria-label="BrandPulse capabilities">
+                <span>Sentiment Intelligence</span>
+                <span>Brand Monitoring</span>
+                <span>Trend Tracking</span>
+                <span>Single + Batch Workflows</span>
+              </div>
+            </div>
+            <div class="about-summary-card__rail" aria-label="BrandPulse highlights">
+              <article class="about-spotlight about-spotlight--signal">
+                <span class="about-spotlight__eyebrow">Platform</span>
+                <strong>Review Intelligence</strong>
+                <p>Turns raw feedback into readable signals teams can act on faster.</p>
+              </article>
+              <article class="about-spotlight about-spotlight--teams">
+                <span class="about-spotlight__eyebrow">Teams</span>
+                <strong>Admin, Analyst, Marketing</strong>
+                <p>Supports shared visibility with role-based focus across the workspace.</p>
+              </article>
+              <article class="about-spotlight about-spotlight--impact">
+                <span class="about-spotlight__eyebrow">Outcome</span>
+                <strong>Faster, Clearer Decisions</strong>
+                <p>Reduces manual review effort and helps teams move from feedback to action sooner.</p>
+              </article>
+            </div>
+          </section>
+
+          <div class="about-simple-grid">
+            <section class="surface about-simple-card about-simple-card--what">
+              <div class="about-simple-card__index">01</div>
+              <div class="analytics-sub">What It Does</div>
+              <strong>Reads feedback at scale</strong>
+              <p>Transforms review text into structured signals such as sentiment, confidence, aspect cues, and summary metrics.</p>
+            </section>
+
+            <section class="surface about-simple-card about-simple-card--who">
+              <div class="about-simple-card__index">02</div>
+              <div class="analytics-sub">Who Uses It</div>
+              <strong>Built for cross-functional teams</strong>
+              <p>Designed for admin, analyst, and marketing users who need shared visibility with role-specific views.</p>
+            </section>
+
+            <section class="surface about-simple-card about-simple-card--value">
+              <div class="about-simple-card__index">03</div>
+              <div class="analytics-sub">Why It Matters</div>
+              <strong>Cuts manual review time</strong>
+              <p>Helps teams move from scattered feedback to usable insight faster, with less manual effort.</p>
+            </section>
+          </div>
+        </section>

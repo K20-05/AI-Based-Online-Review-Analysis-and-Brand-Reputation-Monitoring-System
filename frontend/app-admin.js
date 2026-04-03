@@ -14,7 +14,7 @@ function renderAdminControlHub() {
   if (normalizeAccessRole(state.userRole) !== "admin") return;
   $("#adminUsersCount").textContent = Number((state.users || []).length || 0).toLocaleString();
   $("#adminBrandsCount").textContent = Number((state.brands || []).length || 0).toLocaleString();
-  $("#adminReviewsCount").textContent = Number(state.brandScore?.total_reviews || 0).toLocaleString();
+  $("#adminRoleSupportCount").textContent = "3";
   $("#adminModelAccuracy").textContent = state.modelMetrics && Number.isFinite(Number(state.modelMetrics.test_accuracy))
     ? (Number(state.modelMetrics.test_accuracy) * 100).toFixed(1) + "%"
     : "Waiting";

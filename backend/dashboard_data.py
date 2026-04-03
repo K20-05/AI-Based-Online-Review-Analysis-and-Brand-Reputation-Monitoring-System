@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import Counter
 from functools import lru_cache
 import json
+import math
 from pathlib import Path
 import re
 
@@ -11,9 +12,36 @@ import pandas as pd
 from backend.brand_score import calculate_brand_score, scoring_frame
 from backend.config import BRAND_SCORE_PATH, PREDICTIONS_PATH, REALTIME_REVIEWS_PATH
 
+TOKEN_RE = re.compile(r"\b[a-z]{3,}\b")
+KEYWORD_GROUPS_CACHE_PATH = PREDICTIONS_PATH.with_name(f"{PREDICTIONS_PATH.stem}_keyword_groups_cache.json")
+REVIEW_SAMPLE_CACHE_PATH = PREDICTIONS_PATH.with_name(f"{PREDICTIONS_PATH.stem}_review_samples_cache.pkl")
+KEYWORD_EXCLUSION_WORDS = {
+    "app",
+    "apps",
+    "item",
+    "items",
+    "order",
+    "orders",
+    "product",
+    "products",
+    "shopping",
+    "shop",
+    "customer",
+    "customers",
+    "user",
+    "users",
+    "use",
+    "using",
+}
+
 
 def normalize_brand_key(value: str) -> str:
     return re.sub(r"[_\s]+", " ", str(value or "")).strip().casefold()
+
+
+def parse_review_dates(series: pd.Series) -> pd.Series:
+    cleaned = series.fillna("").astype(str).str.strip().replace({"Unknown": "", "unknown": ""})
+    return pd.to_datetime(cleaned, format="%Y-%m-%d", errors="coerce")
 
 
 @lru_cache(maxsize=1)
@@ -59,11 +87,11 @@ def brand_score_is_stale() -> bool:
 
 def dashboard_brand_payload(refresh: bool = False) -> dict:
     if refresh or brand_score_is_stale():
-        return calculate_brand_score()
+        return calculate_brand_score(include_auxiliary_outputs=False)
     try:
         return json.loads(BRAND_SCORE_PATH.read_text(encoding="utf-8"))
     except (FileNotFoundError, json.JSONDecodeError):
-        return calculate_brand_score()
+        return calculate_brand_score(include_auxiliary_outputs=False)
 
 
 @lru_cache(maxsize=1)
@@ -73,7 +101,7 @@ def _trend_counts_cached(cache_key: tuple[str, int, int]) -> pd.DataFrame:
     if not required.issubset(df.columns):
         return pd.DataFrame(columns=["brand_key", "period", "sentiment", "count"])
 
-    review_dates = pd.to_datetime(df["review_date"], errors="coerce")
+    review_dates = parse_review_dates(df["review_date"])
     valid_mask = review_dates.notna()
     if not valid_mask.any():
         return pd.DataFrame(columns=["brand_key", "period", "sentiment", "count"])
@@ -110,62 +138,168 @@ def trend_brand_availability() -> dict[str, bool]:
     return _trend_brand_availability_cached(predictions_cache_key())
 
 
+@lru_cache(maxsize=1)
+def _review_sample_source_frame_cached(cache_key: tuple[str, int, int]) -> pd.DataFrame:
+    if REVIEW_SAMPLE_CACHE_PATH.exists():
+        try:
+            cached_payload = pd.read_pickle(REVIEW_SAMPLE_CACHE_PATH)
+            if (
+                isinstance(cached_payload, dict)
+                and cached_payload.get("signature") == cache_key
+                and isinstance(cached_payload.get("frame"), pd.DataFrame)
+            ):
+                return cached_payload["frame"]
+        except Exception:
+            pass
+
+    df = _prediction_frame_cached(cache_key)
+    if "predicted_sentiment" not in df.columns:
+        return pd.DataFrame(
+            columns=[
+                "row_order",
+                "brand_key",
+                "platform_key",
+                "sentiment",
+                "parsed_review_date",
+                "review_date_display",
+                "display_review",
+                "brand",
+                "platform",
+                "rating",
+            ]
+        )
+
+    review_text = df.get("review_text", pd.Series(dtype="string")).fillna("").astype(str).str.strip()
+    cleaned_review = df.get("cleaned_review", pd.Series(dtype="string")).fillna("").astype(str).str.strip()
+    display_review = review_text.where(review_text != "", cleaned_review)
+    parsed_review_date = parse_review_dates(df.get("review_date", pd.Series(dtype="string")))
+    review_date_display = (
+        df.get("review_date", pd.Series(dtype="string"))
+        .fillna("")
+        .astype(str)
+        .str.strip()
+        .replace("", "Unknown")
+    )
+
+    prepared = pd.DataFrame(
+        {
+            "row_order": pd.RangeIndex(start=0, stop=len(df), step=1),
+            "brand_key": df.get("brand", pd.Series(dtype="string")).fillna("").astype(str).map(normalize_brand_key),
+            "platform_key": df.get("platform", pd.Series(dtype="string")).fillna("").astype(str).map(normalize_brand_key),
+            "sentiment": df.get("predicted_sentiment", pd.Series(dtype="string")).fillna("").astype(str).str.strip(),
+            "parsed_review_date": parsed_review_date,
+            "review_date_display": review_date_display,
+            "display_review": display_review,
+            "brand": df.get("brand", pd.Series(dtype="string")).fillna("Unknown").astype(str).replace("", "Unknown"),
+            "platform": df.get("platform", pd.Series(dtype="string")).fillna("Unknown").astype(str).replace("", "Unknown"),
+            "rating": df.get("rating", pd.Series(dtype="object")),
+        }
+    )
+    filtered = prepared[prepared["display_review"] != ""].copy()
+    try:
+        pd.to_pickle({"signature": cache_key, "frame": filtered}, REVIEW_SAMPLE_CACHE_PATH)
+    except Exception:
+        pass
+    return filtered
+
+
+def recent_activity_reviews(limit: int = 5, brand: str = "", platform: str = "") -> list[dict]:
+    source = _review_sample_source_frame_cached(predictions_cache_key())
+    if source.empty:
+        return []
+
+    working = source.copy()
+    normalized_brand = normalize_brand_key(brand)
+    normalized_platform = normalize_brand_key(platform)
+
+    if normalized_brand:
+        working = working[working["brand_key"] == normalized_brand].copy()
+        if working.empty:
+            return []
+
+    if normalized_platform:
+        working = working[working["platform_key"] == normalized_platform].copy()
+        if working.empty:
+            return []
+
+    working = working.sort_values(
+        by=["parsed_review_date", "row_order"],
+        ascending=[False, False],
+        na_position="last",
+    ).head(limit)
+
+    def scalar_or_none(value):
+        if pd.isna(value):
+            return None
+        return value.item() if hasattr(value, "item") else value
+
+    rows = []
+    for _, row in working.iterrows():
+        parsed_date = row.get("parsed_review_date")
+        activity_label = str(row.get("review_date_display", "Unknown") or "Unknown")
+        rows.append(
+            {
+                "review_text": str(row.get("display_review", "")),
+                "normalized_review": str(row.get("display_review", "")),
+                "review_date": activity_label,
+                "brand": str(row.get("brand", "Unknown") or "Unknown"),
+                "platform": str(row.get("platform", "Unknown") or "Unknown"),
+                "rating": scalar_or_none(row.get("rating")),
+                "predicted_sentiment": str(row.get("sentiment", "") or "Unknown"),
+                "activity_at": parsed_date.isoformat() if pd.notna(parsed_date) else "",
+                "activity_label": activity_label,
+                "activity_mode": "dataset",
+                "source_type": "prediction_dataset",
+                "translation_applied": False,
+            }
+        )
+    return rows
+
+
 def review_samples(
     sentiment: str,
     brand: str = "",
     months: str = "all",
     limit: int = 5,
 ) -> list[dict]:
-    df = prediction_frame()
-    if "predicted_sentiment" not in df.columns:
-        return []
-
     sentiment_value = str(sentiment or "").strip()
     if not sentiment_value:
         return []
 
-    working = df[df["predicted_sentiment"].fillna("").astype(str) == sentiment_value].copy()
+    source = _review_sample_source_frame_cached(predictions_cache_key())
+    if source.empty:
+        return []
+
+    working = source[source["sentiment"] == sentiment_value].copy()
     if working.empty:
         return []
 
     if brand:
         brand_key = normalize_brand_key(brand)
-        working = working[
-            working["brand"].fillna("").astype(str).map(normalize_brand_key) == brand_key
-        ].copy()
+        working = working[working["brand_key"] == brand_key].copy()
         if working.empty:
             return []
 
-    parsed_dates = pd.to_datetime(working.get("review_date"), errors="coerce")
     months_value = str(months or "all").strip().lower()
+    parsed_dates = working["parsed_review_date"]
     if months_value != "all" and months_value.isdigit() and parsed_dates.notna().any():
         month_count = max(1, int(months_value))
         latest = parsed_dates.max()
         cutoff = latest - pd.DateOffset(months=month_count - 1)
         working = working[parsed_dates >= cutoff].copy()
+        if working.empty:
+            return []
 
-    source_series = working.get("review_text")
-    if source_series is None:
-        source_series = working.get("cleaned_review")
-    if source_series is None:
-        return []
-
-    working["display_review"] = source_series.fillna("").astype(str).str.strip()
-    working = working[working["display_review"] != ""].copy()
-    if working.empty:
-        return []
-
-    working["parsed_review_date"] = pd.to_datetime(working.get("review_date"), errors="coerce")
     working = working.sort_values(by="parsed_review_date", ascending=False, na_position="last").head(limit)
 
     return [
         {
             "review_text": str(row.get("display_review", "")),
-            "review_date": str(row.get("review_date", "Unknown") or "Unknown"),
+            "review_date": str(row.get("review_date_display", "Unknown") or "Unknown"),
             "brand": str(row.get("brand", "Unknown") or "Unknown"),
             "platform": str(row.get("platform", "Unknown") or "Unknown"),
             "rating": None if pd.isna(row.get("rating")) else row.get("rating"),
-            "sentiment": str(row.get("predicted_sentiment", sentiment_value)),
+            "sentiment": str(row.get("sentiment", sentiment_value)),
         }
         for _, row in working.iterrows()
     ]
@@ -222,34 +356,27 @@ def _keyword_source_frame_cached(cache_key: tuple[str, int, int]) -> pd.DataFram
         {
             "brand_key": df.get("brand", pd.Series(dtype="string")).fillna("").astype(str).map(normalize_brand_key),
             "sentiment": df.get("predicted_sentiment", pd.Series(dtype="string")).fillna("").astype(str),
-            "review_date": pd.to_datetime(df.get("review_date"), errors="coerce"),
+            "review_date": parse_review_dates(df.get("review_date", pd.Series(dtype="string"))),
             "cleaned_review": df.get("cleaned_review", pd.Series(dtype="string")).fillna("").astype(str),
         }
     )
 
 
 @lru_cache(maxsize=64)
-def _dashboard_keywords_cached(
+def _filtered_keyword_frame_cached(
     cache_key: tuple[str, int, int],
     brand: str = "",
     months: str = "all",
-    sentiment: str = "",
-) -> list[dict]:
+) -> pd.DataFrame:
     working = _keyword_source_frame_cached(cache_key)
     if working.empty:
-        return []
+        return pd.DataFrame(columns=working.columns)
 
     normalized_brand = normalize_brand_key(brand)
     if normalized_brand:
         working = working[working["brand_key"] == normalized_brand]
         if working.empty:
-            return []
-
-    sentiment_value = str(sentiment or "").strip()
-    if sentiment_value:
-        working = working[working["sentiment"] == sentiment_value]
-        if working.empty:
-            return []
+            return pd.DataFrame(columns=working.columns)
 
     months_value = str(months or "all").strip().lower()
     parsed_dates = working["review_date"]
@@ -259,16 +386,164 @@ def _dashboard_keywords_cached(
         cutoff = latest - pd.DateOffset(months=month_count - 1)
         working = working[parsed_dates >= cutoff]
         if working.empty:
-            return []
+            return pd.DataFrame(columns=working.columns)
 
-    tokens = []
-    for text in working["cleaned_review"]:
-        tokens.extend(re.findall(r"\b[a-z]{3,}\b", text.lower()))
-    return [{"word": word, "count": count} for word, count in Counter(tokens).most_common(12)]
+    return working.copy()
+
+
+def _keyword_counter(texts: pd.Series) -> Counter:
+    counter: Counter[str] = Counter()
+    for text in texts:
+        counter.update(
+            token
+            for token in TOKEN_RE.findall(str(text).lower())
+            if token not in KEYWORD_EXCLUSION_WORDS
+        )
+    return counter
+
+
+def _rank_keyword_counter(target_counter: Counter, overall_counter: Counter) -> list[dict]:
+    if not target_counter:
+        return []
+
+    top_count = max(target_counter.values(), default=0)
+    minimum_count = max(3, min(40, int(top_count * 0.05)))
+    scored_keywords = []
+    for word, count in target_counter.items():
+        if count < minimum_count:
+            continue
+        total = overall_counter.get(word, 0)
+        if total <= 0:
+            continue
+        sentiment_share = count / total
+        distinctiveness = sentiment_share * math.log1p(count)
+        scored_keywords.append((distinctiveness, count, sentiment_share, word))
+
+    scored_keywords.sort(key=lambda item: (-item[0], -item[1], item[3]))
+    return [
+        {
+            "word": word,
+            "count": count,
+            "sentiment_share": round(sentiment_share, 4),
+        }
+        for _, count, sentiment_share, word in scored_keywords[:12]
+    ]
+
+
+def _keyword_groups_dependency_mtime_ns(cache_key: tuple) -> int:
+    prediction_mtime_ns = int(cache_key[1]) if len(cache_key) > 1 else 0
+    realtime_mtime_ns = int(cache_key[4]) if len(cache_key) > 4 else 0
+    return max(prediction_mtime_ns, realtime_mtime_ns)
+
+
+def _keyword_groups_disk_cache_is_current(cache_key: tuple) -> bool:
+    return (
+        KEYWORD_GROUPS_CACHE_PATH.exists()
+        and KEYWORD_GROUPS_CACHE_PATH.stat().st_mtime_ns >= _keyword_groups_dependency_mtime_ns(cache_key)
+    )
+
+
+def _normalize_keyword_group_payload(payload: dict | None) -> dict[str, list[dict]]:
+    normalized = {"Positive": [], "Neutral": [], "Negative": []}
+    if not isinstance(payload, dict):
+        return normalized
+    for sentiment in normalized:
+        rows = payload.get(sentiment, [])
+        normalized[sentiment] = rows if isinstance(rows, list) else []
+    return normalized
+
+
+def _load_keyword_groups_disk_cache(cache_key: tuple) -> dict[str, list[dict]] | None:
+    if not _keyword_groups_disk_cache_is_current(cache_key):
+        return None
+    try:
+        payload = json.loads(KEYWORD_GROUPS_CACHE_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return _normalize_keyword_group_payload(payload)
+
+
+def _write_keyword_groups_disk_cache(payload: dict[str, list[dict]]) -> None:
+    try:
+        KEYWORD_GROUPS_CACHE_PATH.write_text(
+            json.dumps(_normalize_keyword_group_payload(payload), ensure_ascii=False),
+            encoding="utf-8",
+        )
+    except OSError:
+        return
+
+
+@lru_cache(maxsize=64)
+def _dashboard_keyword_groups_cached(
+    cache_key: tuple[str, int, int],
+    brand: str = "",
+    months: str = "all",
+) -> dict[str, list[dict]]:
+    working = _filtered_keyword_frame_cached(cache_key, brand, months)
+    if working.empty:
+        return {"Positive": [], "Neutral": [], "Negative": []}
+
+    overall_counter: Counter[str] = Counter()
+    sentiment_counters: dict[str, Counter] = {}
+    for sentiment_name, sentiment_frame in working.groupby("sentiment"):
+        normalized_sentiment = str(sentiment_name or "").strip()
+        if not normalized_sentiment:
+            continue
+        counter = _keyword_counter(sentiment_frame["cleaned_review"])
+        sentiment_counters[normalized_sentiment] = counter
+        overall_counter.update(counter)
+
+    if not overall_counter:
+        return {"Positive": [], "Neutral": [], "Negative": []}
+
+    return {
+        "Positive": _rank_keyword_counter(sentiment_counters.get("Positive", Counter()), overall_counter),
+        "Neutral": _rank_keyword_counter(sentiment_counters.get("Neutral", Counter()), overall_counter),
+        "Negative": _rank_keyword_counter(sentiment_counters.get("Negative", Counter()), overall_counter),
+    }
+
+
+@lru_cache(maxsize=64)
+def _dashboard_keywords_cached(
+    cache_key: tuple[str, int, int],
+    brand: str = "",
+    months: str = "all",
+    sentiment: str = "",
+) -> list[dict]:
+    working = _filtered_keyword_frame_cached(cache_key, brand, months)
+    if working.empty:
+        return []
+
+    overall_counter = _keyword_counter(working["cleaned_review"])
+
+    if not overall_counter:
+        return []
+
+    sentiment_value = str(sentiment or "").strip()
+    if not sentiment_value:
+        return [{"word": word, "count": count} for word, count in overall_counter.most_common(12)]
+
+    return _dashboard_keyword_groups_cached(cache_key, brand, months).get(sentiment_value, [])
 
 
 def dashboard_keywords_payload(brand: str = "", months: str = "all", sentiment: str = "") -> list[dict]:
     return _dashboard_keywords_cached(predictions_cache_key(), brand, months, sentiment)
+
+
+def dashboard_keyword_groups_payload(brand: str = "", months: str = "all") -> dict[str, list[dict]]:
+    cache_key = predictions_cache_key()
+    normalized_brand = str(brand or "").strip()
+    normalized_months = str(months or "all").strip().lower() or "all"
+    can_use_disk_cache = not normalized_brand and normalized_months == "all"
+    if can_use_disk_cache:
+        cached_payload = _load_keyword_groups_disk_cache(cache_key)
+        if cached_payload is not None:
+            return cached_payload
+
+    payload = _dashboard_keyword_groups_cached(cache_key, normalized_brand, normalized_months)
+    if can_use_disk_cache:
+        _write_keyword_groups_disk_cache(payload)
+    return payload
 
 
 def brand_rows() -> list[dict]:

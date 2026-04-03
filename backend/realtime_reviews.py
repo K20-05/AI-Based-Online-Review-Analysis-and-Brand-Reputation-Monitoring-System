@@ -42,6 +42,14 @@ REALTIME_COLUMNS = [
     "source_type",
 ]
 
+
+def _json_safe_scalar(value):
+    if pd.isna(value):
+        return None
+    if isinstance(value, pd.Timestamp):
+        return value.isoformat()
+    return value.item() if hasattr(value, "item") else value
+
 def load_realtime_reviews() -> pd.DataFrame:
     if not REALTIME_REVIEWS_PATH.exists():
         return pd.DataFrame(columns=REALTIME_COLUMNS)
@@ -157,9 +165,10 @@ def latest_realtime_reviews(limit: int = 20, brand: str = "", platform: str = ""
 
     df["ingested_at"] = pd.to_datetime(df["ingested_at"], errors="coerce")
     df = df.sort_values(by="ingested_at", ascending=False, na_position="last").head(limit)
-    result = df.copy()
-    result["ingested_at"] = result["ingested_at"].astype("string").fillna("")
-    return result.where(pd.notnull(result), None).to_dict(orient="records")
+    rows = []
+    for _, row in df.iterrows():
+        rows.append({column: _json_safe_scalar(row.get(column)) for column in df.columns})
+    return rows
 
 
 def realtime_review_summary() -> dict:

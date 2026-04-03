@@ -25,6 +25,8 @@ def create_dashboard_blueprint(deps: dict) -> Blueprint:
     risk_profile = deps["risk_profile"]
     trend_counts_frame = deps["trend_counts_frame"]
     dashboard_keywords_payload = deps["dashboard_keywords_payload"]
+    dashboard_keyword_groups_payload = deps["dashboard_keyword_groups_payload"]
+    recent_activity_reviews = deps["recent_activity_reviews"]
     review_samples = deps["review_samples"]
     random_brand_review = deps["random_brand_review"]
     dashboard_data = deps["dashboard_data"]
@@ -61,7 +63,9 @@ def create_dashboard_blueprint(deps: dict) -> Blueprint:
         normalized_rows = []
         for row in rows:
             next_row = dict(row)
-            next_row["has_trend_data"] = bool(availability.get(normalize_brand_key(next_row.get("brand", "")), True))
+            next_row["has_trend_data"] = bool(
+                availability.get(normalize_brand_key(next_row.get("brand", "")), False)
+            ) if include_trend_availability else True
             normalized_rows.append(next_row)
         return jsonify({"brands": normalized_rows})
 
@@ -153,6 +157,10 @@ def create_dashboard_blueprint(deps: dict) -> Blueprint:
         brand = str(request.args.get("brand", "")).strip()
         months = str(request.args.get("months", "all")).strip() or "all"
         sentiment = str(request.args.get("sentiment", "")).strip()
+        group_by = str(request.args.get("group_by", "")).strip().lower()
+        if group_by == "sentiment":
+            keywords_by_sentiment = dashboard_keyword_groups_payload(brand=brand, months=months)
+            return jsonify({"keywords_by_sentiment": keywords_by_sentiment, "brand": brand or None, "months": months})
         keywords = dashboard_keywords_payload(brand=brand, months=months, sentiment=sentiment)
         return jsonify({"keywords": keywords, "brand": brand or None, "months": months, "sentiment": sentiment or None})
 
@@ -192,11 +200,22 @@ def create_dashboard_blueprint(deps: dict) -> Blueprint:
         limit = max(1, min(int(request.args.get("limit", 20) or 20), 100))
         brand = str(request.args.get("brand", "")).strip()
         platform = str(request.args.get("platform", "")).strip()
+        reviews = latest_realtime_reviews(limit=limit, brand=brand, platform=platform)
+        source_mode = "live"
+        is_fallback = False
+        if not reviews:
+            reviews = recent_activity_reviews(limit=limit, brand=brand, platform=platform)
+            source_mode = "dataset" if reviews else "empty"
+            is_fallback = bool(reviews)
+        else:
+            reviews = [{**row, "activity_mode": "live"} for row in reviews]
         return jsonify(
             {
-                "reviews": latest_realtime_reviews(limit=limit, brand=brand, platform=platform),
+                "reviews": reviews,
                 "brand": brand or None,
                 "platform": platform or None,
+                "source_mode": source_mode,
+                "is_fallback": is_fallback,
             }
         )
 

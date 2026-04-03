@@ -1,0 +1,306 @@
+        <section class="view" id="view-brand-insights">
+          <div class="view-head">
+            <div>
+              <div class="eyebrow">Brand Workspace</div>
+              <h1 class="view-title">Brand Intelligence</h1>
+              <p class="view-copy">Inspect one brand in detail and compare two brands from the same workspace.</p>
+            </div>
+          </div>
+          <div class="insights-grid">
+            <section class="surface insight-card">
+              <div class="split-head">
+                <div>
+                  <div class="analytics-sub">Brand Insights</div>
+                  <strong>Brand reputation score and key insights</strong>
+                </div>
+              </div>
+              <div class="field">
+                <label for="brandInsightSelect">Brand</label>
+                <select class="control-select" id="brandInsightSelect"></select>
+              </div>
+              <div class="insight-score">
+                <div class="score-pill">Reputation Score <strong id="insightScoreValue">0.0</strong></div>
+                <span class="score-chip risk-medium" id="insightRiskChip">Monitoring</span>
+              </div>
+              <div class="summary-ribbon">
+                <div style="flex:1 1 180px">
+                  <strong id="brandWarningTitle">Early Warning</strong>
+                  <span id="brandWarningCopy">Brand-level risk warning will appear after data loads.</span>
+                </div>
+              </div>
+              <p class="insight-text" id="insightWhyText">Select a brand to inspect risk, strengths, and recommendation logic.</p>
+              <div>
+                <div class="analytics-sub">Pros</div>
+                <div class="pill-list" id="insightProsList"></div>
+              </div>
+              <div>
+                <div class="analytics-sub">Cons</div>
+                <div class="pill-list" id="insightConsList"></div>
+              </div>
+              <div>
+                <div class="analytics-sub">Recommended Action</div>
+                <p class="insight-text" id="insightRecommendation">Waiting for brand-level data.</p>
+              </div>
+            </section>
+            <section class="surface insight-card">
+              <div class="split-head">
+                <div>
+                  <div class="analytics-sub">Brand Comparison</div>
+                  <strong>Side-by-side signal comparison</strong>
+                </div>
+              </div>
+              <div class="field">
+                <label for="compareBrandA">Brand A</label>
+                <select class="control-select" id="compareBrandA"></select>
+              </div>
+              <div class="field">
+                <label for="compareBrandB">Brand B</label>
+                <select class="control-select" id="compareBrandB"></select>
+              </div>
+              <div class="compare-grid">
+                <div class="compare-row">
+                  <strong>Score</strong>
+                  <div class="compare-bar"><span id="compareScoreA" style="background:linear-gradient(90deg,var(--accent),rgba(103,211,255,0.45));"></span><span id="compareScoreB" style="background:linear-gradient(90deg,rgba(159,243,199,0.4),var(--accent-2));"></span></div>
+                  <span id="compareScoreText">0 vs 0</span>
+                </div>
+                <div class="compare-row">
+                  <strong>Positive</strong>
+                  <div class="compare-bar"><span id="comparePositiveA" style="background:linear-gradient(90deg,var(--positive),rgba(97,247,177,0.45));"></span><span id="comparePositiveB" style="background:linear-gradient(90deg,rgba(159,243,199,0.4),var(--positive));"></span></div>
+                  <span id="comparePositiveText">0% vs 0%</span>
+                </div>
+                <div class="compare-row">
+                  <strong>Negative</strong>
+                  <div class="compare-bar"><span id="compareNegativeA" style="background:linear-gradient(90deg,var(--negative),rgba(255,107,137,0.45));"></span><span id="compareNegativeB" style="background:linear-gradient(90deg,rgba(255,107,137,0.25),var(--negative));"></span></div>
+                  <span id="compareNegativeText">0% vs 0%</span>
+                </div>
+              </div>
+              <p class="compare-meta" id="compareSummary">Choose two brands to compare advantage, risk, and sentiment balance.</p>
+            </section>
+            <section class="surface insight-card">
+              <div class="split-head">
+                <div>
+                  <div class="analytics-sub">Brand Watchlist</div>
+                  <strong>Pin brands that need repeated monitoring</strong>
+                </div>
+              </div>
+              <div class="pill-list" id="brandWatchlistPills"></div>
+              <div class="inline-actions" style="margin-top: 14px;">
+                <button class="ghost-btn" id="addWatchlistButton" type="button">Add Selected Brand</button>
+                <button class="ghost-btn" id="clearWatchlistButton" type="button">Clear Watchlist</button>
+              </div>
+              <p class="mini-note" id="brandWatchlistNote">Use this watchlist to keep high-priority brands one click away.</p>
+            </section>
+            <section class="surface insight-card">
+              <div class="split-head">
+                <div>
+                  <div class="analytics-sub">Similar Products</div>
+                  <strong>Closest brands by reputation profile</strong>
+                </div>
+              </div>
+              <div class="similar-list" id="similarBrandList"></div>
+              <p class="mini-note">Similarity is inferred from brand reputation score and sentiment percentages already available in the dashboard dataset.</p>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="view-sentiment-distribution">
+          <div class="view-head">
+            <div>
+              <div class="eyebrow">Sentiment Intelligence</div>
+              <h1 class="view-title">Sentiment Insights</h1>
+              <p class="view-copy">Current sentiment mix and top review keywords in one workspace.</p>
+            </div>
+          </div>
+          <section class="surface analytics-card">
+            <div class="analytics-head">
+              <div>
+                <div class="analytics-sub">Sentiment Distribution</div>
+                <strong>Sentiment mix</strong>
+              </div>
+            </div>
+            <div class="dist-list">
+              <div class="dist-row">
+                <strong>Positive</strong>
+                <div class="dist-bar"><span id="distPositiveBar" style="background: linear-gradient(90deg, var(--positive), rgba(97,247,177,0.45));"></span></div>
+                <span id="distPositiveValue">0%</span>
+              </div>
+              <div class="dist-row">
+                <strong>Neutral</strong>
+                <div class="dist-bar"><span id="distNeutralBar" style="background: linear-gradient(90deg, var(--neutral), rgba(255,201,110,0.45));"></span></div>
+                <span id="distNeutralValue">0%</span>
+              </div>
+              <div class="dist-row">
+                <strong>Negative</strong>
+                <div class="dist-bar"><span id="distNegativeBar" style="background: linear-gradient(90deg, var(--negative), rgba(255,107,137,0.45));"></span></div>
+                <span id="distNegativeValue">0%</span>
+              </div>
+            </div>
+            <p class="dist-caption" id="distCaption">Distribution bars update from the current brand score payload.</p>
+          </section>
+            <section class="surface analytics-card">
+              <div class="analytics-head">
+                <div>
+                  <div class="analytics-sub">Sentiment Keywords</div>
+                  <strong>Keyword distribution by sentiment</strong>
+                </div>
+              </div>
+              <div class="keyword-list" id="keywordList">
+                <div class="keyword-caption">Sentiment keyword groups will appear after analytics load.</div>
+              </div>
+            </section>
+        </section>
+
+        <section class="view" id="view-review-trends">
+          <div class="view-head">
+            <div>
+              <div class="eyebrow">Trend Intelligence</div>
+              <h1 class="view-title">Review Trends</h1>
+              <p class="view-copy">Monthly sentiment movement across the selected window.</p>
+            </div>
+            <div class="trend-head-controls">
+              <div class="field">
+                <label for="trendWindowSelect">Time Window</label>
+                <select class="control-select" id="trendWindowSelect" aria-label="Trend time window">
+                  <option value="all">All months</option>
+                  <option value="12">Last 12 months</option>
+                  <option value="6">Last 6 months</option>
+                  <option value="3">Last 3 months</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="trendBrandSelect">Brand</label>
+                <select class="control-select" id="trendBrandSelect" aria-label="Trend brand filter">
+                  <option value="">All brands</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <section class="surface analytics-card">
+            <div class="analytics-head">
+              <div>
+                <div class="analytics-sub">Review Trends</div>
+                <strong>Trend lines</strong>
+              </div>
+            </div>
+            <div class="trend-shell">
+              <svg id="trendChart" viewBox="0 0 320 180" role="img" aria-label="Sentiment trend chart">
+                <g id="trendGrid"></g>
+                <path id="trendPositivePath" data-sentiment="Positive" fill="none" stroke="var(--positive)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="cursor:pointer"></path>
+                <path id="trendNeutralPath" data-sentiment="Neutral" fill="none" stroke="var(--neutral)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="cursor:pointer"></path>
+                <path id="trendNegativePath" data-sentiment="Negative" fill="none" stroke="var(--negative)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="cursor:pointer"></path>
+                <g id="trendLabels"></g>
+              </svg>
+            </div>
+            <div class="trend-legend">
+              <span data-sentiment="Positive"><i style="background: var(--positive);"></i>Positive</span>
+              <span data-sentiment="Neutral"><i style="background: var(--neutral);"></i>Neutral</span>
+              <span data-sentiment="Negative"><i style="background: var(--negative);"></i>Negative</span>
+            </div>
+            <div class="summary-ribbon">
+              <div style="flex:1 1 220px">
+                <strong id="trendMomentumTitle">Sentiment Momentum</strong>
+                <span id="trendMomentumCopy">Available after trend data loads.</span>
+              </div>
+            </div>
+            <div class="summary-ribbon">
+              <div style="flex:1 1 220px">
+                <strong id="trendMonthlyCompareTitle">Monthly Comparison</strong>
+                <span id="trendMonthlyCompareCopy">Available after trend data loads.</span>
+              </div>
+            </div>
+            <div class="summary-ribbon">
+              <div style="flex:1 1 220px">
+                <strong id="trendReviewVolumeTitle">Review Volume</strong>
+                <span id="trendReviewVolumeCopy">Available after trend data loads.</span>
+              </div>
+              <div style="flex:1 1 320px">
+                <strong>Export Reports</strong>
+                <div class="inline-actions" style="margin-top: 10px;">
+                  <button class="ghost-btn" id="downloadTrendCsvButton" type="button">Download CSV</button>
+                  <button class="ghost-btn" id="downloadTrendReportButton" type="button">Download HTML</button>
+                  <button class="ghost-btn" id="downloadTrendPdfButton" type="button">Print PDF</button>
+                </div>
+              </div>
+            </div>
+            <p class="trend-caption" id="trendCaption">Waiting for trend data.</p>
+            <div class="summary-ribbon">
+              <div style="flex:1 1 100%;">
+                <strong id="trendDrilldownTitle">Interactive Chart Drill-down</strong>
+                <span id="trendDrilldownCopy">Click a sentiment to load review samples.</span>
+              </div>
+            </div>
+            <div class="review-drilldown-list" id="trendReviewDrilldown">
+              <div class="mini-note">Review samples will appear here after you click a sentiment line or legend item.</div>
+            </div>
+          </section>
+        </section>
+
+        <section class="view" id="view-customer-intelligence">
+          <div class="view-head">
+            <div>
+              <div class="eyebrow">Analyst Intelligence</div>
+              <h1 class="view-title">Customer Voice</h1>
+              <p class="view-copy">Complaint themes and satisfaction in one view.</p>
+            </div>
+            <div class="trend-head-controls">
+              <div class="field">
+                <label for="customerVoiceWindowSelect">Time Window</label>
+                <select class="control-select" id="customerVoiceWindowSelect" aria-label="Customer voice time window">
+                  <option value="all">All months</option>
+                  <option value="12">Last 12 months</option>
+                  <option value="6">Last 6 months</option>
+                  <option value="3">Last 3 months</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="customerVoiceBrandSelect">Brand</label>
+                <select class="control-select" id="customerVoiceBrandSelect" aria-label="Customer voice brand filter">
+                  <option value="">All brands</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="analytics-grid">
+            <section class="surface analytics-card">
+              <div class="analytics-head">
+                <div>
+                  <div class="analytics-sub">Top Complaint Topics</div>
+                  <strong>Top complaint themes</strong>
+                </div>
+              </div>
+              <div class="pill-list" id="analystComplaintTopicsList"></div>
+              <p class="mini-note" id="analystComplaintTopicsNote">Ranked from frequent negative keywords.</p>
+            </section>
+            <section class="surface analytics-card">
+              <div class="analytics-head">
+                <div>
+                  <div class="analytics-sub" id="analystCsatTitle">Customer Satisfaction Score</div>
+                </div>
+              </div>
+              <div class="review-drilldown-list" id="analystCsatList">
+                <div class="mini-note">CSAT will appear after brand analytics data loads.</div>
+              </div>
+              <p class="mini-note" id="analystCsatNote">Satisfaction proxy based on sentiment mix.</p>
+            </section>
+          </div>
+          <section class="surface" style="margin-top: 18px;">
+            <div class="summary-ribbon">
+              <div style="flex:1 1 320px">
+                <strong id="customerVoiceFindingTitle">Key Finding</strong>
+                <span id="customerVoiceFindingCopy">Analyst insight will appear after data loads.</span>
+              </div>
+              <div style="flex:1 1 320px">
+                <strong id="customerVoiceActionTitle">Recommended Action</strong>
+                <span id="customerVoiceActionCopy">Action guidance will appear after data loads.</span>
+              </div>
+              <div style="flex:1 1 320px">
+                <strong>Export</strong>
+                <div class="inline-actions" style="margin-top: 10px;">
+                  <button class="ghost-btn" id="downloadCustomerVoiceCsvButton" type="button">Download CSV</button>
+                  <button class="ghost-btn" id="downloadCustomerVoiceReportButton" type="button">Download HTML</button>
+                  <button class="ghost-btn" id="downloadCustomerVoicePdfButton" type="button">Print PDF</button>
+                </div>
+              </div>
+            </div>
+          </section>
+        </section>

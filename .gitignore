@@ -3,6 +3,7 @@ __pycache__/
 .venv/
 .vscode/
 .env
+.flask-session-secret
 tests/tmp*/
 tests/_tmp_*
 debug.log
@@ -11,19 +12,7 @@ generated/
 # Legacy root dataset output is no longer used. Canonical data lives in backend/dataset/.
 dataset/
 
-backend/dataset/cleaned_reviews.csv
-backend/dataset/feature_dataset.csv
-backend/dataset/*.pkl
-backend/dataset/*.png
-backend/dataset/model_report.txt
-backend/dataset/training_history.csv
-backend/dataset/model_metrics.csv
-backend/dataset/final_predictions.csv
-backend/dataset/brand_score.json
-backend/dataset/brand_reputation_by_brand.csv
-backend/dataset/dashboard_users.json
-backend/dataset/connector_state.json
-backend/dataset/connector_scheduler.json
-backend/dataset/realtime_reviews.csv
-backend/dataset/platform_summary.csv
-backend/dataset/sentiment_trends.csv
+backend/dataset/processed/
+backend/dataset/models/
+backend/dataset/reports/
+backend/dataset/state/

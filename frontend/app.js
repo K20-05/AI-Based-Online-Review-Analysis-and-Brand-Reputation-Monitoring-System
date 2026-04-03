@@ -1,7 +1,17 @@
 const BrandPulseShared = window.BrandPulseShared;
+const BrandPulseDashboard = window.BrandPulseDashboard;
+const BrandPulseBrandWorkspace = window.BrandPulseBrandWorkspace;
 
 if (!BrandPulseShared) {
   throw new Error("BrandPulse shared frontend helpers failed to load.");
+}
+
+if (!BrandPulseDashboard) {
+  throw new Error("BrandPulse dashboard frontend helpers failed to load.");
+}
+
+if (!BrandPulseBrandWorkspace) {
+  throw new Error("BrandPulse brand workspace frontend helpers failed to load.");
 }
 
 const {
@@ -42,18 +52,25 @@ const state = {
   latestSentiment: "Standby",
   trends: [],
   keywords: [],
+  keywordGroups: emptyKeywordGroups(),
   customerVoiceKeywords: [],
   customerVoiceKeywordCache: {},
+  customerVoiceKeywordsError: "",
+  customerVoiceKeywordsFallback: false,
+  customerVoiceLastScopeKey: "",
+  customerVoiceLastLoadedScopeKey: "",
   brands: [],
   users: [],
   usersLoaded: false,
   platforms: [],
   realtimeSummary: emptyRealtimeSummary(),
   latestRealtimeReviews: [],
+  latestRealtimeReviewsMode: "empty",
   modelMetrics: null,
   modelTrainingAt: "",
   adminNotifications: [],
   trendDrilldownSentiment: "",
+  trendReviewSamplesCache: {},
   watchlist: [],
   navButtons: null,
   openNavGroup: {},
@@ -62,7 +79,11 @@ const state = {
   customerVoiceWindow: "all",
   customerVoiceBrand: "",
   customerVoiceKeywordsLoading: false,
+  dashboardKeywordsLoading: false,
+  dashboardKeywordsError: "",
+  trendDataLoading: false,
   customerVoiceRequestSeq: 0,
+  dashboardKeywordRequestSeq: 0,
   trendRequestSeq: 0,
   userRole: "analyst",
   currentView: "dashboard",
@@ -72,10 +93,112 @@ const state = {
   dashboardAutoRefreshTimer: null,
   dashboardAutoRefreshInFlight: false,
   dashboardRefreshRequestSeq: 0,
+  dashboardAnalyticsRequestSeq: 0,
+  apiPreferredBaseUrl: "",
   apiPreferredCandidates: {},
   storageScope: "guest",
-  sessionRevision: 0
+  sessionRevision: 0,
+  isAuthenticated: false,
+  sessionRecheckPromise: null
 };
+
+let brandWorkspaceModule = null;
+
+async function renderBrandInsights() {
+  if (!brandWorkspaceModule) return;
+  return brandWorkspaceModule.renderBrandInsights();
+}
+
+const {
+  renderDashboardOverview,
+  updateDashboard,
+  renderSignalRadar,
+  renderComplaintTopics,
+  renderBrandEarlyWarning,
+  renderTrendMomentum,
+  renderTrendMonthlyComparison,
+  renderSummaryDeepIntelligence,
+  applyAnalyticsSummaryPresentation,
+  renderSmartInsight,
+  renderTrendReviewVolume,
+  renderRoleDashboardPanel,
+  renderAnalystFocusPanel,
+  openBrandFromRoleDashboard,
+  setTrendDrilldownActive,
+  prefetchTrendDrilldownSamples,
+  loadTrendDrilldown,
+  renderTrendChart
+} = BrandPulseDashboard.createDashboardModule({
+  state,
+  $,
+  $$,
+  normalizeAccessRole,
+  normalizeBrandScore,
+  formatRealtimeTimestamp,
+  riskMeta,
+  renderGauge,
+  updateDistributionChart,
+  renderAnalystCustomerVoice,
+  renderMarketingSignals,
+  renderAdminOps,
+  applyDashboardRolePresentation,
+  renderAnalyticsSummaryContext,
+  renderPillList,
+  customerVoiceWindowLabel,
+  activeTrendBrandLabel,
+  getScoreExtremes,
+  getWindowedTrends,
+  sentimentClass,
+  escapeHtml,
+  callApi,
+  sameSessionRevision,
+  handleAuthError,
+  requestCustomerVoiceKeywordsRefresh,
+  viewRouter,
+  renderBrandInsights,
+  toast
+});
+
+brandWorkspaceModule = BrandPulseBrandWorkspace.createBrandWorkspaceModule({
+  state,
+  $,
+  clamp,
+  WATCHLIST_KEY,
+  normalizeAccessRole,
+  normalizeBrandRow,
+  riskMeta,
+  renderBrandEarlyWarning,
+  renderPillList,
+  buildPros,
+  buildCons,
+  buildWhyText,
+  buildRecommendation,
+  escapeHtml,
+  populateCustomerVoiceBrandSelect,
+  renderKeywords,
+  renderAnalystCustomerVoice,
+  renderAnalystFocusPanel,
+  renderSmartInsight,
+  renderAnalyticsSummaryContext,
+  renderRoleDashboardPanel,
+  callApi,
+  handleAuthError,
+  viewRouter,
+  toast,
+  scopedStorageWrite
+});
+
+const {
+  renderBrandComparison,
+  renderDashboardAnalyticsState,
+  addSelectedBrandToWatchlist,
+  clearBrandWatchlist,
+  handleWatchlistPick,
+  handleBrandQuickPick,
+  handleInsightQuickPick,
+  handleCompareQuickPick
+} = brandWorkspaceModule;
+
 let confirmResolve = null;
 
 function scopedStorageKey(baseKey) {
@@ -145,7 +268,12 @@ function sameSessionRevision(revision) {
     function toast(message, type = "info") {
       const toastEl = document.createElement("div");
       toastEl.className = "toast " + type;
-      toastEl.innerHTML = "<strong>" + type + "</strong><p>" + message + "</p>";
+      const titleEl = document.createElement("strong");
+      const bodyEl = document.createElement("p");
+      titleEl.textContent = type;
+      bodyEl.textContent = message;
+      toastEl.appendChild(titleEl);
+      toastEl.appendChild(bodyEl);
       $("#toastStack").appendChild(toastEl);
       $("#srAnnouncements").textContent = message;
       window.setTimeout(() => {
@@ -301,6 +429,7 @@ function sameSessionRevision(revision) {
     function applyDashboardRolePresentation(role) {
       const resolved = normalizeAccessRole(role);
       const dashboardView = $("#view-dashboard");
+      const previousRole = dashboardView?.getAttribute("data-role") || "";
       const eyebrow = document.querySelector("#view-dashboard .eyebrow");
       const title = document.querySelector("#view-dashboard .view-title");
       const copy = document.querySelector("#view-dashboard .view-copy");
@@ -317,8 +446,13 @@ function sameSessionRevision(revision) {
       const statsSection = $("#dashboardStatsSection");
       const summarySection = $("#dashboardSummarySection");
       const dashboardInsightCard = $("#dashboardInsightCard");
+      const dashboardActivityCard = $("#dashboardActivityCard");
+      const alertEyebrow = $("#dashboardAlertEyebrow");
       const alertTitle = $("#dashboardAlertTitle");
       const alertCopy = $("#dashboardAlertCopy");
+      const disclosureEyebrow = $("#dashboardDisclosureEyebrow");
+      const disclosureTitle = $("#dashboardDisclosureTitle");
+      const disclosureHint = $("#dashboardDisclosureHint");
       const adminControlHub = $("#adminControlHub");
       if (dashboardView) dashboardView.setAttribute("data-role", resolved);
       renderRoleDashboardPanel();
@@ -329,10 +463,7 @@ function sameSessionRevision(revision) {
       if (brandQuickSection) brandQuickSection.classList.add("hidden");
       if (marketingSignalSection) marketingSignalSection.classList.add("hidden");
       if (analystFocusSection) analystFocusSection.classList.add("hidden");
-      if (dashboardDisclosure) {
-        dashboardDisclosure.classList.add("hidden");
-        dashboardDisclosure.open = false;
-      }
+      if (dashboardDisclosure) dashboardDisclosure.classList.add("hidden");
       if (gaugeSection) gaugeSection.classList.remove("hidden");
       if (dashboardLayout) {
         dashboardLayout.classList.remove("dashboard-layout--stats-only");
@@ -344,47 +475,71 @@ function sameSessionRevision(revision) {
       }
       if (summarySection) summarySection.classList.remove("hidden");
       if (dashboardInsightCard) dashboardInsightCard.classList.add("hidden");
+      if (dashboardActivityCard) dashboardActivityCard.classList.remove("hidden");
       if (adminControlHub) adminControlHub.classList.add("hidden");
 
       if (resolved === "admin") {
         if (eyebrow) eyebrow.textContent = "DASHBOARD";
         if (title) title.textContent = "Executive Dashboard";
-        if (copy) copy.textContent = "Key system health, risk, and activity at a glance.";
+        if (copy) copy.textContent = "Key system health, risk, and readiness at a glance.";
         if (commandStrip) commandStrip.classList.remove("hidden");
-        if (roleDashboardPanel) roleDashboardPanel.classList.add("hidden");
-        if (dashboardInsightCard) dashboardInsightCard.classList.remove("hidden");
+        if (roleDashboardPanel) roleDashboardPanel.classList.remove("hidden");
+        if (dashboardInsightCard) dashboardInsightCard.classList.add("hidden");
+        if (dashboardActivityCard) dashboardActivityCard.classList.add("hidden");
         if (adminControlHub) adminControlHub.classList.remove("hidden");
         if (dashboardDisclosure) dashboardDisclosure.classList.remove("hidden");
         if (syncButton) syncButton.textContent = "Sync";
         if (refreshButton) refreshButton.textContent = "Refresh";
+        if (alertEyebrow) alertEyebrow.textContent = "Executive Note";
         if (alertTitle) alertTitle.textContent = "System Alert";
         if (alertCopy) alertCopy.textContent = "Watch model readiness, complaint pressure, and ingest health.";
+        if (disclosureEyebrow) disclosureEyebrow.textContent = "Detailed View";
+        if (disclosureTitle) disclosureTitle.textContent = "Diagnostics and supporting signals";
+        if (disclosureHint) disclosureHint.textContent = "Open";
+        if (dashboardDisclosure) {
+          dashboardDisclosure.classList.remove("hidden");
+          dashboardDisclosure.open = false;
+        }
         return;
       }
 
       if (resolved === "marketing_staff") {
         if (eyebrow) eyebrow.textContent = "MARKETING";
         if (title) title.textContent = "Brand Monitoring Dashboard";
-        if (copy) copy.textContent = "Score, brand movement, and recent activity at a glance.";
+        if (copy) copy.textContent = "Leaders, comparison readiness, and brand risk in one campaign-facing view.";
         if (brandQuickSection) brandQuickSection.classList.remove("hidden");
         if (marketingSignalSection) marketingSignalSection.classList.remove("hidden");
-        if (dashboardDisclosure) dashboardDisclosure.classList.remove("hidden");
+        if (dashboardDisclosure) {
+          dashboardDisclosure.classList.remove("hidden");
+          if (previousRole !== resolved) dashboardDisclosure.open = true;
+        }
         if (syncButton) syncButton.textContent = "Sync";
         if (refreshButton) refreshButton.textContent = "Refresh";
+        if (alertEyebrow) alertEyebrow.textContent = "Market Note";
         if (alertTitle) alertTitle.textContent = "Market Alert";
         if (alertCopy) alertCopy.textContent = "Catch brand risk and customer shifts early.";
+        if (disclosureEyebrow) disclosureEyebrow.textContent = "Market Monitor";
+        if (disclosureTitle) disclosureTitle.textContent = "Brand leaderboard and early warnings";
+        if (disclosureHint) disclosureHint.textContent = "Expand";
         return;
       }
 
       if (eyebrow) eyebrow.textContent = "ANALYST";
       if (title) title.textContent = "Analyst Dashboard";
-      if (copy) copy.textContent = "Track score, signal shifts, and recent activity.";
+      if (copy) copy.textContent = "Investigate trend changes, complaint spikes, and the latest review evidence.";
       if (analystFocusSection) analystFocusSection.classList.remove("hidden");
-      if (dashboardDisclosure) dashboardDisclosure.classList.remove("hidden");
+      if (dashboardDisclosure) {
+        dashboardDisclosure.classList.remove("hidden");
+        if (previousRole !== resolved) dashboardDisclosure.open = true;
+      }
       if (syncButton) syncButton.textContent = "Sync";
       if (refreshButton) refreshButton.textContent = "Refresh";
+      if (alertEyebrow) alertEyebrow.textContent = "Analysis Note";
       if (alertTitle) alertTitle.textContent = "Analysis Alert";
       if (alertCopy) alertCopy.textContent = "Watch sentiment swings before drawing conclusions.";
+      if (disclosureEyebrow) disclosureEyebrow.textContent = "Investigation Desk";
+      if (disclosureTitle) disclosureTitle.textContent = "Diagnostic signals and quick analysis actions";
+      if (disclosureHint) disclosureHint.textContent = "Inspect";
     }
 
     function applyRoleAccess(role, options = {}) {
@@ -450,7 +605,15 @@ function sameSessionRevision(revision) {
       resetSingleAspectResult();
     }
 
+    function setBatchSummaryVisibility(visible) {
+      const layout = $("#batchLayout");
+      const sidebar = $("#batchSidebar");
+      if (layout) layout.classList.toggle("batch-layout--solo", !visible);
+      if (sidebar) sidebar.classList.toggle("hidden", !visible);
+    }
+
     function resetBatchResultView() {
+      setBatchSummaryVisibility(false);
       $("#batchProcessedCount").textContent = "0";
       $("#batchTechnicalJson").textContent = "{}";
       renderGauge($("#batchGauge"), 0, {
@@ -474,8 +637,13 @@ function sameSessionRevision(revision) {
       state.latestSentiment = "Standby";
       state.trends = [];
       state.keywords = [];
+      state.keywordGroups = emptyKeywordGroups();
       state.customerVoiceKeywords = [];
       state.customerVoiceKeywordCache = {};
+      state.customerVoiceKeywordsError = "";
+      state.customerVoiceKeywordsFallback = false;
+      state.customerVoiceLastScopeKey = "";
+      state.customerVoiceLastLoadedScopeKey = "";
       state.brands = [];
       state.users = [];
       state.usersLoaded = false;
@@ -483,10 +651,12 @@ function sameSessionRevision(revision) {
       state.platforms = [];
       state.realtimeSummary = emptyRealtimeSummary();
       state.latestRealtimeReviews = [];
+      state.latestRealtimeReviewsMode = "empty";
       state.modelMetrics = null;
       state.modelTrainingAt = "";
       state.adminNotifications = [];
       state.trendDrilldownSentiment = "";
+      state.trendReviewSamplesCache = {};
       state.watchlist = scopedStorageRead(WATCHLIST_KEY, []);
       state.openNavGroup = {};
       state.trendWindow = "all";
@@ -494,12 +664,17 @@ function sameSessionRevision(revision) {
       state.customerVoiceWindow = "all";
       state.customerVoiceBrand = "";
       state.customerVoiceKeywordsLoading = false;
+      state.dashboardKeywordsLoading = false;
+      state.dashboardKeywordsError = "";
+      state.trendDataLoading = false;
       state.customerVoiceRequestSeq += 1;
+      state.dashboardKeywordRequestSeq = 0;
       state.trendRequestSeq += 1;
       state.insightRequestSeq += 1;
       state.compareRequestSeq += 1;
       state.usersLoading = false;
       state.dashboardAutoRefreshInFlight = false;
+      state.dashboardAnalyticsRequestSeq = 0;
 
       applyRoleAccess(nextRole, { loadAdminData: false });
       updateDashboard(state.brandScore);
@@ -528,327 +703,6 @@ function sameSessionRevision(revision) {
       return Array.from($("#brandInsightSelect")?.options || [])
         .map((option) => String(option.value || "").trim())
         .filter((value) => value && value.toLowerCase() !== "no brands available");
-    }
-
-    function renderBrandQuickList(brands) {
-      const host = $("#brandQuickList");
-      const eyebrow = $("#dashboardBrandEyebrow");
-      const title = $("#dashboardBrandTitle");
-      const note = $("#dashboardBrandNote");
-      if (!host) return;
-      const role = normalizeAccessRole(state.userRole);
-      if (!Array.isArray(brands) || !brands.length) {
-        if (eyebrow) eyebrow.textContent = role === "admin" ? "Portfolio Directory" : "Portfolio Leaderboard";
-        if (title) title.textContent = role === "admin" ? "Available brands" : "Top brand reputation performers";
-        const emptyCopy = role === "admin"
-          ? "Brand directory will appear after analytics data loads."
-          : "Portfolio leaderboard will appear after analytics data loads.";
-        if (note) note.textContent = emptyCopy;
-        host.innerHTML = '<div class="mini-note">' + emptyCopy + "</div>";
-        return;
-      }
-      const filtered = brands
-        .slice()
-        .filter((item) => String(item.brand || "").trim());
-      if (role === "admin") {
-        if (eyebrow) eyebrow.textContent = "Portfolio Directory";
-        if (title) title.textContent = "Available brands";
-        if (note) note.textContent = "Open any brand to inspect details.";
-        const sorted = filtered
-          .sort((a, b) => String(a.brand || "").localeCompare(String(b.brand || "")));
-        host.innerHTML = sorted.map((brand) => {
-          return '<button class="brand-quick-btn" type="button" data-brand="' + brand.brand + '"><span>' + brand.brand + '</span></button>';
-        }).join("");
-        return;
-      }
-      if (eyebrow) eyebrow.textContent = "Portfolio Leaderboard";
-      if (title) title.textContent = "Top brand reputation performers";
-      if (note) note.textContent = "Current top-ranked brands.";
-      const sorted = filtered
-        .sort((a, b) => Number(b.brand_reputation_score || 0) - Number(a.brand_reputation_score || 0))
-        .slice(0, 6);
-      host.innerHTML = sorted.map((brand) => {
-        return '<button class="brand-quick-btn" type="button" data-brand="' + brand.brand + '"><span>' + brand.brand + '</span><b>' + Number(brand.brand_reputation_score || 0).toFixed(1) + "</b></button>";
-      }).join("");
-    }
-
-    function renderMarketingSignals() {
-      const leaderboardTitle = $("#marketingLeaderboardTitle");
-      const leaderboardHost = $("#marketingLeaderboardList");
-      const warningTitle = $("#marketingWarningTitle");
-      const warningCopy = $("#marketingWarningCopy");
-      if (!leaderboardTitle || !leaderboardHost || !warningTitle || !warningCopy) return;
-
-      const brands = Array.isArray(state.brands) ? state.brands.slice() : [];
-      if (!brands.length) {
-        leaderboardTitle.textContent = "Top performers";
-        leaderboardHost.innerHTML = '<div class="mini-note">Leaderboard will appear after analytics data loads.</div>';
-        warningTitle.textContent = "No active warning";
-        warningCopy.textContent = "Brand-level warning will appear after analytics data loads.";
-        return;
-      }
-
-      const sorted = brands
-        .filter((item) => String(item.brand || "").trim())
-        .sort((a, b) => Number(b.brand_reputation_score || 0) - Number(a.brand_reputation_score || 0));
-      leaderboardTitle.textContent = "Current top 4 brands";
-      leaderboardHost.innerHTML = sorted.slice(0, 4).map((item, index) => {
-        return [
-          '<article class="similar-item">',
-          '<div><strong>#' + String(index + 1) + " " + item.brand + '</strong><span>Positive ' + Number(item.positive_pct || 0).toFixed(1) + '%</span></div>',
-          '<span class="score-chip">Score ' + Number(item.brand_reputation_score || 0).toFixed(1) + "</span>",
-          "</article>"
-        ].join("");
-      }).join("");
-
-      const warningBrand = sorted
-        .slice()
-        .sort((a, b) => Number(b.negative_pct || 0) - Number(a.negative_pct || 0))[0];
-      if (!warningBrand) {
-        warningTitle.textContent = "No active warning";
-        warningCopy.textContent = "Warning logic will appear after brand analytics load.";
-        return;
-      }
-      const topKeyword = Array.isArray(state.keywords) && state.keywords[0] ? "#" + state.keywords[0].word : "negative complaint topics";
-      if (Number(warningBrand.negative_pct || 0) >= 40) {
-        warningTitle.textContent = warningBrand.brand + " negative sentiment rising";
-        warningCopy.innerHTML = [
-          '<div class="marketing-warning">',
-          '<span class="marketing-warning-chip warning-critical">High Warning</span>',
-          '<div class="marketing-warning-lines">',
-          '<div><strong>Signal</strong> Negative share at ' + Number(warningBrand.negative_pct || 0).toFixed(1) + '%.</div>',
-          '<div><strong>Topic</strong> ' + (topKeyword.charAt(0) === "#"
-            ? topKeyword.replace("#", "").replace(/^\w/, (char) => char.toUpperCase()) + " complaints increasing."
-            : "Delivery complaints increasing.") + "</div>",
-          '<div><strong>Action</strong> Review campaign impact and service messaging immediately.</div>',
-          "</div>",
-          "</div>"
-        ].join("");
-      } else if (Number(warningBrand.brand_reputation_score || 0) < 15) {
-        warningTitle.textContent = warningBrand.brand + " reputation weakening";
-        warningCopy.innerHTML = [
-          '<div class="marketing-warning">',
-          '<span class="marketing-warning-chip warning-watch">Watch</span>',
-          '<div class="marketing-warning-lines">',
-          '<div><strong>Signal</strong> Reputation score at ' + Number(warningBrand.brand_reputation_score || 0).toFixed(1) + ".</div>",
-          '<div><strong>Action</strong> Monitor service quality, support feedback, and campaign perception.</div>',
-          "</div>",
-          "</div>"
-        ].join("");
-      } else {
-        warningTitle.textContent = "Portfolio stable";
-        warningCopy.innerHTML = [
-          '<div class="marketing-warning">',
-          '<span class="marketing-warning-chip warning-stable">Stable</span>',
-          '<div class="marketing-warning-lines">',
-          '<div><strong>Status</strong> No brand is currently in a strong warning zone.</div>',
-          '<div><strong>Action</strong> Continue weekly monitoring for sudden complaint spikes.</div>',
-          "</div>",
-          "</div>"
-        ].join("");
-      }
-    }
-
-    function calculateCsat(row) {
-      const positive = Number(row?.positive_pct || 0);
-      const neutral = Number(row?.neutral_pct || 0);
-      return clamp(positive + neutral * 0.5, 0, 100);
-    }
-
-    function renderCsatList(titleId, hostId, noteId) {
-      const title = $("#" + titleId);
-      const host = $("#" + hostId);
-      const note = $("#" + noteId);
-      if (!title || !host || !note) return;
-      const brands = Array.isArray(state.brands) ? state.brands.slice() : [];
-      if (!brands.length) {
-        title.textContent = "CSAT by brand";
-        host.innerHTML = '<div class="mini-note">CSAT will appear after brand analytics data loads.</div>';
-        note.textContent = titleId === "analystCsatTitle"
-          ? "Satisfaction proxy based on sentiment mix."
-          : "CSAT is derived from positive share plus half of neutral share for a simple satisfaction proxy.";
-        return;
-      }
-      const ranked = brands
-        .filter((item) => String(item.brand || "").trim())
-        .map((item) => ({ ...item, csat: calculateCsat(item) }))
-        .sort((a, b) => b.csat - a.csat)
-        .slice(0, 4);
-      title.textContent = "Customer Satisfaction Score";
-      host.className = "csat-list";
-      host.innerHTML = ranked.map((item) => {
-        return [
-          '<article class="csat-row">',
-          '<div class="csat-main"><span class="csat-brand">' + item.brand + '</span><strong class="csat-score">' + item.csat.toFixed(0) + '/100</strong></div>',
-          '<div class="csat-meta"><span class="csat-tag">CSAT</span><span class="csat-positive">Positive ' + Number(item.positive_pct || 0).toFixed(1) + '%</span></div>',
-          '</article>'
-        ].join("");
-      }).join("");
-      note.textContent = titleId === "analystCsatTitle"
-        ? "Satisfaction proxy based on sentiment mix."
-        : "CSAT is calculated as Positive % + 0.5 x Neutral %, shown as a 100-point satisfaction proxy.";
-    }
-
-    function renderAnalystCustomerVoice() {
-      renderCsatList("analystCsatTitle", "analystCsatList", "analystCsatNote");
-      renderComplaintTopics("analystComplaintTopicsList", "analystComplaintTopicsNote");
-      renderCustomerVoiceInsight();
-    }
-
-    async function refreshCustomerVoiceKeywords() {
-      if (normalizeAccessRole(state.userRole) !== "analyst") {
-        state.customerVoiceKeywordsLoading = false;
-        state.customerVoiceKeywords = [];
-        return;
-      }
-      const host = $("#analystComplaintTopicsList");
-      const note = $("#analystComplaintTopicsNote");
-      const requestSeq = ++state.customerVoiceRequestSeq;
-      const cacheKey = [
-        String(state.customerVoiceBrand || "").trim().toLowerCase(),
-        String(state.customerVoiceWindow || "all").trim().toLowerCase(),
-        "negative"
-      ].join("|");
-      if (state.customerVoiceKeywordCache && Array.isArray(state.customerVoiceKeywordCache[cacheKey])) {
-        state.customerVoiceKeywords = state.customerVoiceKeywordCache[cacheKey].slice();
-        state.customerVoiceKeywordsLoading = false;
-        renderComplaintTopics("analystComplaintTopicsList", "analystComplaintTopicsNote");
-        renderCustomerVoiceInsight();
-        return;
-      }
-      state.customerVoiceKeywordsLoading = true;
-      state.customerVoiceKeywords = [];
-      if (host) host.innerHTML = '<span>Loading complaint themes</span>';
-      if (note) note.textContent = "Updating complaint themes for the current brand and time window.";
-      renderCustomerVoiceInsight();
-
-      const params = new URLSearchParams();
-      if (state.customerVoiceBrand) params.set("brand", state.customerVoiceBrand);
-      params.set("months", state.customerVoiceWindow || "all");
-      params.set("sentiment", "Negative");
-
-      try {
-        const payload = await callApi("/dashboard/keywords?" + params.toString());
-        if (requestSeq !== state.customerVoiceRequestSeq) return;
-        state.customerVoiceKeywords = Array.isArray(payload.keywords) ? payload.keywords : [];
-        state.customerVoiceKeywordCache[cacheKey] = state.customerVoiceKeywords.slice();
-      } catch (error) {
-        if (requestSeq !== state.customerVoiceRequestSeq) return;
-        if (handleAuthError(error)) return;
-        state.customerVoiceKeywords = [];
-        if (host) host.innerHTML = '<span>Complaint themes unavailable</span>';
-        if (note) note.textContent = "Unable to load complaint themes for the current selection.";
-      } finally {
-        if (requestSeq !== state.customerVoiceRequestSeq) return;
-        state.customerVoiceKeywordsLoading = false;
-        renderComplaintTopics("analystComplaintTopicsList", "analystComplaintTopicsNote");
-        renderCustomerVoiceInsight();
-      }
-    }
-
-    function renderBrandSideLists(brands) {
-      const hosts = [$("#brandInsightQuickList"), $("#brandCompareQuickList")].filter(Boolean);
-      if (!hosts.length) return;
-      if (!Array.isArray(brands) || !brands.length) {
-        hosts.forEach((host) => {
-          host.innerHTML = '<div class="mini-note">Brand list will appear after analytics data loads.</div>';
-        });
-        return;
-      }
-      const sorted = brands
-        .map((item) => String(item.brand || "").trim())
-        .filter(Boolean)
-        .sort((a, b) => a.localeCompare(b));
-      const markup = sorted.map((brand) => {
-        return '<button class="brand-quick-btn" type="button" data-brand="' + brand + '">' + brand + "</button>";
-      }).join("");
-      hosts.forEach((host) => {
-        host.innerHTML = markup;
-      });
-    }
-
-    function renderBrandWatchlist() {
-      const host = $("#brandWatchlistPills");
-      const note = $("#brandWatchlistNote");
-      if (!host || !note) return;
-      const watchlist = Array.isArray(state.watchlist) ? state.watchlist.filter(Boolean) : [];
-      if (!watchlist.length) {
-        host.innerHTML = '<span>No watched brands yet</span>';
-        note.textContent = "Use this watchlist to keep high-priority brands one click away.";
-        return;
-      }
-      host.innerHTML = watchlist.map((brand) => '<button class="ghost-btn" type="button" data-watch-brand="' + brand + '">' + brand + "</button>").join("");
-      note.textContent = "Watchlist active for " + watchlist.length + " brand" + (watchlist.length === 1 ? "" : "s") + ".";
-    }
-
-    function saveWatchlist(nextWatchlist) {
-      state.watchlist = Array.from(new Set((nextWatchlist || []).map((item) => String(item || "").trim()).filter(Boolean))).slice(0, 8);
-      scopedStorageWrite(WATCHLIST_KEY, state.watchlist);
-      renderBrandWatchlist();
-    }
-
-    function addSelectedBrandToWatchlist() {
-      const select = $("#brandInsightSelect");
-      const brand = select ? String(select.value || "").trim() : "";
-      if (!brand) {
-        toast("Select a brand before adding to watchlist.", "error");
-        return;
-      }
-      saveWatchlist([...(state.watchlist || []), brand]);
-      toast(brand + " added to watchlist.", "success");
-    }
-
-    function clearBrandWatchlist() {
-      saveWatchlist([]);
-      toast("Brand watchlist cleared.", "info");
-    }
-
-    function handleWatchlistPick(event) {
-      const button = event.target.closest("button[data-watch-brand]");
-      if (!button) return;
-      const brand = button.dataset.watchBrand || "";
-      if (!brand) return;
-      $("#brandInsightSelect").value = brand;
-      renderBrandInsights();
-      toast("Loaded watchlist brand " + brand + ".", "success");
-    }
-
-    function handleBrandQuickPick(event) {
-      const button = event.target.closest("button[data-brand]");
-      if (!button) return;
-      const brand = button.dataset.brand || "";
-      if (!brand) return;
-      $("#brandInsightSelect").value = brand;
-      viewRouter("brand-insights");
-      renderBrandInsights();
-      toast("Showing insights for " + brand + ".", "success");
-    }
-
-    function handleInsightQuickPick(event) {
-      const button = event.target.closest("button[data-brand]");
-      if (!button) return;
-      const brand = button.dataset.brand || "";
-      if (!brand) return;
-      $("#brandInsightSelect").value = brand;
-      renderBrandInsights();
-      toast("Loaded brand insight for " + brand + ".", "success");
-    }
-
-    function handleCompareQuickPick(event) {
-      const button = event.target.closest("button[data-brand]");
-      if (!button) return;
-      const brand = button.dataset.brand || "";
-      if (!brand) return;
-      const selectA = $("#compareBrandA");
-      const selectB = $("#compareBrandB");
-      if (!selectA || !selectB) return;
-      if (!selectA.value || selectA.value === brand) {
-        selectA.value = brand;
-      } else {
-        selectB.value = brand;
-      }
-      renderBrandComparison();
-      toast("Comparison slot updated for " + brand + ".", "success");
     }
 
     function getBrandMatches(query) {
@@ -893,6 +747,7 @@ function sameSessionRevision(revision) {
     }
 
     function setSession(user) {
+      state.isAuthenticated = true;
       $("#sessionChip").classList.remove("hidden");
       $("#logoutButton").classList.remove("hidden");
       let role = "analyst";
@@ -919,6 +774,7 @@ function sameSessionRevision(revision) {
     }
 
     function clearSessionUi() {
+      state.isAuthenticated = false;
       stopDashboardAutoRefresh();
       resetSessionScopedState({ role: "analyst", storageIdentity: "guest" });
       $("#sessionChip").classList.add("hidden");
@@ -928,6 +784,14 @@ function sameSessionRevision(revision) {
       $("#sessionChip").title = "";
       $("#sessionAvatar").textContent = "--";
       viewRouter("dashboard");
+    }
+
+    function warmDashboardAfterSession(options = {}) {
+      const { showToast = false } = options;
+      refreshBrandScore({ showToast }).catch((error) => {
+        if (handleAuthError(error)) return;
+        console.error("Dashboard warm-up failed.", error);
+      });
     }
 
     function validateRegistrationForm(name, email, password) {
@@ -944,8 +808,7 @@ function sameSessionRevision(revision) {
 
     function handleAuthError(error, fallbackMessage) {
       if (error && error.status === 401) {
-        clearSessionUi();
-        showLogin(fallbackMessage || "Your session expired. Sign in again to continue.");
+        confirmSessionStillValid(fallbackMessage).catch(() => {});
         return true;
       }
       return false;
@@ -978,6 +841,37 @@ function sameSessionRevision(revision) {
       button.innerHTML = loading
         ? '<span class="spinner" aria-hidden="true"></span><span>' + loadingText + "</span>"
         : button.dataset.label;
+    }
+
+    function setDashboardSyncStatus(message, tone = "idle") {
+      const status = $("#dashboardSyncStatus");
+      if (!status) return;
+      status.textContent = message || "Quick sync updates live data. Refresh rebuilds analytics.";
+      status.dataset.tone = tone;
+    }
+
+    function dashboardSyncTimestampLabel() {
+      return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    }
+
+    function setDashboardActionBusy(activeButton, loading, loadingText) {
+      const syncButton = $("#dashboardSyncButton");
+      const refreshButton = $("#refreshScoreButton");
+      const buttons = [syncButton, refreshButton].filter(Boolean);
+      buttons.forEach((button) => {
+        if (!button.dataset.label) {
+          button.dataset.label = button.textContent.trim();
+        }
+        const isActive = button === activeButton;
+        button.classList.toggle("is-busy", loading && !isActive);
+        if (isActive) {
+          setButtonLoading(button, loading, button.dataset.label, loadingText);
+          return;
+        }
+        button.disabled = loading;
+        button.classList.remove("is-loading");
+        button.innerHTML = button.dataset.label;
+      });
     }
 
     function updateLoginButtonState() {
@@ -1018,27 +912,142 @@ function sameSessionRevision(revision) {
       const add = (value) => {
         if (!urls.includes(value)) urls.push(value);
       };
+      const apiBases = [];
+      const addApiBase = (value) => {
+        if (value && !apiBases.includes(value)) apiBases.push(value);
+      };
       const preferred = state.apiPreferredCandidates && state.apiPreferredCandidates[normalized];
-      if (preferred) add(preferred);
+      if (preferred && String(preferred).includes("/api/")) add(preferred);
+      if (state.apiPreferredBaseUrl) addApiBase(state.apiPreferredBaseUrl);
+      const protocol = location.protocol === "https:" ? "https:" : "http:";
+      const hostname = String(location.hostname || "").trim().toLowerCase();
+      const isLoopbackHost = hostname === "localhost" || hostname === "127.0.0.1";
+      if (location.origin && location.origin !== "null" && location.port === "5000") {
+        addApiBase(location.origin);
+      }
+      if (hostname) {
+        addApiBase(protocol + "//" + hostname + ":5000");
+        if (hostname === "localhost") addApiBase(protocol + "//127.0.0.1:5000");
+        if (hostname === "127.0.0.1") addApiBase(protocol + "//localhost:5000");
+      }
+      addApiBase("http://127.0.0.1:5000");
+      addApiBase("http://localhost:5000");
+      const preferDedicatedBackendHost = Boolean(isLoopbackHost && location.port && location.port !== "5000");
 
       if (location.protocol === "file:") {
-        add("http://127.0.0.1:5000/api" + normalized);
-        add("http://localhost:5000/api" + normalized);
-        add("http://127.0.0.1:5000" + normalized);
-        add("http://localhost:5000" + normalized);
+        apiBases.forEach((base) => add(base + "/api" + normalized));
+        apiBases.forEach((base) => add(base + normalized));
         return urls;
       }
 
       if (normalized.startsWith("/api/")) {
-        add(normalized);
-        add("http://127.0.0.1:5000" + normalized);
+        if (!preferDedicatedBackendHost) add(normalized);
+        apiBases.forEach((base) => add(base + normalized));
+        if (preferDedicatedBackendHost) add(normalized);
         return urls;
       }
 
-      add("/api" + normalized);
-      add(normalized);
-      add("http://127.0.0.1:5000/api" + normalized);
+      if (!preferDedicatedBackendHost) add("/api" + normalized);
+      apiBases.forEach((base) => add(base + "/api" + normalized));
+      if (preferDedicatedBackendHost) add("/api" + normalized);
       return urls;
+    }
+
+    function rememberPreferredApiCandidate(normalizedPath, url, method = "") {
+      if (!state.apiPreferredCandidates) state.apiPreferredCandidates = {};
+      state.apiPreferredCandidates[normalizedPath] = url;
+      if (method) state.latestSource = method + " " + url;
+      try {
+        const resolvedUrl = new URL(url, window.location.href);
+        const sameOriginUrl = window.location.origin !== "null" && resolvedUrl.origin === window.location.origin;
+        if (resolvedUrl.pathname.startsWith("/api/") && (resolvedUrl.port === "5000" || sameOriginUrl)) {
+          state.apiPreferredBaseUrl = resolvedUrl.origin;
+        }
+      } catch (error) {
+        // Keep the last working API base when URL parsing fails.
+      }
+    }
+
+    function pickPreferredHttpError(currentError, nextError) {
+      if (!currentError) return nextError;
+      const currentStatus = Number(currentError.status || 0);
+      const nextStatus = Number(nextError.status || 0);
+      if (currentStatus && currentStatus !== 401 && nextStatus === 401) return currentError;
+      if (nextStatus && nextStatus !== 401 && currentStatus === 401) return nextError;
+      const priorityForStatus = (status) => {
+        if (status === 403) return 5;
+        if (status >= 500) return 4;
+        if (status >= 400 && status !== 401) return 3;
+        if (status === 401) return 1;
+        return 0;
+      };
+      return priorityForStatus(nextStatus) > priorityForStatus(currentStatus) ? nextError : currentError;
+    }
+
+    async function probeSessionState(timeoutMs = 5000) {
+      const normalizedPath = "/auth/session";
+      const candidates = getApiCandidates(normalizedPath);
+      let unauthenticated = false;
+
+      for (const url of candidates) {
+        const controller = new AbortController();
+        const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+          const response = await fetch(url, {
+            method: "GET",
+            credentials: "include",
+            cache: "no-store",
+            signal: controller.signal
+          });
+          const raw = await response.text();
+          let data = {};
+          try {
+            data = raw ? JSON.parse(raw) : {};
+          } catch (error) {
+            data = {};
+          }
+          if (!response.ok) continue;
+          if (data && data.authenticated) {
+            rememberPreferredApiCandidate(normalizedPath, url);
+            return {
+              authenticated: true,
+              user: normalizeSessionUser(data)
+            };
+          }
+          unauthenticated = true;
+        } catch (error) {
+          // Try the next backend candidate before treating the session as expired.
+        } finally {
+          clearTimeout(timeoutHandle);
+        }
+      }
+
+      if (unauthenticated) return { authenticated: false, user: null };
+      return null;
+    }
+
+    async function confirmSessionStillValid(fallbackMessage) {
+      if (state.sessionRecheckPromise) return state.sessionRecheckPromise;
+      stopDashboardAutoRefresh();
+      state.sessionRecheckPromise = (async () => {
+        const sessionState = await probeSessionState();
+        if (sessionState && sessionState.authenticated) {
+          state.isAuthenticated = true;
+          return false;
+        }
+        if (sessionState && sessionState.authenticated === false) {
+          clearSessionUi();
+          showLogin(fallbackMessage || "Your session expired. Sign in again to continue.");
+          return true;
+        }
+        return false;
+      })();
+      try {
+        return await state.sessionRecheckPromise;
+      } finally {
+        state.sessionRecheckPromise = null;
+        syncDashboardAutoRefresh();
+      }
     }
 
     async function callApi(path, options = {}) {
@@ -1049,6 +1058,7 @@ function sameSessionRevision(revision) {
       const candidates = getApiCandidates(path);
       const timeoutMs = Number.isFinite(options.timeoutMs) ? Number(options.timeoutMs) : 12000;
       let lastError = new Error("Request failed");
+      let bestHttpError = null;
 
       for (const currentMethod of methods) {
         for (const url of candidates) {
@@ -1072,15 +1082,15 @@ function sameSessionRevision(revision) {
             }
 
             if (response.ok) {
-              state.latestSource = currentMethod + " " + url;
-              if (!state.apiPreferredCandidates) state.apiPreferredCandidates = {};
-              state.apiPreferredCandidates[normalizedPath] = url;
+              rememberPreferredApiCandidate(normalizedPath, url, currentMethod);
               return data;
             }
 
             const message = data.error || data.message || data.detail || (response.status + " " + response.statusText);
-            lastError = new Error(message);
-            lastError.status = response.status;
+            const httpError = new Error(message);
+            httpError.status = response.status;
+            lastError = httpError;
+            bestHttpError = pickPreferredHttpError(bestHttpError, httpError);
           } catch (error) {
             if (error && error.name === "AbortError") {
               lastError = new Error("Request timeout after " + timeoutMs + "ms");
@@ -1092,6 +1102,9 @@ function sameSessionRevision(revision) {
           }
         }
       }
+      if (bestHttpError) {
+        throw bestHttpError;
+      }
       const networkFailure = lastError && (
         String(lastError.message || "").toLowerCase().includes("failed to fetch")
         || String(lastError.message || "").toLowerCase().includes("networkerror")
@@ -1101,1727 +1114,10 @@ function sameSessionRevision(revision) {
       }
       throw lastError;
     }
-    function normalizeBrandScore(payload) {
-      const raw = payload && payload.brand_score ? payload.brand_score : payload || {};
-      return {
-        total_reviews: Number(raw.total_reviews || raw.rows || 0),
-        positive_pct: Number(raw.positive_pct || raw.positivePercentage || raw.percentages?.Positive || 0),
-        neutral_pct: Number(raw.neutral_pct || raw.neutralPercentage || raw.percentages?.Neutral || 0),
-        negative_pct: Number(raw.negative_pct || raw.negativePercentage || raw.percentages?.Negative || 0),
-        brand_reputation_score: Number(raw.brand_reputation_score || raw.brandScore || 0)
-      };
-    }
-
-    function normalizeBrandRow(row) {
-      return {
-        brand: String(row.brand || row.Brand || "Unknown"),
-        total_reviews: Number(row.total_reviews || row.totalReviews || 0),
-        positive_pct: Number(row.positive_pct || row.positivePercentage || 0),
-        neutral_pct: Number(row.neutral_pct || row.neutralPercentage || 0),
-        negative_pct: Number(row.negative_pct || row.negativePercentage || 0),
-        brand_reputation_score: Number(row.brand_reputation_score || row.brandScore || 0),
-        has_trend_data: typeof row.has_trend_data === "boolean" ? row.has_trend_data : true
-      };
-    }
-
-    function scoreNarrative(score) {
-      if (score >= 70) return ["Reputation surge", "Audience response is strongly favorable across the active review stream."];
-      if (score >= 40) return ["Healthy trajectory", "Brand sentiment remains positive with manageable negative drag."];
-      if (score >= 15) return ["Mixed field conditions", "Positive and negative signals are close enough to require attention."];
-      if (score >= 0) return ["Fragile balance", "Negative pressure is near parity and could flip the score quickly."];
-      return ["Critical drift", "Negative sentiment is overpowering the positive stream. Escalation recommended."];
-    }
-
-    function getTrendLabel(value, positiveDirection = true) {
-      if (value >= 60) return positiveDirection ? "Rising" : "High";
-      if (value >= 35) return "Stable";
-      return positiveDirection ? "Low" : "Contained";
-    }
-
     function updatePanelClock() {
       const clock = $("#panelClock");
       const currentTime = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
       if (clock) clock.textContent = currentTime;
-    }
-
-    const SUPPORTED_LANGUAGE_LABELS = [
-      "English",
-      "Hindi",
-      "Tamil",
-      "Telugu",
-      "Malayalam",
-      "Kannada",
-      "Bengali",
-      "Marathi",
-      "Gujarati",
-      "Punjabi",
-      "Urdu"
-    ];
-
-    function formatRealtimeTimestamp(value) {
-      if (!value) return "Waiting";
-      const date = new Date(value);
-      if (Number.isNaN(date.getTime())) return "Waiting";
-      return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-    }
-
-    function riskLevelFromClassName(className) {
-      if (className === "risk-low") return "low";
-      if (className === "risk-high") return "high";
-      return "medium";
-    }
-
-    function dashboardSourceLabel(value) {
-      const text = String(value || "").trim();
-      if (!text || text === "No endpoint call yet") return "Awaiting sync";
-      const firstSpace = text.indexOf(" ");
-      const method = firstSpace === -1 ? "GET" : text.slice(0, firstSpace);
-      const rawTarget = firstSpace === -1 ? text : text.slice(firstSpace + 1).trim();
-      try {
-        const parsed = new URL(rawTarget);
-        return method + " " + (parsed.pathname || parsed.host || rawTarget);
-      } catch (error) {
-        return text.length > 36 ? text.slice(0, 33) + "..." : text;
-      }
-    }
-
-    function dashboardRoleContent(role) {
-      const resolved = normalizeAccessRole(role);
-      if (resolved === "admin") {
-        return {
-          label: "Admin Control",
-          meta: "Platform health and access.",
-          mode: "Operations"
-        };
-      }
-      if (resolved === "marketing_staff") {
-        return {
-          label: "Marketing Monitor",
-          meta: "Brand watch and early risk.",
-          mode: "Campaign"
-        };
-      }
-      return {
-        label: "Analyst Mode",
-        meta: "Sentiment and live review watch.",
-        mode: "Analysis"
-      };
-    }
-
-    function activeAdminAlertCount(score = state.brandScore || normalizeBrandScore({})) {
-      const notifications = Array.isArray(state.adminNotifications) ? state.adminNotifications : [];
-      if (notifications.length) {
-        return notifications.filter((item) => item.level !== "success").length;
-      }
-
-      let count = 0;
-      const modelAccuracy = Number(state.modelMetrics?.test_accuracy || 0);
-      const validationAccuracy = Number(state.modelMetrics?.validation_accuracy || 0);
-      const negativePct = Number(score?.negative_pct || 0);
-
-      if (!state.modelMetrics) {
-        count += 1;
-      } else {
-        if (modelAccuracy > 0 && modelAccuracy < 0.8) count += 1;
-        if (validationAccuracy > 0 && modelAccuracy > 0 && Math.abs(validationAccuracy - modelAccuracy) > 0.08) count += 1;
-      }
-
-      if (negativePct >= 40) count += 1;
-      if (state.usersLoaded && (state.users || []).length <= 1) count += 1;
-      return count;
-    }
-
-    function renderDashboardOverview(score) {
-      const roleContent = dashboardRoleContent(state.userRole);
-      const risk = riskMeta(score.brand_reputation_score, score.negative_pct);
-      const riskLevel = riskLevelFromClassName(risk.className);
-      const realtimeCount = Number(state.realtimeSummary?.total_reviews || 0);
-      const realtimeStamp = formatRealtimeTimestamp(state.realtimeSummary?.latest_ingested_at);
-      const realtimePlatforms = Array.isArray(state.realtimeSummary?.platforms)
-        ? state.realtimeSummary.platforms.filter((item) => String(item || "").trim())
-        : [];
-      const activeAlerts = activeAdminAlertCount(score);
-      const portfolioTotal = Number(score.total_reviews || 0);
-      const hasLiveIngest = Boolean(state.realtimeSummary?.latest_ingested_at);
-      const pipelineStatus = hasLiveIngest && realtimeCount > 0
-        ? "Live"
-        : state.latestSource !== "No endpoint call yet"
-          ? "Synced"
-          : "Standby";
-
-      const roleLabel = $("#dashboardRoleLabel");
-      const roleMeta = $("#dashboardRoleMeta");
-      const sourceBadge = $("#dashboardSourceBadge");
-      const sourceMeta = $("#dashboardSourceMeta");
-      const liveBadge = $("#dashboardLiveBadge");
-      const liveMeta = $("#dashboardLiveMeta");
-      const riskPill = $("#dashboardRiskPill");
-      const riskBadge = $("#dashboardRiskBadge");
-      const riskMetaCopy = $("#dashboardRiskMeta");
-      const quickRisk = $("#dashboardQuickRisk");
-      const quickRiskMeta = $("#dashboardQuickRiskMeta");
-      const quickTotalReviews = $("#dashboardQuickTotalReviews");
-      const quickTotalReviewsMeta = $("#dashboardQuickTotalReviewsMeta");
-      const quickPipeline = $("#dashboardQuickPipeline");
-      const quickPipelineMeta = $("#dashboardQuickPipelineMeta");
-      const quickAlerts = $("#dashboardQuickAlerts");
-      const quickAlertsMeta = $("#dashboardQuickAlertsMeta");
-      const modeLabel = $("#dashboardModeLabel");
-      const sourceText = $("#dashboardSource");
-      const liveUpdate = $("#dashboardLiveUpdate");
-      const riskChip = $("#dashboardRiskChip");
-      const supportedLanguageCount = SUPPORTED_LANGUAGE_LABELS.length;
-      const supportedLanguageSummary = SUPPORTED_LANGUAGE_LABELS.join(", ");
-
-      if (roleLabel) roleLabel.textContent = roleContent.label;
-      if (roleMeta) roleMeta.textContent = roleContent.meta;
-      if (sourceBadge) sourceBadge.textContent = supportedLanguageCount + " Languages";
-      if (sourceMeta) sourceMeta.textContent = supportedLanguageSummary + ".";
-      if (liveBadge) liveBadge.textContent = realtimeCount.toLocaleString() + (realtimeCount === 1 ? " review" : " reviews");
-      if (liveMeta) {
-        liveMeta.textContent = realtimeCount
-          ? (hasLiveIngest
-            ? "Live review buffer is active for the current snapshot."
-            : "Live review buffer is active.")
-          : state.latestSource !== "No endpoint call yet"
-            ? "Synced. Waiting for new live reviews."
-            : "No live activity yet.";
-      }
-      if (riskPill) riskPill.className = "dashboard-status-pill dashboard-status-pill--risk is-" + riskLevel;
-      if (riskBadge) riskBadge.textContent = risk.label;
-      if (riskMetaCopy) riskMetaCopy.textContent = "Negative share " + Number(score.negative_pct || 0).toFixed(1) + "%.";
-      if (quickRisk) quickRisk.textContent = risk.label;
-      if (quickRiskMeta) {
-        quickRiskMeta.textContent = Number(score.negative_pct || 0).toFixed(1) + "% negative across " + portfolioTotal.toLocaleString() + " reviews.";
-      }
-      if (quickTotalReviews) quickTotalReviews.textContent = portfolioTotal.toLocaleString();
-      if (quickTotalReviewsMeta) {
-        quickTotalReviewsMeta.textContent = state.latestSource === "No endpoint call yet"
-          ? "Waiting for first sync."
-          : "Source synced successfully.";
-      }
-      if (quickPipeline) quickPipeline.textContent = pipelineStatus;
-      if (quickPipelineMeta) {
-        quickPipelineMeta.textContent = hasLiveIngest && realtimeCount > 0
-          ? realtimeCount.toLocaleString() + " live reviews buffered. Last ingest " + realtimeStamp + "."
-          : state.latestSource !== "No endpoint call yet"
-            ? "Synced. Waiting for new live reviews."
-            : "No ingest activity yet.";
-      }
-      if (quickAlerts) quickAlerts.textContent = activeAlerts > 0 ? activeAlerts + (activeAlerts === 1 ? " Alert" : " Alerts") : "Clear";
-      if (quickAlertsMeta) {
-        quickAlertsMeta.textContent = activeAlerts > 0
-          ? "Attention needed in the current snapshot."
-          : "No active alerts.";
-      }
-      if (modeLabel) modeLabel.textContent = roleContent.mode;
-      if (sourceText) sourceText.textContent = dashboardSourceLabel(state.latestSource);
-      if (liveUpdate) liveUpdate.textContent = realtimeStamp;
-      if (riskChip) {
-        riskChip.textContent = risk.label;
-        riskChip.className = "score-chip " + risk.className;
-      }
-    }
-
-    function renderDashboardRealtimeReviews() {
-      const host = $("#dashboardRealtimeReviewList");
-      if (!host) return;
-      const rows = Array.isArray(state.latestRealtimeReviews) ? state.latestRealtimeReviews : [];
-      if (!rows.length) {
-        host.innerHTML = '<div class="mini-note">Realtime reviews will appear here after the first live ingest.</div>';
-        return;
-      }
-
-      const sourceLabelForRow = (row) => {
-        const platform = String(row.platform || "Unknown").trim() || "Unknown";
-        const brand = String(row.brand || platform).trim() || platform;
-        return platform.toLowerCase() === brand.toLowerCase() ? platform : platform + " / " + brand;
-      };
-
-      const languageLabelForRow = (row) => {
-        const label = String(row.source_language_label || row.source_language || "").trim();
-        if (!label || label.toLowerCase() === "unknown") return "Language not detected";
-        return "Language: " + label;
-      };
-
-      host.innerHTML = rows.map((row) => {
-        const sentiment = String(row.predicted_sentiment || "Unknown");
-        const reviewText = String(row.review_text || row.normalized_review || "").trim() || "No review text available.";
-        const preview = reviewText.length > 140 ? reviewText.slice(0, 137) + "..." : reviewText;
-        const normalized = String(row.normalized_review || "").trim();
-        const sourceLabel = sourceLabelForRow(row);
-        const languageLabel = languageLabelForRow(row);
-        const timeLabel = formatRealtimeTimestamp(row.ingested_at);
-        const translationApplied = row.translation_applied === true || String(row.translation_applied).toLowerCase() === "true";
-        const hasNormalizedDetail = translationApplied && normalized && normalized.toLowerCase() !== reviewText.toLowerCase();
-        const hasFullReviewDetail = reviewText.length > 140;
-        const detailLabel = hasNormalizedDetail
-          ? (hasFullReviewDetail ? "View review details" : "View normalized text")
-          : (hasFullReviewDetail ? "View full review" : "View details");
-        const ratingValue = row.rating === null || row.rating === undefined || String(row.rating).trim() === ""
-          ? ""
-          : "Rating " + escapeHtml(row.rating);
-        const confidenceValue = Number(row.prediction_confidence);
-        const confidenceLabel = Number.isFinite(confidenceValue) && confidenceValue > 0
-          ? "Confidence " + (confidenceValue * 100).toFixed(1) + "%"
-          : "";
-        const sourceTypeLabel = String(row.source_type || "").trim()
-          ? "Source " + escapeHtml(String(row.source_type).replace(/^connector:/, "").replace(/_/g, " "))
-          : "";
-        const reviewIdLabel = String(row.review_id || "").trim() ? "ID " + escapeHtml(row.review_id) : "";
-        const strategyLabel = hasNormalizedDetail && String(row.multilingual_strategy || "").trim()
-          ? "Mode " + escapeHtml(row.multilingual_strategy)
-          : "";
-        const detailPills = [ratingValue, confidenceLabel, sourceTypeLabel, reviewIdLabel, strategyLabel]
-          .filter(Boolean)
-          .map((value) => "<span>" + value + "</span>")
-          .join("");
-        const detailSections = [];
-
-        if (detailPills) {
-          detailSections.push('<div class="review-drilldown-pillrow">' + detailPills + "</div>");
-        }
-        if (hasFullReviewDetail) {
-          detailSections.push('<p class="review-drilldown-text">' + escapeHtml(reviewText) + "</p>");
-        }
-        if (hasNormalizedDetail) {
-          detailSections.push('<p class="review-drilldown-text"><strong>Normalized:</strong> ' + escapeHtml(normalized) + "</p>");
-        }
-        if (!detailSections.length) {
-          detailSections.push('<p class="review-drilldown-text">This live record is short, so the preview already shows the full review. Use this panel for record metadata.</p>');
-        }
-
-        return [
-          '<details class="review-drilldown-item" data-tone="' + sentiment + '">',
-          "<summary>",
-          '<div class="review-drilldown-head"><span>' + escapeHtml(sourceLabel) + '</span><span>' + escapeHtml(timeLabel) + "</span></div>",
-          '<div class="review-drilldown-preview"><p>' + escapeHtml(preview) + '</p><span class="score-chip ' + sentimentClass(sentiment) + '">' + escapeHtml(sentiment) + "</span></div>",
-          '<div class="review-drilldown-head"><span>' + escapeHtml(languageLabel) + '</span><span>' + escapeHtml(detailLabel) + "</span></div>",
-          "</summary>",
-          '<div class="review-drilldown-body">' + detailSections.join("") + "</div>",
-          "</details>"
-        ].join("");
-      }).join("");
-    }
-
-    function setTrendIcon(icon, direction) {
-      const stroke = direction === "up" ? "var(--positive)" : direction === "down" ? "var(--negative)" : "var(--neutral)";
-      if (icon) icon.setAttribute("stroke", stroke);
-    }
-
-    function updateDashboard(score) {
-      const narrative = scoreNarrative(score.brand_reputation_score);
-      const sentimentMargin = Number(score.positive_pct || 0) - Number(score.negative_pct || 0);
-      $("#statTotalReviews").textContent = score.total_reviews.toLocaleString();
-      $("#statPositivePct").textContent = score.positive_pct.toFixed(2) + "%";
-      $("#statNegativePct").textContent = score.negative_pct.toFixed(2) + "%";
-      $("#statSentimentMargin").textContent = sentimentMargin.toFixed(1);
-      $("#statRealtimeReviews").textContent = Number(state.realtimeSummary?.total_reviews || 0).toLocaleString();
-      $("#statRealtimeUpdated").textContent = formatRealtimeTimestamp(state.realtimeSummary?.latest_ingested_at);
-      $("#dashboardNarrative").textContent = narrative[0];
-      $("#dashboardNarrativeCopy").textContent = narrative[1];
-      renderDashboardOverview(score);
-      renderDashboardRealtimeReviews();
-
-      const gaugeColor = score.brand_reputation_score >= 40
-        ? "var(--positive)"
-        : score.brand_reputation_score < 10
-          ? "var(--negative)"
-          : "var(--neutral)";
-
-      renderGauge($("#brandGauge"), score.brand_reputation_score, {
-        displayValue: score.brand_reputation_score.toFixed(1),
-        label: "Brand Reputation",
-        suffix: "/100 score",
-        caption: "Current score from the latest `/dashboard/summary` response.",
-        color: gaugeColor
-      });
-      updateDistributionChart(score);
-      updateDashboardAlerts(score);
-      renderAnalystCustomerVoice();
-      renderAnalystFocusPanel();
-      renderSmartInsight();
-      renderAnalyticsSummaryContext();
-      renderMarketingSignals();
-      renderAdminOps();
-      applyDashboardRolePresentation(state.userRole);
-    }
-
-    function renderSignalRadar(score) {
-      const label = $("#signalRadarLabel");
-      const value = $("#signalRadarScore");
-      const copy = $("#signalRadarCopy");
-      const status = $("#panelStatusText");
-      if (!label || !value || !copy || !status) return;
-      const role = normalizeAccessRole(state.userRole);
-      const reputation = Number(score?.brand_reputation_score || 0);
-      const negative = Number(score?.negative_pct || 0);
-      const leader = getScoreExtremes().leader;
-      value.textContent = reputation.toFixed(1);
-      if (role === "marketing_staff") {
-        label.textContent = "Market Pulse";
-        copy.textContent = leader
-          ? leader.brand + " is leading right now. Watch negative pressure at " + negative.toFixed(1) + "% and use this panel as a live market snapshot."
-          : "Brand leadership and market pulse will appear after analytics data loads.";
-        status.textContent = negative >= 40 ? "Campaign Risk" : "Brand Monitoring";
-        return;
-      }
-      if (role === "admin") {
-        label.textContent = "Control Pulse";
-        copy.textContent = "Admin workspace tracks platform readiness and model state. Current score remains visible for oversight.";
-        status.textContent = "Control View";
-        return;
-      }
-      label.textContent = "Realtime Signal";
-      copy.textContent = "Current review intelligence score is " + reputation.toFixed(1) + ". Use trend vectors to validate directional movement.";
-      status.textContent = negative >= 40 ? "Negative Drift" : "Analysis Live";
-    }
-
-    function updateDashboardAlerts(score) {
-      const risk = riskMeta(score.brand_reputation_score, score.negative_pct);
-      if (risk.label === "High Risk") {
-        $("#dashboardAlertTitle").textContent = "High Risk Alert";
-        $("#dashboardAlertCopy").textContent = "Negative sentiment is elevated. Prioritize complaint resolution and service recovery actions.";
-        return;
-      }
-      if (risk.label === "Medium Risk") {
-        $("#dashboardAlertTitle").textContent = "Watchlist Alert";
-        $("#dashboardAlertCopy").textContent = "Sentiment is mixed. Track daily shifts and respond early to rising complaint clusters.";
-        return;
-      }
-      $("#dashboardAlertTitle").textContent = "Stable Signal";
-      $("#dashboardAlertCopy").textContent = "Reputation is healthy. Maintain quality controls and continue proactive monitoring.";
-    }
-
-    function renderComplaintTopics(hostId = "analystComplaintTopicsList", noteId = "analystComplaintTopicsNote") {
-      const host = $("#" + hostId);
-      const note = $("#" + noteId);
-      if (!host || !note) return;
-      const analystView = hostId === "analystComplaintTopicsList";
-      const sourceKeywords = analystView ? state.customerVoiceKeywords : state.keywords;
-      if (analystView && state.customerVoiceKeywordsLoading) {
-        host.innerHTML = '<span>Loading complaint themes</span>';
-        note.textContent = "Updating complaint themes for the current brand and time window.";
-        return;
-      }
-      if (!Array.isArray(sourceKeywords) || !sourceKeywords.length) {
-        host.innerHTML = '<span>Waiting for keyword analytics</span>';
-        note.textContent = analystView
-          ? "No complaint themes found for the current brand and time window."
-          : "Topics are inferred from frequent keywords and weighted by negative sentiment share.";
-        return;
-      }
-      const topics = sourceKeywords
-        .slice(0, 6)
-        .map((item) => "#" + String(item.word || "").trim())
-        .filter((item) => item !== "#");
-      renderPillList(hostId, topics.length ? topics : ["No complaint topics available"]);
-      note.textContent = analystView
-        ? ((state.customerVoiceBrand ? state.customerVoiceBrand + " selected. " : "All brands selected. ") + "Complaint themes shown for " + customerVoiceWindowLabel().toLowerCase() + ".")
-        : "Current negative share: " + Number(state.brandScore?.negative_pct || 0).toFixed(1) + "%. Topics shown from highest-frequency keywords.";
-    }
-
-    function renderBrandEarlyWarning(row) {
-      const title = $("#brandWarningTitle");
-      const copy = $("#brandWarningCopy");
-      if (!title || !copy) return;
-      if (!row) {
-        title.textContent = "Early Warning";
-        copy.textContent = "Brand-level risk warning will appear after data loads.";
-        return;
-      }
-      if (row.negative_pct >= 40) {
-        title.textContent = "Warning: negative sentiment above 40%";
-        copy.textContent = row.brand + " is under pressure. Complaint growth is likely being driven by " + (state.keywords[0] ? "#" + state.keywords[0].word : "high-frequency negative topics") + ".";
-        return;
-      }
-      if (row.brand_reputation_score < 15) {
-        title.textContent = "Warning: low reputation zone";
-        copy.textContent = row.brand + " has dropped into a weak score band. Investigate service, delivery, and support complaints before sentiment worsens.";
-        return;
-      }
-      title.textContent = "Early Warning: contained";
-      copy.textContent = row.brand + " is not in a high-risk state right now. Continue weekly monitoring for complaint spikes and negative drift.";
-    }
-
-    function renderTrendMomentum() {
-      const title = $("#trendMomentumTitle");
-      const copy = $("#trendMomentumCopy");
-      if (!title || !copy) return;
-      if (!Array.isArray(state.trends) || state.trends.length < 2) {
-        title.textContent = "Sentiment Momentum";
-        copy.textContent = "Momentum indicator will appear after trend data loads.";
-        return;
-      }
-      const current = state.trends[state.trends.length - 1] || {};
-      const previous = state.trends[state.trends.length - 2] || {};
-      const positiveDelta = Number(current.Positive || 0) - Number(previous.Positive || 0);
-      const negativeDelta = Number(current.Negative || 0) - Number(previous.Negative || 0);
-      const scope = state.trendBrand ? activeTrendBrandLabel() : "portfolio";
-      if (positiveDelta > 1 && negativeDelta <= 0) {
-        title.textContent = "Sentiment Momentum: Improving";
-        copy.textContent = scope + " is improving. Positive sentiment rose by " + positiveDelta.toFixed(1) + " points while negative pressure stayed flat or lower.";
-        return;
-      }
-      if (negativeDelta > 1) {
-        title.textContent = "Sentiment Momentum: Declining";
-        copy.textContent = scope + " is declining. Negative sentiment rose by " + negativeDelta.toFixed(1) + " points in the latest review window.";
-        return;
-      }
-      title.textContent = "Sentiment Momentum: Stable";
-      copy.textContent = scope + " is stable. No material movement was detected between the last two periods.";
-    }
-
-    function renderTrendMonthlyComparison() {
-      const title = $("#trendMonthlyCompareTitle");
-      const copy = $("#trendMonthlyCompareCopy");
-      if (!title || !copy) return;
-      if (!Array.isArray(state.trends) || state.trends.length < 2) {
-        title.textContent = "Monthly Comparison";
-        copy.textContent = "Monthly comparison will appear after trend data loads.";
-        return;
-      }
-      const current = state.trends[state.trends.length - 1] || {};
-      const previous = state.trends[state.trends.length - 2] || {};
-      const currentPeriod = String(current.period || "Current");
-      const previousPeriod = String(previous.period || "Previous");
-      const positiveDelta = Number(current.Positive || 0) - Number(previous.Positive || 0);
-      const neutralDelta = Number(current.Neutral || 0) - Number(previous.Neutral || 0);
-      const negativeDelta = Number(current.Negative || 0) - Number(previous.Negative || 0);
-      title.textContent = "Monthly Comparison: " + previousPeriod + " vs " + currentPeriod;
-      copy.textContent =
-        "Positive " + (positiveDelta >= 0 ? "+" : "") + positiveDelta.toFixed(1) +
-        " pts, Neutral " + (neutralDelta >= 0 ? "+" : "") + neutralDelta.toFixed(1) +
-        " pts, Negative " + (negativeDelta >= 0 ? "+" : "") + negativeDelta.toFixed(1) + " pts.";
-    }
-
-    function renderSummaryDeepIntelligence() {
-      const complaint = $("#summaryComplaintIntelligence");
-      const platform = $("#summaryPlatformComparison");
-      if (!complaint || !platform) return;
-
-      const topTopics = (Array.isArray(state.keywords) ? state.keywords : [])
-        .slice(0, 3)
-        .map((item) => "#" + String(item.word || "").trim())
-        .filter((item) => item !== "#");
-      complaint.textContent = topTopics.length
-        ? "Top complaint topics: " + topTopics.join(", ") + "."
-        : "Complaint intelligence will appear after analytics load.";
-
-      const platforms = (Array.isArray(state.platforms) ? state.platforms : [])
-        .slice()
-        .sort((a, b) => Number(b.Positive || 0) - Number(a.Positive || 0))
-        .slice(0, 3);
-      platform.textContent = platforms.length
-        ? platforms.map((item) => item.platform + " " + Number(item.Positive || 0).toFixed(1) + "% positive").join(" | ")
-        : "Platform comparison will appear after analytics load.";
-    }
-
-    function applyAnalyticsSummaryPresentation(role) {
-      const resolved = normalizeAccessRole(role);
-      const view = $("#view-analytics-summary");
-      if (!view) return;
-      const eyebrow = view.querySelector(".eyebrow");
-      const title = view.querySelector(".view-title");
-      const copy = view.querySelector(".view-copy");
-      const snapshotLabel = view.querySelector(".about-sub");
-
-      if (resolved === "marketing_staff") {
-        if (eyebrow) eyebrow.textContent = "Market Signals";
-        if (title) title.textContent = "Business Summary";
-        if (copy) copy.textContent = "Brand score, sentiment mix, complaints, and market spread.";
-        if (snapshotLabel) snapshotLabel.textContent = "Business Snapshot";
-        return;
-      }
-
-      if (resolved === "analyst") {
-        if (eyebrow) eyebrow.textContent = "Analysis";
-        if (title) title.textContent = "Summary";
-        if (copy) copy.textContent = "Key totals, sentiment mix, and complaint spread.";
-        if (snapshotLabel) snapshotLabel.textContent = "Analysis Snapshot";
-        return;
-      }
-
-      if (eyebrow) eyebrow.textContent = "Control Summary";
-      if (title) title.textContent = "Summary";
-      if (copy) copy.textContent = "Portfolio totals, risk spread, and monitoring context.";
-      if (snapshotLabel) snapshotLabel.textContent = "Control Snapshot";
-    }
-
-    function renderSmartInsight() {
-      const title = $("#dashboardInsightTitle");
-      const copy = $("#dashboardInsightCopy");
-      if (!title || !copy) return;
-      const role = normalizeAccessRole(state.userRole);
-      const score = state.brandScore || normalizeBrandScore({});
-      const extremes = getScoreExtremes();
-      const keywords = Array.isArray(state.keywords) ? state.keywords : [];
-      const trends = Array.isArray(state.trends) ? state.trends : [];
-
-      if (role === "admin") {
-        title.textContent = "System oversight";
-        copy.textContent = "Admin should focus on " + Number((state.users || []).length || 0).toLocaleString() + " accounts, " + Number((state.brands || []).length || 0).toLocaleString() + " tracked brands, and current platform readiness.";
-        return;
-      }
-
-      if (role === "marketing_staff") {
-        if (extremes.leader) {
-          title.textContent = "Best-performing brand";
-          copy.textContent = extremes.leader.brand + " currently leads the portfolio with a reputation score of " + extremes.leader.brand_reputation_score.toFixed(1) + ". Use it as the benchmark for campaign messaging.";
-          return;
-        }
-        title.textContent = "Insight standby";
-        copy.textContent = "Brand leadership insight will appear after brand analytics load.";
-        return;
-      }
-
-      if (trends.length >= 2) {
-        const current = trends[trends.length - 1] || {};
-        const previous = trends[trends.length - 2] || {};
-        const negativeDelta = Number(current.Negative || 0) - Number(previous.Negative || 0);
-        if (negativeDelta > 1) {
-          title.textContent = "Negative drift detected";
-          copy.textContent = "Negative sentiment increased by " + negativeDelta.toFixed(1) + " points in the latest period. Validate the shift before drawing conclusions.";
-          return;
-        }
-      }
-      if (keywords[0]) {
-        title.textContent = "Language signal";
-        copy.textContent = "Keyword " + "#" + keywords[0].word + " is the strongest visible review signal in the current dataset. Use it to guide deeper analysis.";
-        return;
-      }
-      title.textContent = "Analysis standby";
-      copy.textContent = "Insight signal will appear after trend and keyword analytics load.";
-    }
-
-    function renderTrendReviewVolume() {
-      const title = $("#trendReviewVolumeTitle");
-      const copy = $("#trendReviewVolumeCopy");
-      if (!title || !copy) return;
-      const trends = getWindowedTrends();
-      if (!Array.isArray(trends) || !trends.length) {
-        title.textContent = "Review Volume";
-        copy.textContent = "Review volume summary will appear after trend data loads.";
-        return;
-      }
-      const latest = trends[trends.length - 1] || {};
-      const previous = trends.length > 1 ? trends[trends.length - 2] || {} : null;
-      const latestTotal = Number(latest.Positive || 0) + Number(latest.Neutral || 0) + Number(latest.Negative || 0);
-      const previousTotal = previous ? Number(previous.Positive || 0) + Number(previous.Neutral || 0) + Number(previous.Negative || 0) : 0;
-      const delta = latestTotal - previousTotal;
-      const scope = state.trendBrand ? activeTrendBrandLabel() : "portfolio";
-      title.textContent = "Review Volume: " + String(latest.period || "Latest");
-      copy.textContent = scope + " captured " + latestTotal.toLocaleString() + " reviews in the latest visible period" +
-        (previous ? " (" + (delta >= 0 ? "+" : "") + delta.toLocaleString() + " vs previous period)." : ".");
-    }
-
-    function setTrendDrilldownActive(sentiment) {
-      state.trendDrilldownSentiment = sentiment || "";
-      $$("#view-review-trends .trend-legend span[data-sentiment]").forEach((item) => {
-        item.classList.toggle("is-active", item.dataset.sentiment === state.trendDrilldownSentiment);
-      });
-    }
-
-    function renderTrendDrilldownSamples(samples, sentiment) {
-      const title = $("#trendDrilldownTitle");
-      const copy = $("#trendDrilldownCopy");
-      const host = $("#trendReviewDrilldown");
-      if (!title || !copy || !host) return;
-      const scope = state.trendBrand ? activeTrendBrandLabel() : "all brands";
-      title.textContent = sentiment + " Review Samples";
-      if (!Array.isArray(samples) || !samples.length) {
-        copy.textContent = "No matching review samples found for " + sentiment + " in " + scope + ".";
-        host.innerHTML = '<div class="mini-note">No real review samples are available for this filter combination.</div>';
-        return;
-      }
-      copy.textContent = "Showing real " + sentiment.toLowerCase() + " review samples for " + scope + " in the selected time window.";
-      host.innerHTML = samples.map((item) => {
-        const meta = [
-          item.brand || "Unknown brand",
-          item.platform || "Unknown platform",
-          item.review_date || "Unknown date",
-          item.rating ? "Rating " + item.rating : null
-        ].filter(Boolean).join(" | ");
-        const preview = String(item.review_text || "");
-        const shortPreview = preview.length > 88 ? preview.slice(0, 88).trim() + "..." : preview;
-        return [
-          '<details class="review-drilldown-item" data-tone="' + sentiment + '"' + (samples.indexOf(item) === 0 ? " open" : "") + '>',
-          '<summary>',
-          '<div class="review-drilldown-head"><span>' + sentiment + '</span><span>' + meta + "</span></div>",
-          '<div class="review-drilldown-preview"><p>"' + shortPreview.replace(/"/g, "&quot;") + '"</p><span class="review-drilldown-toggle">Expand</span></div>',
-          '</summary>',
-          '<div class="review-drilldown-body">',
-          '<div class="review-drilldown-pillrow">',
-          '<span>Brand: ' + (item.brand || "Unknown") + "</span>",
-          '<span>Platform: ' + (item.platform || "Unknown") + "</span>",
-          '<span>Date: ' + (item.review_date || "Unknown") + "</span>",
-          (item.rating ? '<span>Rating: ' + item.rating + "</span>" : ""),
-          '</div>',
-          '<p class="review-drilldown-text">"' + preview.replace(/"/g, "&quot;") + '"</p>',
-          '</div>',
-          "</details>"
-        ].join("");
-      }).join("");
-    }
-
-    async function loadTrendDrilldown(sentiment) {
-      const role = normalizeAccessRole(state.userRole);
-      if (role !== "analyst" && role !== "admin") return;
-      const sessionRevision = state.sessionRevision;
-      const title = $("#trendDrilldownTitle");
-      const copy = $("#trendDrilldownCopy");
-      const host = $("#trendReviewDrilldown");
-      if (!title || !copy || !host) return;
-      const chosen = String(sentiment || "").trim();
-      if (!chosen) return;
-      setTrendDrilldownActive(chosen);
-      title.textContent = chosen + " Review Samples";
-      copy.textContent = "Loading real review samples...";
-      host.innerHTML = '<div class="mini-note">Fetching matching reviews from the prediction dataset.</div>';
-      try {
-        const params = new URLSearchParams({
-          sentiment: chosen,
-          months: String(state.trendWindow || "all"),
-          limit: "5"
-        });
-        if (state.trendBrand) params.set("brand", state.trendBrand);
-        const payload = await callApi("/dashboard/reviews?" + params.toString());
-        if (!sameSessionRevision(sessionRevision)) return;
-        renderTrendDrilldownSamples(Array.isArray(payload.samples) ? payload.samples : [], chosen);
-      } catch (error) {
-        if (!sameSessionRevision(sessionRevision)) return;
-        if (handleAuthError(error)) return;
-        copy.textContent = "Unable to load review samples: " + (error.message || "request failed") + ".";
-        host.innerHTML = '<div class="mini-note">Review drill-down is unavailable right now.</div>';
-      }
-    }
-
-    function downloadBlob(filename, content, type) {
-      const blob = new Blob([content], { type });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-    }
-
-    function escapeHtml(value) {
-      return String(value == null ? "" : value)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/\"/g, "&quot;")
-        .replace(/'/g, "&#39;");
-    }
-
-    function buildHtmlReport(title, sections) {
-      const renderedSections = (Array.isArray(sections) ? sections : []).map((section) => {
-        const heading = section && section.heading ? '<h2>' + escapeHtml(section.heading) + '</h2>' : "";
-        const body = Array.isArray(section?.rows)
-          ? section.rows.map((row) => '<li>' + escapeHtml(row) + '</li>').join("")
-          : "";
-        return '<section class="report-section">' + heading + '<ul>' + body + '</ul></section>';
-      }).join("");
-      return [
-        "<!doctype html>",
-        '<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">',
-        "<title>" + escapeHtml(title) + "</title>",
-        "<style>",
-        "body{margin:0;padding:40px;background:#07162f;color:#eaf1ff;font:16px/1.6 'Segoe UI',Arial,sans-serif;}",
-        ".report{max-width:960px;margin:0 auto;padding:32px;border:1px solid rgba(103,211,255,.22);border-radius:24px;background:linear-gradient(180deg,rgba(10,27,58,.98),rgba(7,22,47,.98));box-shadow:0 24px 70px rgba(0,0,0,.32);}",
-        "h1{margin:0 0 10px;font-size:36px;line-height:1.1;}",
-        ".report-meta{display:flex;gap:12px;flex-wrap:wrap;margin:0 0 24px;padding:0;list-style:none;color:#9fb3d9;font-size:14px;letter-spacing:.08em;text-transform:uppercase;}",
-        ".report-meta li{padding:8px 12px;border:1px solid rgba(103,211,255,.18);border-radius:999px;background:rgba(20,45,86,.55);}",
-        ".report-section{margin-top:24px;padding-top:20px;border-top:1px solid rgba(103,211,255,.14);}",
-        ".report-section h2{margin:0 0 12px;font-size:18px;letter-spacing:.08em;text-transform:uppercase;color:#67d3ff;}",
-        ".report-section ul{margin:0;padding-left:18px;}",
-        ".report-section li{margin:0 0 8px;}",
-        "</style></head><body>",
-        '<main class="report"><h1>' + escapeHtml(title) + "</h1>",
-        '<ul class="report-meta"><li>BrandPulse AI</li><li>Exported Report</li><li>' + escapeHtml(new Date().toLocaleString()) + "</li></ul>",
-        renderedSections,
-        "</main></body></html>"
-      ].join("");
-    }
-
-    function exportTrendCsv() {
-      const trends = getWindowedTrends();
-      if (!trends.length) {
-        toast("No trend data available to export.", "error");
-        return;
-      }
-      const rows = ["period,positive,neutral,negative,total"];
-      trends.forEach((row) => {
-        const positive = Number(row.Positive || 0);
-        const neutral = Number(row.Neutral || 0);
-        const negative = Number(row.Negative || 0);
-        rows.push([row.period, positive, neutral, negative, positive + neutral + negative].join(","));
-      });
-      downloadBlob("trend-report.csv", rows.join("\n"), "text/csv;charset=utf-8");
-      toast("Trend CSV downloaded.", "success");
-    }
-
-    function exportTrendReport() {
-      const score = state.brandScore || normalizeBrandScore({});
-      const trends = getWindowedTrends();
-      if (!trends.length) {
-        toast("No trend data available to export.", "error");
-        return;
-      }
-      const latest = trends[trends.length - 1] || {};
-      const report = buildHtmlReport("Trend Intelligence Report", [
-        {
-          heading: "Scope",
-          rows: [
-            "Role: Analyst",
-            "Brand scope: " + (state.trendBrand ? activeTrendBrandLabel() : "All brands"),
-            "Time window: " + ($("#trendWindowSelect")?.selectedOptions?.[0]?.textContent || "All months"),
-            "Latest visible period: " + String(latest.period || "N/A")
-          ]
-        },
-        {
-          heading: "Summary Metrics",
-          rows: [
-            "Total reviews: " + Number(score.total_reviews || 0).toLocaleString(),
-            "Positive share: " + Number(score.positive_pct || 0).toFixed(1) + "%",
-            "Neutral share: " + Number(score.neutral_pct || 0).toFixed(1) + "%",
-            "Negative share: " + Number(score.negative_pct || 0).toFixed(1) + "%",
-            "Brand score: " + Number(score.brand_reputation_score || 0).toFixed(1)
-          ]
-        },
-        {
-          heading: "Trend Signals",
-          rows: [
-            ($("#trendMomentumTitle")?.textContent || "Sentiment Momentum") + " - " + ($("#trendMomentumCopy")?.textContent || ""),
-            ($("#trendMonthlyCompareTitle")?.textContent || "Monthly Comparison") + " - " + ($("#trendMonthlyCompareCopy")?.textContent || ""),
-            ($("#trendReviewVolumeTitle")?.textContent || "Review Volume") + " - " + ($("#trendReviewVolumeCopy")?.textContent || "")
-          ]
-        }
-      ]);
-      downloadBlob("trend-report.html", report, "text/html;charset=utf-8");
-      toast("Trend HTML report downloaded.", "success");
-    }
-
-    function exportTrendPdf() {
-      if (!getWindowedTrends().length) {
-        toast("No trend data available to print.", "error");
-        return;
-      }
-      window.print();
-      toast("Print dialog opened for PDF export.", "info");
-    }
-
-    function customerVoiceWindowLabel() {
-      const select = $("#customerVoiceWindowSelect");
-      return (select && select.selectedOptions && select.selectedOptions[0] ? String(select.selectedOptions[0].textContent || "").trim() : "All months") || "All months";
-    }
-
-    function getCustomerVoiceBrands() {
-      const selectedBrand = String(state.customerVoiceBrand || "").trim();
-      const brands = Array.isArray(state.brands) ? state.brands.slice() : [];
-      if (!selectedBrand) return brands;
-      return brands.filter((item) => String(item.brand || "").trim() === selectedBrand);
-    }
-
-    function populateCustomerVoiceBrandSelect(brands) {
-      const select = $("#customerVoiceBrandSelect");
-      if (!select) return;
-      const previous = state.customerVoiceBrand || select.value || "";
-      const options = (Array.isArray(brands) ? brands : [])
-        .map((item) => String(item.brand || "").trim())
-        .filter(Boolean)
-        .sort((a, b) => a.localeCompare(b))
-        .map((brand) => '<option value="' + brand + '">' + brand + "</option>")
-        .join("");
-      select.innerHTML = '<option value="">All brands</option>' + options;
-      select.value = previous && Array.from(select.options).some((option) => option.value === previous) ? previous : "";
-      state.customerVoiceBrand = select.value || "";
-    }
-
-    function renderCustomerVoiceInsight() {
-      const findingTitle = $("#customerVoiceFindingTitle");
-      const findingCopy = $("#customerVoiceFindingCopy");
-      const actionTitle = $("#customerVoiceActionTitle");
-      const actionCopy = $("#customerVoiceActionCopy");
-      if (!findingTitle || !findingCopy || !actionTitle || !actionCopy) return;
-      const selectedBrand = String(state.customerVoiceBrand || "").trim();
-      const windowLabel = customerVoiceWindowLabel();
-      const brands = getCustomerVoiceBrands();
-      if (!brands.length) {
-        findingTitle.textContent = "Key Finding";
-        findingCopy.textContent = "No brand data is available for the current selection.";
-        actionTitle.textContent = "Recommended Action";
-        actionCopy.textContent = "Reset the brand filter or refresh analytics data.";
-        return;
-      }
-      const ranked = brands
-        .map((item) => ({ ...item, csat: calculateCsat(item) }))
-        .sort((a, b) => Number(b.negative_pct || 0) - Number(a.negative_pct || 0));
-      const focus = ranked[0];
-      const topTopic = Array.isArray(state.customerVoiceKeywords) && state.customerVoiceKeywords[0]
-        ? "#" + state.customerVoiceKeywords[0].word
-        : "top complaint topics";
-      findingTitle.textContent = selectedBrand ? "Key Finding: " + selectedBrand : "Key Finding";
-      findingCopy.textContent = focus.brand + " is carrying " + Number(focus.negative_pct || 0).toFixed(1) + "% negative share in the " + windowLabel.toLowerCase() + " view, while CSAT stands at " + calculateCsat(focus).toFixed(0) + "/100.";
-      actionTitle.textContent = "Recommended Action";
-      actionCopy.textContent = "Investigate " + topTopic + " first and review low-CSAT brands before the next reporting cycle.";
-    }
-
-    function exportCustomerVoiceCsv() {
-      const brands = getCustomerVoiceBrands()
-        .map((item) => ({ ...item, csat: calculateCsat(item) }))
-        .sort((a, b) => b.csat - a.csat);
-      if (!brands.length) {
-        toast("No customer voice data available to export.", "error");
-        return;
-      }
-      const rows = ["brand,csat,positive,neutral,negative,total_reviews"];
-      brands.forEach((row) => {
-        rows.push([
-          row.brand,
-          row.csat.toFixed(1),
-          Number(row.positive_pct || 0).toFixed(1),
-          Number(row.neutral_pct || 0).toFixed(1),
-          Number(row.negative_pct || 0).toFixed(1),
-          Number(row.total_reviews || 0)
-        ].join(","));
-      });
-      downloadBlob("customer-voice.csv", rows.join("\n"), "text/csv;charset=utf-8");
-      toast("Customer voice CSV downloaded.", "success");
-    }
-
-    function exportCustomerVoiceReport() {
-      const brands = getCustomerVoiceBrands()
-        .map((item) => ({ ...item, csat: calculateCsat(item) }))
-        .sort((a, b) => b.csat - a.csat);
-      if (!brands.length) {
-        toast("No customer voice data available to export.", "error");
-        return;
-      }
-      const complaintTopics = ((Array.isArray(state.customerVoiceKeywords) ? state.customerVoiceKeywords.slice(0, 6) : [])
-        .map((item) => "#" + String(item.word || "").trim())
-        .filter(Boolean));
-      const report = buildHtmlReport("Customer Voice Report", [
-        {
-          heading: "Scope",
-          rows: [
-            "Role: Analyst",
-            "Brand scope: " + (state.customerVoiceBrand || "All brands"),
-            "Time window: " + customerVoiceWindowLabel()
-          ]
-        },
-        {
-          heading: "Priority Insight",
-          rows: [
-            ($("#customerVoiceFindingTitle")?.textContent || "Key Finding") + " - " + ($("#customerVoiceFindingCopy")?.textContent || ""),
-            ($("#customerVoiceActionTitle")?.textContent || "Recommended Action") + " - " + ($("#customerVoiceActionCopy")?.textContent || "")
-          ]
-        },
-        {
-          heading: "Complaint Topics",
-          rows: complaintTopics.length ? complaintTopics : ["No complaint topics available for the current selection."]
-        },
-        {
-          heading: "CSAT Snapshot",
-          rows: brands.slice(0, 6).map((item) => (
-            item.brand + ": CSAT " + item.csat.toFixed(0) + "/100 | Positive " + Number(item.positive_pct || 0).toFixed(1) + "% | Negative " + Number(item.negative_pct || 0).toFixed(1) + "%"
-          ))
-        }
-      ]);
-      downloadBlob("customer-voice-report.html", report, "text/html;charset=utf-8");
-      toast("Customer voice HTML report downloaded.", "success");
-    }
-
-    function exportCustomerVoicePdf() {
-      if (!getCustomerVoiceBrands().length) {
-        toast("No customer voice data available to print.", "error");
-        return;
-      }
-      window.print();
-      toast("Print dialog opened for customer voice export.", "info");
-    }
-
-    function updateDistributionChart(score) {
-      const values = [
-        { id: "Positive", value: clamp(score.positive_pct || 0, 0, 100) },
-        { id: "Neutral", value: clamp(score.neutral_pct || 0, 0, 100) },
-        { id: "Negative", value: clamp(score.negative_pct || 0, 0, 100) }
-      ];
-      values.forEach((item) => {
-        $("#dist" + item.id + "Bar").style.width = item.value + "%";
-        $("#dist" + item.id + "Value").textContent = item.value.toFixed(1) + "%";
-      });
-      $("#distCaption").textContent = "Sentiment mix across " + Number(score.total_reviews || 0).toLocaleString() + " processed reviews.";
-    }
-
-    function riskMeta(score, negativePct) {
-      if (score >= 45 && negativePct < 25) return { label: "Low Risk", className: "risk-low" };
-      if (score < 10 || negativePct >= 40) return { label: "High Risk", className: "risk-high" };
-      return { label: "Medium Risk", className: "risk-medium" };
-    }
-
-    function buildPros(row) {
-      const pros = [];
-      if (row.positive_pct >= 65) pros.push("Strong positive sentiment");
-      if (row.brand_reputation_score >= 40) pros.push("Healthy reputation score");
-      if (row.negative_pct <= 20) pros.push("Low complaint pressure");
-      if (row.total_reviews >= 5000) pros.push("Large review coverage");
-      return pros.length ? pros : ["Stable overall sentiment", "Actionable baseline for growth"];
-    }
-
-    function buildCons(row) {
-      const cons = [];
-      if (row.negative_pct >= 35) cons.push("High negative sentiment");
-      if (row.brand_reputation_score < 15) cons.push("Weak reputation score");
-      if (row.positive_pct < 45) cons.push("Positive momentum is limited");
-      if (row.total_reviews < 1000) cons.push("Lower review volume confidence");
-      return cons.length ? cons : ["No major structural risk detected", "Continue monitoring for drift"];
-    }
-
-    function buildWhyText(row) {
-      if (row.brand_reputation_score >= 45) {
-        return row.brand + " is performing well because positive sentiment materially outweighs negative reviews, which keeps reputation risk contained.";
-      }
-      if (row.brand_reputation_score < 10) {
-        return row.brand + " is high risk because negative sentiment is too close to or above the positive share, pulling the reputation score down.";
-      }
-      return row.brand + " is in a mixed zone. Positive reviews still support the brand, but negative pressure is large enough to reduce trust and future conversion.";
-    }
-
-    function buildRecommendation(row) {
-      if (row.brand_reputation_score >= 45) {
-        return "Recommendation: scale what is already working, highlight top positive themes in campaigns, and defend the current service standard to avoid backslide.";
-      }
-      if (row.brand_reputation_score < 10) {
-        return "Recommendation: prioritize complaint clusters, fix service or quality pain points first, and avoid aggressive promotion until negative drivers are reduced.";
-      }
-      return "Recommendation: improve response quality, reinforce the strongest positive themes, and target the top negative friction points before the next campaign push.";
-    }
-
-    function getScoreExtremes() {
-      if (!Array.isArray(state.brands) || !state.brands.length) return { leader: null, lagger: null };
-      const sorted = state.brands.slice().sort((a, b) => b.brand_reputation_score - a.brand_reputation_score);
-      return {
-        leader: sorted[0] || null,
-        lagger: sorted[sorted.length - 1] || null
-      };
-    }
-
-    function renderAnalyticsSummaryContext() {
-      const score = state.brandScore || normalizeBrandScore({});
-      const extremes = getScoreExtremes();
-      const risk = riskMeta(score.brand_reputation_score, score.negative_pct);
-
-      $("#summaryTotalReviews").textContent = Number(score.total_reviews || 0).toLocaleString();
-      $("#summaryPositiveShare").textContent = Number(score.positive_pct || 0).toFixed(1) + "%";
-      $("#summaryNeutralShare").textContent = Number(score.neutral_pct || 0).toFixed(1) + "%";
-      $("#summaryNegativeShare").textContent = Number(score.negative_pct || 0).toFixed(1) + "%";
-      $("#summaryRiskChip").textContent = risk.label;
-      $("#summaryRiskChip").className = "score-chip " + risk.className;
-
-      if (extremes.leader && extremes.lagger) {
-        $("#summaryLeaderBrand").textContent = extremes.leader.brand + " (" + extremes.leader.brand_reputation_score.toFixed(1) + ")";
-        $("#summaryLaggerBrand").textContent = extremes.lagger.brand + " (" + extremes.lagger.brand_reputation_score.toFixed(1) + ")";
-        $("#summaryScoreSpread").textContent = (extremes.leader.brand_reputation_score - extremes.lagger.brand_reputation_score).toFixed(1) + " points";
-        $("#summaryKeyMessage").textContent = extremes.leader.brand + " leads on reputation score, while " + extremes.lagger.brand + " needs stronger negative-sentiment control to close the gap.";
-      } else {
-        $("#summaryLeaderBrand").textContent = "Not available";
-        $("#summaryLaggerBrand").textContent = "Not available";
-        $("#summaryScoreSpread").textContent = "Not available";
-        $("#summaryKeyMessage").textContent = "Brand ranking will appear after `/dashboard/brands` data loads.";
-      }
-
-      const keywordPills = (Array.isArray(state.keywords) ? state.keywords : [])
-        .slice(0, 6)
-        .map((item) => String(item.word || "").trim())
-        .filter(Boolean)
-        .map((word) => "#" + word);
-      renderPillList("summaryKeywordPills", keywordPills.length ? keywordPills : ["Waiting for keyword analytics"]);
-
-      const priorities = [];
-      if (score.negative_pct >= 40) priorities.push("Cut top negative drivers in complaints immediately");
-      if (score.positive_pct < 55) priorities.push("Increase positive-review generation programs");
-      if (extremes.lagger) priorities.push("Run deep-dive recovery plan for " + extremes.lagger.brand);
-      if (Array.isArray(state.trends) && state.trends.length >= 2) {
-        const current = state.trends[state.trends.length - 1] || {};
-        const previous = state.trends[state.trends.length - 2] || {};
-        if ((Number(current.Negative || 0) - Number(previous.Negative || 0)) > 1) {
-          priorities.push("Escalate if negative trend persists in next cycle");
-        }
-      }
-      if (!priorities.length) priorities.push("Maintain current service quality and monitor drift weekly");
-      renderPillList("summaryPriorityPills", priorities.slice(0, 4));
-      renderSummaryDeepIntelligence();
-    }
-
-    function renderPillList(hostId, items, toneClass) {
-      const host = $("#" + hostId);
-      host.innerHTML = items.map((item) => '<span class="' + (toneClass || "") + '">' + item + "</span>").join("");
-    }
-
-    function formatRoleCards(items) {
-      return (items || []).map((item) => {
-        const className = item.view ? "role-mini-card is-link" : "role-mini-card";
-        const scrollTargetAttr = item.scrollTarget ? ' data-scroll-target="' + item.scrollTarget + '"' : "";
-        const attrs = item.view ? ' data-view="' + item.view + '"' + scrollTargetAttr + ' role="button" tabindex="0"' : "";
-        return [
-          '<article class="' + className + '"' + attrs + '>',
-          '<span class="role-mini-label">' + item.label + "</span>",
-          '<strong class="role-mini-value">' + item.value + "</strong>",
-          '<p class="role-mini-copy">' + item.copy + "</p>",
-          item.view ? '<span class="role-mini-action">Open</span>' : "",
-          "</article>"
-        ].join("");
-      }).join("");
-    }
-
-    function renderRoleDashboardPanel() {
-      const role = normalizeAccessRole(state.userRole);
-      const score = state.brandScore || normalizeBrandScore({});
-      const realtimeSummary = state.realtimeSummary || {};
-      const realtimeCount = Number(realtimeSummary.total_reviews || 0).toLocaleString();
-      const realtimeStamp = formatRealtimeTimestamp(realtimeSummary.latest_ingested_at);
-      const extremes = getScoreExtremes();
-      const currentTrend = Array.isArray(state.trends) && state.trends.length ? state.trends[state.trends.length - 1] : null;
-      const previousTrend = Array.isArray(state.trends) && state.trends.length > 1 ? state.trends[state.trends.length - 2] : null;
-      const negativeDelta = currentTrend && previousTrend
-        ? Number(currentTrend.Negative || 0) - Number(previousTrend.Negative || 0)
-        : 0;
-      const risk = riskMeta(score.brand_reputation_score, score.negative_pct);
-
-      let eyebrow = "Role View";
-      let title = "Operational Overview";
-      let copy = "Key metrics will appear here.";
-      let cards = [];
-
-      if (role === "admin") {
-        eyebrow = "System Control";
-        title = "Executive Snapshot";
-        copy = "Core system signals in one place.";
-        cards = [
-          {
-            label: "Users",
-            value: String((state.users || []).length || 0),
-            copy: "Access coverage",
-            view: "users"
-          },
-          {
-            label: "Brands",
-            value: String((state.brands || []).length || 0),
-            copy: "Tracked coverage",
-            view: "analytics-summary"
-          },
-          {
-            label: "Last Sync",
-            value: realtimeStamp,
-            copy: realtimeSummary.latest_ingested_at
-              ? "Live feed ready"
-              : "Waiting for live sync",
-            view: "dashboard",
-            scrollTarget: "dashboardRealtimeReviewList"
-          },
-          {
-            label: "Model",
-            value: state.modelMetrics && Number.isFinite(Number(state.modelMetrics.test_accuracy))
-              ? (Number(state.modelMetrics.test_accuracy) * 100).toFixed(1) + "%"
-              : "Waiting",
-            copy: state.modelMetrics && state.modelMetrics.model
-              ? String(state.modelMetrics.model) + " ready"
-              : "Metrics pending",
-            view: "model-performance"
-          }
-        ];
-      } else if (role === "marketing_staff") {
-        eyebrow = "Brand Monitoring";
-        title = "Marketing Snapshot";
-        copy = "Score, leaders, and live movement.";
-        const comparePair = extremes.leader && extremes.lagger
-          ? extremes.leader.brand + " vs " + extremes.lagger.brand
-          : (extremes.leader ? extremes.leader.brand + " lead" : "Waiting");
-        cards = [
-          {
-            label: "Score",
-            value: Number(score.brand_reputation_score || 0).toFixed(1),
-            copy: "Current reputation",
-            view: "brand-insights"
-          },
-          {
-            label: "Leader",
-            value: extremes.leader ? extremes.leader.brand : "Waiting",
-            copy: extremes.leader ? "Top ranked" : "Waiting",
-            view: "analytics-summary"
-          },
-          {
-            label: "Compare",
-            value: comparePair,
-            copy: "Main comparison",
-            view: "brand-insights"
-          },
-          {
-            label: "Last Sync",
-            value: realtimeStamp,
-            copy: "Live review intake",
-            view: "dashboard",
-            scrollTarget: "dashboardRealtimeReviewList"
-          }
-        ];
-      } else {
-        eyebrow = "Analysis";
-        title = "Analyst Snapshot";
-        copy = "Trends, complaints, and review volume.";
-        const complaintTopic = Array.isArray(state.customerVoiceKeywords) && state.customerVoiceKeywords[0]
-          ? "#" + state.customerVoiceKeywords[0].word
-          : (Array.isArray(state.keywords) && state.keywords[0] ? "#" + state.keywords[0].word : "Waiting");
-        cards = [
-          {
-            label: "Trend",
-            value: Array.isArray(state.trends) ? String(state.trends.length || 0) + " months" : "0 months",
-            copy: "Loaded window",
-            view: "review-trends"
-          },
-          {
-            label: "Keyword",
-            value: Array.isArray(state.keywords) && state.keywords[0]
-              ? String(state.keywords[0].word || "").replace(/^#/, "").replace(/^\w/, (char) => char.toUpperCase())
-              : "Waiting",
-            copy: "Primary signal",
-            view: "sentiment-distribution"
-          },
-          {
-            label: "Complaint",
-            value: complaintTopic && complaintTopic !== "Waiting"
-              ? complaintTopic.replace(/^#/, "").replace(/^\w/, (char) => char.toUpperCase()) + " complaints"
-              : "Waiting",
-            copy: "Top theme",
-            view: "customer-intelligence"
-          },
-          {
-            label: "Reviews",
-            value: Number(score.total_reviews || 0).toLocaleString(),
-            copy: "Current volume",
-            view: "dashboard"
-          }
-        ];
-      }
-
-      $("#roleDashboardEyebrow").textContent = eyebrow;
-      $("#roleDashboardTitle").textContent = title;
-      $("#roleDashboardCopy").textContent = copy;
-      $("#roleDashboardCards").innerHTML = formatRoleCards(cards);
-    }
-
-    function renderAnalystFocusPanel() {
-      const title = $("#analystFocusTitle");
-      const metric = $("#analystFocusMetric");
-      const copy = $("#analystFocusCopy");
-      const tagA = $("#analystFocusTagA");
-      const tagB = $("#analystFocusTagB");
-      const tagC = $("#analystFocusTagC");
-      const keywordTitle = $("#analystKeywordSpotlight");
-      const keywordCopy = $("#analystKeywordSpotlightCopy");
-      const complaintTitle = $("#analystComplaintSpotlight");
-      const complaintCopy = $("#analystComplaintSpotlightCopy");
-      if (!title || !metric || !copy || !tagA || !tagB || !tagC || !keywordTitle || !keywordCopy || !complaintTitle || !complaintCopy) return;
-
-      const trends = Array.isArray(state.trends) ? state.trends : [];
-      const current = trends.length ? trends[trends.length - 1] : null;
-      const previous = trends.length > 1 ? trends[trends.length - 2] : null;
-      const negativeDelta = current && previous ? Number(current.Negative || 0) - Number(previous.Negative || 0) : 0;
-      const topKeyword = Array.isArray(state.keywords) && state.keywords[0] ? String(state.keywords[0].word || "") : "";
-      const topComplaint = Array.isArray(state.customerVoiceKeywords) && state.customerVoiceKeywords[0] ? String(state.customerVoiceKeywords[0].word || "") : "";
-
-      title.textContent = negativeDelta > 0
-        ? "Negative review volume is rising."
-        : negativeDelta < 0
-          ? "Negative review volume is cooling."
-          : "Trend movement is stable.";
-      metric.textContent = (negativeDelta > 0 ? "+" : "") + Number(negativeDelta || 0).toFixed(0);
-      copy.textContent = trends.length
-        ? "Latest period change compared with the previous month window."
-        : "Load analytics to reveal the dominant shift in review behaviour.";
-      tagA.textContent = trends.length ? (current ? String(current.period || "Trend") : "Trend") : "Trend";
-      tagB.textContent = topKeyword ? "#" + topKeyword : "Keyword";
-      tagC.textContent = topComplaint ? "#" + topComplaint : "Complaint";
-
-      keywordTitle.textContent = topKeyword ? topKeyword.replace(/^\w/, (char) => char.toUpperCase()) : "Waiting";
-      keywordCopy.textContent = topKeyword
-        ? "Top keyword from the current analyst keyword view."
-        : "Top keyword signal will appear here.";
-
-      complaintTitle.textContent = topComplaint ? topComplaint.replace(/^\w/, (char) => char.toUpperCase()) : "Waiting";
-      complaintCopy.textContent = topComplaint
-        ? "Top complaint theme from customer voice."
-        : "Top complaint theme will appear here.";
-    }
-
-    function populateTrendBrandSelect(brands) {
-      const select = $("#trendBrandSelect");
-      if (!select) return;
-      const trendReadyBrands = brands.filter((item) => item.has_trend_data !== false);
-      const sourceBrands = trendReadyBrands.length ? trendReadyBrands : brands;
-      const previous = state.trendBrand || select.value || "";
-      const options = sourceBrands
-        .map((item) => '<option value="' + item.brand + '">' + item.brand + "</option>")
-        .join("");
-      select.innerHTML = '<option value="">All brands</option>' + options;
-      const available = new Set(sourceBrands.map((item) => item.brand));
-      const next = available.has(previous) ? previous : "";
-      select.value = next;
-      state.trendBrand = next;
-    }
-
-    function renderBrandSelectors(brands) {
-      const sorted = brands.slice().sort((a, b) => b.brand_reputation_score - a.brand_reputation_score);
-      const insightSelect = $("#brandInsightSelect");
-      const compareASelect = $("#compareBrandA");
-      const compareBSelect = $("#compareBrandB");
-
-      const previousInsight = insightSelect.value;
-      const previousCompareA = compareASelect.value;
-      const previousCompareB = compareBSelect.value;
-
-      const brandOptions = sorted
-        .map((item) => '<option value="' + item.brand + '">' + item.brand + "</option>")
-        .join("");
-
-      insightSelect.innerHTML = '<option value="">Select a brand</option>' + (brandOptions || "");
-      compareASelect.innerHTML = '<option value="">Select brand A</option>' + (brandOptions || "");
-      compareBSelect.innerHTML = '<option value="">Select brand B</option>' + (brandOptions || "");
-
-      const available = new Set(sorted.map((item) => item.brand));
-      insightSelect.value = available.has(previousInsight) ? previousInsight : "";
-      compareASelect.value = available.has(previousCompareA) ? previousCompareA : "";
-      compareBSelect.value = available.has(previousCompareB) ? previousCompareB : "";
-      populateTrendBrandSelect(sorted);
-      populateCustomerVoiceBrandSelect(sorted);
-    }
-
-    function getBrandByName(name) {
-      return state.brands.find((item) => item.brand === name) || null;
-    }
-
-    function renderSimilarBrands(items) {
-      const host = $("#similarBrandList");
-      if (!Array.isArray(items) || !items.length) {
-        host.innerHTML = '<div class="mini-note">No similar brands available.</div>';
-        return;
-      }
-
-      host.innerHTML = items.map((item) => {
-        const metrics = item.metrics || item;
-        const risk = item.risk || riskMeta(metrics.brand_reputation_score, metrics.negative_pct);
-        return [
-          '<div class="similar-item">',
-          '<div><strong>' + item.brand + '</strong><span>Score ' + Number(metrics.brand_reputation_score || 0).toFixed(1) + ' • Positive ' + Number(metrics.positive_pct || 0).toFixed(1) + '%</span></div>',
-          '<span class="score-chip ' + (risk.level ? 'risk-' + risk.level : risk.className) + '">' + risk.label + '</span>',
-          '</div>'
-        ].join("");
-      }).join("");
-    }
-
-    function clearBrandInsights(message) {
-      $("#insightScoreValue").textContent = "0.0";
-      $("#insightRiskChip").textContent = "No data";
-      $("#insightRiskChip").className = "score-chip risk-medium";
-      renderBrandEarlyWarning(null);
-      $("#insightWhyText").textContent = message || "Select a brand to view insights.";
-      $("#insightRecommendation").textContent = "Choose a brand from the dropdown to load reputation details.";
-      renderPillList("insightProsList", []);
-      renderPillList("insightConsList", []);
-      $("#similarBrandList").innerHTML = '<div class="mini-note">Select a brand to view similar brands.</div>';
-    }
-
-    async function renderBrandInsights() {
-      const selectedBrand = $("#brandInsightSelect").value;
-      const row = getBrandByName(selectedBrand);
-      const requestSeq = ++state.insightRequestSeq;
-      if (!row) {
-        clearBrandInsights(
-          state.brands.length
-            ? "Select a brand to view insights."
-            : "No brand data available yet."
-        );
-        return;
-      }
-
-      try {
-        const [insightsPayload, similarPayload] = await Promise.all([
-          callApi("/dashboard/insights?brand=" + encodeURIComponent(row.brand)),
-          callApi("/dashboard/similar?brand=" + encodeURIComponent(row.brand) + "&limit=3")
-        ]);
-        if (requestSeq !== state.insightRequestSeq) return;
-
-        const metrics = normalizeBrandRow(insightsPayload.metrics || row);
-        const risk = insightsPayload.risk || riskMeta(metrics.brand_reputation_score, metrics.negative_pct);
-        $("#insightScoreValue").textContent = metrics.brand_reputation_score.toFixed(1);
-        $("#insightRiskChip").textContent = risk.label;
-        $("#insightRiskChip").className = "score-chip " + (risk.level ? "risk-" + risk.level : risk.className);
-        renderBrandEarlyWarning(metrics);
-        $("#insightWhyText").textContent = insightsPayload.why || buildWhyText(metrics);
-        $("#insightRecommendation").textContent = insightsPayload.recommendation || buildRecommendation(metrics);
-        renderPillList("insightProsList", insightsPayload.pros || buildPros(metrics));
-        renderPillList("insightConsList", insightsPayload.cons || buildCons(metrics));
-        renderSimilarBrands(similarPayload.similar || []);
-      } catch (error) {
-        if (requestSeq !== state.insightRequestSeq) return;
-        if (handleAuthError(error)) return;
-        const risk = riskMeta(row.brand_reputation_score, row.negative_pct);
-        $("#insightScoreValue").textContent = row.brand_reputation_score.toFixed(1);
-        $("#insightRiskChip").textContent = risk.label;
-        $("#insightRiskChip").className = "score-chip " + risk.className;
-        renderBrandEarlyWarning(row);
-        $("#insightWhyText").textContent = buildWhyText(row);
-        $("#insightRecommendation").textContent = buildRecommendation(row);
-        renderPillList("insightProsList", buildPros(row));
-        renderPillList("insightConsList", buildCons(row));
-        renderSimilarBrands([]);
-      }
-    }
-
-    function clearBrandComparison(message) {
-      $("#compareScoreA").style.width = "0%";
-      $("#compareScoreB").style.width = "0%";
-      $("#comparePositiveA").style.width = "0%";
-      $("#comparePositiveB").style.width = "0%";
-      $("#compareNegativeA").style.width = "0%";
-      $("#compareNegativeB").style.width = "0%";
-      $("#compareScoreText").textContent = "0.0 vs 0.0";
-      $("#comparePositiveText").textContent = "0.0% vs 0.0%";
-      $("#compareNegativeText").textContent = "0.0% vs 0.0%";
-      $("#compareSummary").textContent = message || "Choose two brands to compare advantage, risk, and sentiment balance.";
-    }
-
-    async function renderBrandComparison() {
-      const selectedA = $("#compareBrandA").value;
-      const selectedB = $("#compareBrandB").value;
-      const brandA = getBrandByName(selectedA);
-      const brandB = getBrandByName(selectedB);
-      const requestSeq = ++state.compareRequestSeq;
-      if (!brandA || !brandB) {
-        clearBrandComparison();
-        return;
-      }
-
-      try {
-        const payload = await callApi(
-          "/dashboard/compare?brand_a=" + encodeURIComponent(brandA.brand) + "&brand_b=" + encodeURIComponent(brandB.brand)
-        );
-        if (requestSeq !== state.compareRequestSeq) return;
-        const left = normalizeBrandRow(payload.brand_a || brandA);
-        const right = normalizeBrandRow(payload.brand_b || brandB);
-        $("#compareScoreA").style.width = clamp(left.brand_reputation_score, 0, 100) + "%";
-        $("#compareScoreB").style.width = clamp(right.brand_reputation_score, 0, 100) + "%";
-        $("#comparePositiveA").style.width = clamp(left.positive_pct, 0, 100) + "%";
-        $("#comparePositiveB").style.width = clamp(right.positive_pct, 0, 100) + "%";
-        $("#compareNegativeA").style.width = clamp(left.negative_pct, 0, 100) + "%";
-        $("#compareNegativeB").style.width = clamp(right.negative_pct, 0, 100) + "%";
-        $("#compareScoreText").textContent = left.brand_reputation_score.toFixed(1) + " vs " + right.brand_reputation_score.toFixed(1);
-        $("#comparePositiveText").textContent = left.positive_pct.toFixed(1) + "% vs " + right.positive_pct.toFixed(1) + "%";
-        $("#compareNegativeText").textContent = left.negative_pct.toFixed(1) + "% vs " + right.negative_pct.toFixed(1) + "%";
-        $("#compareSummary").textContent = payload.summary || "Comparison loaded.";
-        return;
-      } catch (error) {
-        if (requestSeq !== state.compareRequestSeq) return;
-        if (handleAuthError(error)) return;
-      }
-
-      $("#compareScoreA").style.width = clamp(brandA.brand_reputation_score, 0, 100) + "%";
-      $("#compareScoreB").style.width = clamp(brandB.brand_reputation_score, 0, 100) + "%";
-      $("#comparePositiveA").style.width = clamp(brandA.positive_pct, 0, 100) + "%";
-      $("#comparePositiveB").style.width = clamp(brandB.positive_pct, 0, 100) + "%";
-      $("#compareNegativeA").style.width = clamp(brandA.negative_pct, 0, 100) + "%";
-      $("#compareNegativeB").style.width = clamp(brandB.negative_pct, 0, 100) + "%";
-
-      $("#compareScoreText").textContent = brandA.brand_reputation_score.toFixed(1) + " vs " + brandB.brand_reputation_score.toFixed(1);
-      $("#comparePositiveText").textContent = brandA.positive_pct.toFixed(1) + "% vs " + brandB.positive_pct.toFixed(1) + "%";
-      $("#compareNegativeText").textContent = brandA.negative_pct.toFixed(1) + "% vs " + brandB.negative_pct.toFixed(1) + "%";
-
-      const leader = brandA.brand_reputation_score >= brandB.brand_reputation_score ? brandA : brandB;
-      const lagger = leader.brand === brandA.brand ? brandB : brandA;
-      $("#compareSummary").textContent = leader.brand + " leads on brand reputation score, while " + lagger.brand + " needs more work on negative sentiment control and trust recovery.";
-    }
-
-    function updateSignalPanel(score) {
-      $("#trendReputationText").textContent = getTrendLabel(score.brand_reputation_score, true);
-      $("#trendPositiveText").textContent = getTrendLabel(score.positive_pct, true);
-      $("#trendNegativeText").textContent = getTrendLabel(score.negative_pct, false);
-
-      setTrendIcon($("#trendReputationIcon"), score.brand_reputation_score >= 40 ? "up" : score.brand_reputation_score < 10 ? "down" : "flat");
-      setTrendIcon($("#trendPositiveIcon"), score.positive_pct >= 50 ? "up" : "flat");
-      setTrendIcon($("#trendNegativeIcon"), score.negative_pct >= 40 ? "down" : "flat");
-      updatePanelClock();
-      renderSignalRadar(score);
-    }
-
-    function updateConfidenceSignal(confidence, sentiment) {
-      const signalConfidenceGauge = $("#signalConfidenceGauge");
-      const signalConfidenceNote = $("#signalConfidenceNote");
-      if (!signalConfidenceGauge && !signalConfidenceNote) return;
-      const numeric = Number.isFinite(confidence) ? clamp(confidence, 0, 100) : 0;
-      const color = sentimentClass(sentiment) === "sentiment-positive"
-        ? "var(--positive)"
-        : sentimentClass(sentiment) === "sentiment-negative"
-          ? "var(--negative)"
-          : "var(--neutral)";
-
-      renderGauge(signalConfidenceGauge, numeric, {
-        displayValue: numeric ? numeric.toFixed(0) : "0",
-        label: "Latest Signal",
-        suffix: "%",
-        caption: numeric ? "Confidence from the most recent prediction event." : "Confidence updates after prediction events.",
-        color
-      });
-
-      if (signalConfidenceNote) {
-        signalConfidenceNote.textContent = numeric
-          ? sentiment + " classification detected with " + numeric.toFixed(1) + "% confidence."
-          : "No recent prediction event.";
-      }
-    }
-
-    function pathFromPoints(points) {
-      if (!points.length) return "";
-      return points.map((point, index) => (index ? "L" : "M") + point.x + " " + point.y).join(" ");
-    }
-
-    function trendsEndpoint(selectedBrand = "") {
-      const params = new URLSearchParams();
-      if (selectedBrand) params.set("brand", selectedBrand);
-      if (state.trendWindow && String(state.trendWindow).trim()) params.set("months", String(state.trendWindow).trim());
-      const query = params.toString();
-      return "/dashboard/trends" + (query ? "?" + query : "");
-    }
-
-    function getWindowedTrends() {
-      if (!Array.isArray(state.trends) || !state.trends.length) return [];
-      const windowSize = Number(state.trendWindow || "all");
-      if (!Number.isFinite(windowSize) || windowSize <= 0) return state.trends;
-      return state.trends.slice(-windowSize);
-    }
-
-    function activeTrendBrand() {
-      const select = $("#trendBrandSelect");
-      return (select && typeof select.value === "string" ? select.value : state.trendBrand) || "";
-    }
-
-    function activeTrendBrandLabel() {
-      const select = $("#trendBrandSelect");
-      if (select && select.selectedOptions && select.selectedOptions[0]) {
-        return String(select.selectedOptions[0].textContent || "").trim();
-      }
-      return state.trendBrand || "All brands";
-    }
-
-    async function refreshTrendView(brandOverride) {
-      const requestSeq = ++state.trendRequestSeq;
-      const selectedBrand = typeof brandOverride === "string" ? brandOverride : activeTrendBrand();
-      state.trendBrand = selectedBrand;
-      $("#trendCaption").textContent = "Loading trend data...";
-      try {
-        const payload = await callApi(trendsEndpoint(selectedBrand), { timeoutMs: 12000 });
-        if (requestSeq !== state.trendRequestSeq) return;
-        state.trends = Array.isArray(payload.trends) ? payload.trends : [];
-        renderTrendChart(getWindowedTrends());
-        renderTrendMomentum();
-        renderTrendMonthlyComparison();
-        renderTrendReviewVolume();
-        if (state.trendDrilldownSentiment) loadTrendDrilldown(state.trendDrilldownSentiment);
-        if (selectedBrand && !state.trends.length) {
-          $("#trendCaption").textContent = "No monthly trend data for " + activeTrendBrandLabel() + ". Missing valid review dates for this brand.";
-        }
-      } catch (error) {
-        if (requestSeq !== state.trendRequestSeq) return;
-        state.trends = [];
-        renderTrendChart([]);
-        renderTrendMomentum();
-        renderTrendMonthlyComparison();
-        renderTrendReviewVolume();
-        if (!state.trendDrilldownSentiment) {
-          $("#trendReviewDrilldown").innerHTML = '<div class="mini-note">Review samples will appear here after you click a sentiment line or legend item.</div>';
-        }
-        $("#trendCaption").textContent = "Unable to load trend graph: " + (error.message || "request failed") + ".";
-      }
-    }
-
-    function renderTrendChart(trends) {
-      const grid = $("#trendGrid");
-      const labels = $("#trendLabels");
-      grid.innerHTML = "";
-      labels.innerHTML = "";
-
-      if (!Array.isArray(trends) || !trends.length) {
-        $("#trendPositivePath").setAttribute("d", "");
-        $("#trendNeutralPath").setAttribute("d", "");
-        $("#trendNegativePath").setAttribute("d", "");
-        $("#trendCaption").textContent = "Trend graph waiting for `/dashboard/trends` data.";
-        return;
-      }
-
-      const width = 320;
-      const height = 180;
-      const padding = { top: 16, right: 14, bottom: 34, left: 10 };
-      const maxValue = Math.max(1, ...trends.flatMap((item) => [Number(item.Positive || 0), Number(item.Neutral || 0), Number(item.Negative || 0)]));
-      const usableWidth = width - padding.left - padding.right;
-      const usableHeight = height - padding.top - padding.bottom;
-      const step = trends.length > 1 ? usableWidth / (trends.length - 1) : usableWidth / 2;
-
-      [0, 0.25, 0.5, 0.75, 1].forEach((ratio) => {
-        const y = padding.top + usableHeight * ratio;
-        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-        line.setAttribute("x1", padding.left);
-        line.setAttribute("x2", width - padding.right);
-        line.setAttribute("y1", y);
-        line.setAttribute("y2", y);
-        line.setAttribute("stroke", "rgba(142,165,195,0.14)");
-        line.setAttribute("stroke-width", "1");
-        grid.appendChild(line);
-      });
-
-      const pointSet = { Positive: [], Neutral: [], Negative: [] };
-      const labelStep = trends.length > 10 ? 2 : 1;
-      trends.forEach((item, index) => {
-        const x = padding.left + step * index;
-        ["Positive", "Neutral", "Negative"].forEach((key) => {
-          const value = Number(item[key] || 0);
-          const y = padding.top + usableHeight - (value / maxValue) * usableHeight;
-          pointSet[key].push({ x, y });
-        });
-
-        if (index % labelStep !== 0 && index !== trends.length - 1) return;
-        const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
-        label.setAttribute("x", x);
-        label.setAttribute("y", height - 8);
-        label.setAttribute("fill", "var(--muted)");
-        label.setAttribute("font-size", "10");
-        label.setAttribute("text-anchor", index === 0 ? "start" : index === trends.length - 1 ? "end" : "middle");
-        label.textContent = String(item.period || "").slice(2);
-        labels.appendChild(label);
-      });
-
-      $("#trendPositivePath").setAttribute("d", pathFromPoints(pointSet.Positive));
-      $("#trendNeutralPath").setAttribute("d", pathFromPoints(pointSet.Neutral));
-      $("#trendNegativePath").setAttribute("d", pathFromPoints(pointSet.Negative));
-      const scope = state.trendBrand ? " for " + activeTrendBrandLabel() : " for all brands";
-      $("#trendCaption").textContent = "Trend graph rendered from " + trends.length + " months" + scope + ".";
-    }
-
-    function renderKeywords(keywords) {
-      const host = $("#keywordList");
-      if (!Array.isArray(keywords) || !keywords.length) {
-        host.innerHTML = '<div class="keyword-caption">Keyword chart waiting for `/dashboard/keywords` data.</div>';
-        return;
-      }
-
-      const maxCount = Math.max(1, ...keywords.map((item) => Number(item.count || 0)));
-      host.innerHTML = keywords.slice(0, 8).map((item) => {
-        const width = clamp((Number(item.count || 0) / maxCount) * 100, 0, 100);
-        return [
-          '<div class="keyword-row">',
-          "<strong>" + item.word + "</strong>",
-          '<div class="keyword-bar"><span style="width:' + width.toFixed(2) + '%;"></span></div>',
-          "<span>" + Number(item.count || 0).toLocaleString() + "</span>",
-          "</div>"
-        ].join("");
-      }).join("");
-    }
-
-    function renderDashboardAnalyticsState() {
-      renderKeywords(state.keywords);
-      renderBrandSelectors(state.brands);
-      renderBrandQuickList(state.brands);
-      renderBrandSideLists(state.brands);
-      renderBrandWatchlist();
-      renderBrandInsights();
-      renderBrandComparison();
-      renderAnalystCustomerVoice();
-      renderAnalystFocusPanel();
-      renderSmartInsight();
-      renderAnalyticsSummaryContext();
-      renderRoleDashboardPanel();
-    }
-
-    async function refreshDashboardAnalyticsSupplementary(role, options = {}) {
-      const sessionRevision = Number.isFinite(Number(options.sessionRevision)) ? Number(options.sessionRevision) : state.sessionRevision;
-      const requestSeq = Number.isFinite(Number(options.requestSeq)) ? Number(options.requestSeq) : state.dashboardRefreshRequestSeq;
-      try {
-        const keywordsPayload = await callApi("/dashboard/keywords", { timeoutMs: 65000 });
-        if (!sameSessionRevision(sessionRevision) || requestSeq !== state.dashboardRefreshRequestSeq) return;
-        state.keywords = Array.isArray(keywordsPayload.keywords) ? keywordsPayload.keywords : [];
-      } catch (error) {
-        if (!sameSessionRevision(sessionRevision) || requestSeq !== state.dashboardRefreshRequestSeq) return;
-        if (handleAuthError(error)) return;
-        state.keywords = [];
-        $("#keywordList").innerHTML = '<div class="keyword-caption">Unable to load keyword chart.</div>';
-      }
-
-      if (!sameSessionRevision(sessionRevision) || requestSeq !== state.dashboardRefreshRequestSeq) return;
-      if (role === "analyst") {
-        refreshCustomerVoiceKeywords();
-      }
-      renderDashboardAnalyticsState();
-
-      try {
-        await refreshTrendView();
-      } catch (trendError) {
-        if (!sameSessionRevision(sessionRevision) || requestSeq !== state.dashboardRefreshRequestSeq) return;
-        if (handleAuthError(trendError)) return;
-        $("#trendCaption").textContent = "Unable to load trend graph: " + (trendError.message || "request failed") + ".";
-      }
-
-      if (!sameSessionRevision(sessionRevision) || requestSeq !== state.dashboardRefreshRequestSeq) return;
-      renderAnalyticsSummaryContext();
-      renderRoleDashboardPanel();
-    }
-
-    async function refreshDashboardAnalytics(options = {}) {
-      const role = normalizeAccessRole(state.userRole);
-      const sessionRevision = Number.isFinite(Number(options.sessionRevision)) ? Number(options.sessionRevision) : state.sessionRevision;
-      const requestSeq = Number.isFinite(Number(options.requestSeq)) ? Number(options.requestSeq) : state.dashboardRefreshRequestSeq;
-      try {
-        const requests = [
-          callApi("/dashboard/brands", { timeoutMs: 20000 })
-        ];
-        if (role === "admin") {
-          requests.push(callApi("/admin/model-performance"));
-        } else if (role === "marketing_staff" || role === "analyst") {
-          requests.push(callApi("/dashboard/platforms"));
-        }
-        const [brandsPayload, optionalPayload] = await Promise.all(requests);
-        if (!sameSessionRevision(sessionRevision) || requestSeq !== state.dashboardRefreshRequestSeq) return;
-        state.brands = Array.isArray(brandsPayload.brands) ? brandsPayload.brands.map(normalizeBrandRow) : [];
-        if (role === "admin") {
-          state.modelMetrics = optionalPayload && optionalPayload.metrics ? optionalPayload.metrics : null;
-          state.modelTrainingAt = optionalPayload && optionalPayload.last_training_at ? optionalPayload.last_training_at : "";
-          state.platforms = [];
-          renderAdminModelPerformance();
-          renderAdminControlHub();
-          renderAdminOps();
-          renderAdminSidePanel();
-        } else {
-          state.platforms = optionalPayload && Array.isArray(optionalPayload.platforms) ? optionalPayload.platforms : [];
-        }
-
-        renderDashboardAnalyticsState();
-        refreshDashboardAnalyticsSupplementary(role, { sessionRevision, requestSeq }).catch(() => {});
-      } catch (error) {
-        if (!sameSessionRevision(sessionRevision) || requestSeq !== state.dashboardRefreshRequestSeq) return;
-        if (handleAuthError(error)) return;
-        state.brands = [];
-        state.platforms = [];
-        state.modelMetrics = null;
-        state.modelTrainingAt = "";
-        state.customerVoiceKeywords = [];
-        state.customerVoiceKeywordCache = {};
-        state.customerVoiceKeywordsLoading = false;
-        $("#trendCaption").textContent = "Unable to load trend graph: " + (error.message || "request failed") + ".";
-        $("#keywordList").innerHTML = '<div class="keyword-caption">Unable to load keyword chart.</div>';
-        $("#compareSummary").textContent = "Unable to load brand comparison data.";
-        $("#similarBrandList").innerHTML = '<div class="mini-note">Unable to load similar brand data.</div>';
-        renderDashboardAnalyticsState();
-      }
     }
 
     function resetViewScroll() {
@@ -2838,21 +1134,40 @@ function sameSessionRevision(revision) {
       const target = document.getElementById(targetId);
       const stage = document.querySelector(".stage");
       if (!target) return;
-      if (stage) {
+      const stageIsScrollable = Boolean(
+        stage
+        && stage.scrollHeight > stage.clientHeight + 8
+        && window.getComputedStyle(stage).overflowY !== "visible"
+      );
+      if (stageIsScrollable) {
         const stageRect = stage.getBoundingClientRect();
         const targetRect = target.getBoundingClientRect();
         const nextTop = stage.scrollTop + (targetRect.top - stageRect.top) - 18;
         stage.scrollTo({ top: Math.max(0, nextTop), behavior: "smooth" });
         return;
       }
-      target.scrollIntoView({ behavior: "smooth", block: "start" });
+      const nextTop = target.getBoundingClientRect().top + window.scrollY - 96;
+      window.scrollTo({ top: Math.max(0, nextTop), behavior: "smooth" });
     }
 
     function navigateRoleDashboardCard(card) {
       if (!card) return;
       const view = card.dataset.view || "";
       const scrollTarget = card.dataset.scrollTarget || "";
+      const compareA = card.dataset.compareA || "";
+      const compareB = card.dataset.compareB || "";
       viewRouter(view);
+      if (view === "brand-insights" && (compareA || compareB)) {
+        const compareSelectA = $("#compareBrandA");
+        const compareSelectB = $("#compareBrandB");
+        if (compareSelectA && Array.from(compareSelectA.options || []).some((option) => option.value === compareA)) {
+          compareSelectA.value = compareA;
+        }
+        if (compareSelectB && Array.from(compareSelectB.options || []).some((option) => option.value === compareB)) {
+          compareSelectB.value = compareB;
+        }
+        renderBrandComparison();
+      }
       if (scrollTarget) {
         window.setTimeout(() => scrollStageToTarget(scrollTarget), 60);
       }
@@ -2890,6 +1205,21 @@ function sameSessionRevision(revision) {
       if (resolved === "notifications" && state.userRole === "admin") renderAdminNotifications();
       if (resolved === "history") renderHistory();
       if (resolved === "users" && state.userRole === "admin") loadUsersManagement();
+      if (resolved === "customer-intelligence") renderAnalystCustomerVoice();
+      if (
+        resolved === "customer-intelligence"
+        && canLoadCustomerVoiceKeywords()
+      ) {
+        requestCustomerVoiceKeywordsRefresh();
+      }
+      if (
+        resolved === "sentiment-distribution"
+        && state.isAuthenticated
+        && !state.dashboardKeywordsLoading
+        && !hasKeywordGroups(state.keywordGroups)
+      ) {
+        refreshDashboardKeywordGroups({ sessionRevision: state.sessionRevision, timeoutMs: 90000 }).catch(() => {});
+      }
       document.body.classList.remove("drawer-open");
       $("#signalDrawerToggle").setAttribute("aria-expanded", "false");
       syncShellLayout();
@@ -2901,25 +1231,31 @@ function sameSessionRevision(revision) {
       const { showToast = true, withButton = true, includeAnalytics = true, forceRecalculate = false, buttonEl = null } = options;
       const button = buttonEl || $("#refreshScoreButton");
       const idleLabel = button ? (button.dataset.label || button.textContent.trim()) : "Refresh";
+      const shouldAnnounceStatus = Boolean(withButton);
       const sessionRevision = state.sessionRevision;
       const requestSeq = ++state.dashboardRefreshRequestSeq;
+      const analyticsRequestSeq = includeAnalytics ? ++state.dashboardAnalyticsRequestSeq : state.dashboardAnalyticsRequestSeq;
       if (withButton && button) {
-        setButtonLoading(
-          button,
-          true,
-          idleLabel,
-          forceRecalculate ? "Refreshing..." : "Syncing..."
+        setDashboardActionBusy(button, true, forceRecalculate ? "Refreshing..." : "Syncing...");
+      }
+      if (shouldAnnounceStatus) {
+        setDashboardSyncStatus(
+          forceRecalculate
+            ? "Refreshing analytics and rebuilding dashboard data..."
+            : "Syncing latest live dashboard data...",
+          "working"
         );
       }
       try {
         const summaryEndpoint = forceRecalculate ? "/dashboard/summary?refresh=1" : "/dashboard/summary";
         const [payload, realtimeSummaryPayload, realtimeReviewsPayload] = await Promise.all([
-          callApi(summaryEndpoint, { timeoutMs: forceRecalculate ? 65000 : 12000 }),
+          callApi(summaryEndpoint, { timeoutMs: forceRecalculate ? 65000 : 60000 }),
           callApi("/dashboard/realtime-summary"),
           callApi("/dashboard/realtime-reviews?limit=5")
         ]);
         if (!sameSessionRevision(sessionRevision) || requestSeq !== state.dashboardRefreshRequestSeq) return;
         const score = normalizeBrandScore(payload);
+        const summaryBrands = Array.isArray(payload.brand_scores) ? payload.brand_scores.map(normalizeBrandRow) : [];
         state.realtimeSummary = {
           total_reviews: Number(realtimeSummaryPayload.total_reviews || 0),
           platforms: Array.isArray(realtimeSummaryPayload.platforms) ? realtimeSummaryPayload.platforms : [],
@@ -2927,25 +1263,41 @@ function sameSessionRevision(revision) {
           latest_ingested_at: realtimeSummaryPayload.latest_ingested_at || null
         };
         state.latestRealtimeReviews = Array.isArray(realtimeReviewsPayload.reviews) ? realtimeReviewsPayload.reviews : [];
+        state.latestRealtimeReviewsMode = String(
+          realtimeReviewsPayload.source_mode || (state.latestRealtimeReviews.length ? "live" : "empty")
+        ).trim().toLowerCase() || "empty";
         state.brandScore = score;
+        if (summaryBrands.length) state.brands = summaryBrands;
         updateDashboard(score);
         updateSignalPanel(score);
+        renderRoleDashboardPanel();
+        if (summaryBrands.length) renderDashboardAnalyticsState();
         if (includeAnalytics) {
-          const analyticsRefresh = refreshDashboardAnalytics({ sessionRevision, requestSeq });
+          const analyticsRefresh = refreshDashboardAnalytics({ sessionRevision, requestSeq: analyticsRequestSeq });
           if (forceRecalculate) {
             await analyticsRefresh;
+            if (shouldAnnounceStatus) setDashboardSyncStatus("Refresh completed at " + dashboardSyncTimestampLabel() + ".", "success");
           } else {
-            analyticsRefresh.catch(() => {});
+            if (shouldAnnounceStatus) setDashboardSyncStatus("Live data synced. Analytics will continue updating in the background.", "success");
+            analyticsRefresh
+              .then(() => {
+                if (!sameSessionRevision(sessionRevision) || requestSeq !== state.dashboardRefreshRequestSeq) return;
+                if (shouldAnnounceStatus) setDashboardSyncStatus("Dashboard synced at " + dashboardSyncTimestampLabel() + ".", "success");
+              })
+              .catch(() => {});
           }
+        } else {
+          if (shouldAnnounceStatus) setDashboardSyncStatus("Live dashboard synced at " + dashboardSyncTimestampLabel() + ".", "success");
         }
         if (showToast) toast(forceRecalculate ? "Brand score refreshed successfully." : "Dashboard synced successfully.", "success");
       } catch (error) {
         if (!sameSessionRevision(sessionRevision) || requestSeq !== state.dashboardRefreshRequestSeq) return;
         if (handleAuthError(error)) return;
+        if (shouldAnnounceStatus) setDashboardSyncStatus(error.message || "Sync failed.", "error");
         if (showToast) toast(error.message || "Failed to refresh brand score.", "error");
       } finally {
         if (withButton && button && requestSeq === state.dashboardRefreshRequestSeq) {
-          setButtonLoading(button, false, idleLabel);
+          setDashboardActionBusy(button, false);
         }
       }
     }
@@ -3029,6 +1381,7 @@ function sameSessionRevision(revision) {
       }));
       on("#dashboardSyncButton", "click", () => refreshBrandScore({
         forceRecalculate: false,
+        includeAnalytics: false,
         buttonEl: $("#dashboardSyncButton")
       }));
       on("#brandInsightSelect", "change", () => {
@@ -3063,12 +1416,23 @@ function sameSessionRevision(revision) {
       on("#runTrainButton", "click", () => runAdminPipelineAction("/train", $("#runTrainButton"), "Train Model", "Training model...", "Model training completed."));
       on("#usersTableBody", "click", handleUsersTableAction);
       on("#roleDashboardCards", "click", (event) => {
+        const brandButton = event.target.closest("button[data-brand]");
+        if (brandButton) {
+          openBrandFromRoleDashboard(brandButton);
+          return;
+        }
         const card = event.target.closest(".role-mini-card[data-view]");
         if (!card) return;
         navigateRoleDashboardCard(card);
       });
       on("#roleDashboardCards", "keydown", (event) => {
         if (event.key !== "Enter" && event.key !== " ") return;
+        const brandButton = event.target.closest("button[data-brand]");
+        if (brandButton) {
+          event.preventDefault();
+          openBrandFromRoleDashboard(brandButton);
+          return;
+        }
         const card = event.target.closest(".role-mini-card[data-view]");
         if (!card) return;
         event.preventDefault();
@@ -3161,7 +1525,7 @@ function sameSessionRevision(revision) {
           });
           setSession(normalizeSessionUser(payload) || email);
           toast("Login successful.", "success");
-          await refreshBrandScore();
+          warmDashboardAfterSession();
         } catch (error) {
           $("#authError").textContent = error.message || "Login failed.";
         } finally {
@@ -3243,16 +1607,14 @@ function sameSessionRevision(revision) {
       bindEvents();
       updateLoginButtonState();
       viewRouter();
-      try {
-        const sessionState = await callApi("/auth/session");
-        if (sessionState && sessionState.authenticated) {
-          setSession(normalizeSessionUser(sessionState));
-          await refreshBrandScore({ showToast: false });
-        } else {
-          clearSessionUi();
-          showLogin();
-        }
-      } catch (error) {
+      const sessionState = await probeSessionState();
+      if (sessionState && sessionState.authenticated) {
+        setSession(sessionState.user);
+        warmDashboardAfterSession({ showToast: false });
+      } else if (sessionState && sessionState.authenticated === false) {
+        clearSessionUi();
+        showLogin();
+      } else {
         clearSessionUi();
         showLogin("Unable to verify the backend session. Make sure the Flask app is running, then sign in.");
       }

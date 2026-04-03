@@ -14,8 +14,10 @@ This project is close to feature-complete for an academic/demo build:
 
 ## Project Structure
 
-- `backend/app.py` - Flask entry point, API routes, auth/session wiring
+- `backend/app.py` - Flask composition root and app startup
+- `backend/auth_support.py` - shared dashboard auth, session, and user-store helpers
 - `backend/config.py` - shared paths and runtime configuration
+- `backend/core_routes.py` - core system, pipeline, prediction, realtime, and connector endpoints
 - `backend/aspect_analysis.py` - aspect-level sentiment extraction for single, batch, and realtime flows
 - `backend/preprocessing.py` - review normalization and cleaning
 - `backend/feature_extraction.py` - TF-IDF feature dataset creation
@@ -33,13 +35,27 @@ This project is close to feature-complete for an academic/demo build:
 - `frontend/premium-theme.css` - active theme entrypoint that imports the modular premium theme partials
 - `frontend/premium-theme-*.css` - split premium theme layers for foundation, shell, dashboard, about, workspace, and responsive rules
 - `frontend/app-shared.js` - shared frontend constants and stateless helpers loaded before the main runtime
+- `frontend/app-dashboard.js` - dashboard, summary, and signal presentation helpers
 - `frontend/app-history.js` - local activity history helpers and timeline rendering
 - `frontend/app-admin.js` - admin-control rendering and user-management logic
 - `frontend/app-analysis.js` - single-review and batch-analysis runtime logic
+- `frontend/app-runtime-keywords.js` - dashboard keyword-group loading and sentiment keyword rendering
+- `frontend/app-runtime-customer-voice.js` - customer-voice filters, complaint-topic loading, and export helpers
+- `frontend/app-runtime-signals.js` - trend, export, summary, and signal-panel analytics helpers
 - `frontend/app.js` - core dashboard runtime, API wiring, routing, and shared view orchestration
 - `frontend/premium-ui.js` - UI enhancement layer for animation and presentation polish
+- `docs/architecture.md` - project architecture overview for frontend/backend structure
+- `docs/data-layout.md` - dataset folder layout and retained compatibility artifacts
 - `docs/` - project notes and implementation references
 - `tools/` - utility scripts such as report generation helpers
+
+## Architecture Notes
+
+- `backend/app.py` now acts as a composition root that wires blueprints together instead of directly owning every route.
+- `backend/auth_support.py` keeps dashboard auth/session and user-store behavior out of the Flask entrypoint.
+- Route responsibilities are split across auth, admin, dashboard analytics, and core system/pipeline endpoints.
+- `frontend/app.js` remains the runtime coordinator, while feature slices such as dashboard, analysis, admin, history, keywords, customer voice, and analytics signals are separated into dedicated modules.
+- Theme styling is layered through `premium-theme.css` plus focused partials so visual edits stay localized.
 
 ## Quick Start
 
@@ -55,8 +71,11 @@ Copy `.env.example` to `.env` and update values as needed.
 
 Important notes:
 
+- Set `SECRET_KEY` to a long random value before running shared or deployed environments.
+- Set `DASHBOARD_ADMIN_PASSWORD` to a strong password if you want the configured admin account to be auto-seeded on first run.
+- `ALLOWED_CORS_ORIGINS` should list the frontend origins that are allowed to make credentialed requests.
 - `MONGO_URI` is optional. Leave it blank to run the project in CSV-only mode.
-- The dashboard seeds a default admin account using `DASHBOARD_ADMIN_EMAIL` and `DASHBOARD_ADMIN_PASSWORD` on first run.
+- `POST /api/auth/register` creates an account only. Users sign in separately through `POST /api/auth/login`.
 
 ### 3. Place raw review CSV files
 
@@ -64,6 +83,12 @@ Use `backend/dataset/` as the single canonical data root for all project data:
 
 - `backend/dataset/raw/` for the preferred structure
 - `backend/dataset/csv/` for backward compatibility
+- `backend/dataset/processed/` for generated datasets and dashboard-ready machine-readable outputs
+- `backend/dataset/models/` for trained model and TF-IDF artifacts
+- `backend/dataset/reports/` for metrics, charts, and evaluation reports
+- `backend/dataset/state/` for scheduler, connector, and dashboard runtime state
+
+See `docs/data-layout.md` for the maintained folder map and compatibility notes.
 
 Generated files like predictions, metrics, trends, and realtime review logs are not treated as raw input.
 
@@ -89,21 +114,22 @@ python backend/predict.py
 python backend/brand_score.py
 ```
 
-Generated outputs are written to `backend/dataset/`, including:
+Generated outputs are written under the structured `backend/dataset/` folders:
 
-- `cleaned_reviews.csv`
-- `feature_dataset.csv`
-- `sentiment_model.pkl`
-- `tfidf_vectorizer.pkl`
-- `model_metrics.csv`
-- `model_report.txt`
-- `final_predictions.csv`
-- `brand_score.json`
-- `brand_reputation_by_brand.csv`
-- `sentiment_trends.csv`
-- `platform_summary.csv`
+- `backend/dataset/processed/cleaned_reviews.csv`
+- `backend/dataset/processed/feature_dataset.csv`
+- `backend/dataset/processed/final_predictions.csv`
+- `backend/dataset/processed/brand_score.json`
+- `backend/dataset/processed/brand_reputation_by_brand.csv`
+- `backend/dataset/processed/sentiment_trends.csv`
+- `backend/dataset/processed/platform_summary.csv`
+- `backend/dataset/models/sentiment_model.pkl`
+- `backend/dataset/models/tfidf_vectorizer.pkl`
+- `backend/dataset/reports/model_metrics.csv`
+- `backend/dataset/reports/model_report.txt`
 
 Raw source files are primarily expected in `backend/dataset/raw/` or `backend/dataset/csv/`. The backend still supports legacy flat CSVs inside `backend/dataset/` for compatibility.
+Legacy model compatibility files such as `tfidf_vectorizer_legacy.pkl` and `X_tfidf_legacy.pkl` are intentionally retained under `backend/dataset/models/`.
 
 ## Main API Endpoints
 
@@ -129,6 +155,9 @@ Raw source files are primarily expected in `backend/dataset/raw/` or `backend/da
 - `GET /api/connectors/scheduler`
 - `POST /api/connectors/scheduler`
 
+Auth flow note:
+Create an account with `POST /api/auth/register`, then authenticate with `POST /api/auth/login` to start a session.
+
 ## Testing
 
 Run the lightweight unit test suite with:
@@ -144,6 +173,8 @@ Supported configuration:
 - `SECRET_KEY`
 - `DASHBOARD_ADMIN_EMAIL`
 - `DASHBOARD_ADMIN_PASSWORD`
+- `ALLOWED_CORS_ORIGINS`
+- `SESSION_COOKIE_SECURE`
 - `MONGO_URI`
 - `MONGO_DB_NAME`
 - `MONGO_REVIEWS_COLLECTION`
@@ -155,6 +186,7 @@ Supported configuration:
 
 - MongoDB integration is optional.
 - `backend/dataset/` is the only canonical dataset folder for this project.
+- `backend/dataset/raw/`, `processed/`, `models/`, `reports/`, and `state/` now separate raw inputs from generated runtime artifacts.
 - Generated datasets and model artifacts are intentionally not committed when ignored by `.gitignore`.
 - `frontend/styles.css` is still required because `frontend/premium-theme.css` imports it before the modular premium theme partials.
 - Current model performance and dashboard outputs depend on the datasets present in `backend/dataset/`.

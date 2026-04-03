@@ -123,6 +123,14 @@
     }));
   }
 
+  function formatExecutiveTime() {
+    return new Date().toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit"
+    });
+  }
+
   function updateExecutiveChips() {
     const statusValue = $("#executiveStatusValue");
     const statusMeta = $("#executiveStatusMeta");
@@ -143,6 +151,10 @@
       setTextSafely(statusValue, combined);
     }
 
+    if (statusMeta) {
+      setTextSafely(statusMeta, formatExecutiveTime());
+    }
+
     if (syncValue) {
       const syncText = (sourceBadge && sourceBadge.textContent.trim()) ||
         (sourceText && sourceText.textContent.trim()) ||
@@ -152,15 +164,6 @@
       if (syncChip) {
         syncChip.classList.toggle("topbar-chip--live", !/awaiting|waiting|standby|no endpoint/i.test(syncText));
       }
-      if (statusMeta) {
-        setTextSafely(statusMeta, compactSync);
-      }
-    } else if (statusMeta) {
-      const syncText = (sourceBadge && sourceBadge.textContent.trim()) ||
-        (sourceText && sourceText.textContent.trim()) ||
-        "Awaiting refresh";
-      const compactSync = syncText.length > 32 ? syncText.slice(0, 29) + "..." : syncText;
-      setTextSafely(statusMeta, compactSync);
     }
   }
 
@@ -232,7 +235,7 @@
     refreshEnhancements();
     initMutationObserver();
     window.setInterval(updateClockChip, 30000);
-    window.setInterval(updateExecutiveChips, 3000);
+    window.setInterval(updateExecutiveChips, 1000);
     window.addEventListener("hashchange", scheduleRefresh);
     window.addEventListener("resize", scheduleRefresh);
   }

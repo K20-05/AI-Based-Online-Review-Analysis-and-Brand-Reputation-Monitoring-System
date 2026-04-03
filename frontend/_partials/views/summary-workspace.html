@@ -1,0 +1,241 @@
+        <section class="view" id="view-analytics-summary">
+          <div class="view-head">
+            <div>
+              <div class="eyebrow">Summary</div>
+              <h1 class="view-title">Analytics Summary</h1>
+              <p class="view-copy">Key totals, sentiment mix, and score spread.</p>
+            </div>
+          </div>
+          <section class="surface">
+              <div class="about-sub">Summary Snapshot</div>
+            <div class="summary-ribbon">
+              <div>
+                <strong>Total Reviews</strong>
+                <span id="summaryTotalReviews">0</span>
+              </div>
+              <div>
+                <strong>Positive Share</strong>
+                <span id="summaryPositiveShare">0.0%</span>
+              </div>
+              <div>
+                <strong>Neutral Share</strong>
+                <span id="summaryNeutralShare">0.0%</span>
+              </div>
+              <div>
+                <strong>Negative Share</strong>
+                <span id="summaryNegativeShare">0.0%</span>
+              </div>
+            </div>
+            <div class="summary-ribbon">
+              <div>
+                <strong>Leader</strong>
+                <span id="summaryLeaderBrand">Not available</span>
+              </div>
+              <div>
+                <strong>Needs Attention</strong>
+                <span id="summaryLaggerBrand">Not available</span>
+              </div>
+              <div>
+                <strong>Portfolio Risk</strong>
+                <span class="score-chip risk-medium" id="summaryRiskChip">Monitoring</span>
+              </div>
+              <div>
+                <strong>Score Spread</strong>
+                <span id="summaryScoreSpread">0.0 points</span>
+              </div>
+            </div>
+            <div class="summary-ribbon">
+              <div style="flex:1 1 360px">
+                <strong>Keyword Highlights</strong>
+                <div class="pill-list" id="summaryKeywordPills"></div>
+              </div>
+              <div style="flex:1 1 360px">
+                <strong>Action Priorities</strong>
+                <div class="pill-list" id="summaryPriorityPills"></div>
+              </div>
+            </div>
+            <div class="summary-ribbon">
+              <div style="flex:1 1 360px">
+                <strong>Complaint Intelligence</strong>
+                <span id="summaryComplaintIntelligence">Complaint intelligence will appear after analytics load.</span>
+              </div>
+              <div style="flex:1 1 360px">
+                <strong>Platform Comparison</strong>
+                <span id="summaryPlatformComparison">Platform comparison will appear after analytics load.</span>
+              </div>
+            </div>
+            <p class="users-note" id="summaryKeyMessage">Summary context will appear after dashboard analytics load.</p>
+            <p class="mini-note">This snapshot is synced from the same API-backed dashboard state to avoid duplicate calculations.</p>
+          </section>
+        </section>
+        <section class="view" id="view-single">
+          <div class="view-head">
+            <div>
+              <div class="eyebrow">Review Workspace</div>
+              <h1 class="view-title">Review Analysis</h1>
+              <p class="view-copy">Run single-review and batch analysis from one workspace.</p>
+            </div>
+          </div>
+
+          <section class="analysis-step-strip" aria-label="Review analysis steps">
+            <article class="analysis-step-strip__card analysis-step-strip__card--single">
+              <div class="analytics-sub">STEP 1</div>
+              <strong class="analysis-step-strip__title">SINGLE REVIEW ANALYSIS</strong>
+            </article>
+            <article class="analysis-step-strip__card analysis-step-strip__card--batch">
+              <div class="analytics-sub">STEP 2</div>
+              <strong class="analysis-step-strip__title">BATCH ANALYSIS</strong>
+            </article>
+          </section>
+
+          <section class="analysis-section">
+            <div class="analysis-section__head">
+              <div class="analytics-sub">STEP 1</div>
+            </div>
+
+            <div class="form-shell surface" id="singleFormShell">
+            <form id="singleForm">
+              <div class="field">
+                <label for="singleReviewText">Review Text</label>
+                <textarea id="singleReviewText" class="single-review-text" name="review_text" placeholder="Paste a review in Hindi, Tamil, Telugu, Malayalam, or Kannada..."></textarea>
+                <p class="field-note single-review-note" id="singleReviewNote">Required. Paste one customer review here before prediction.</p>
+              </div>
+              <div class="form-grid single-form-grid">
+                <div class="field">
+                  <label for="singlePlatform">Platform</label>
+                  <input id="singlePlatform" name="platform" type="text" list="platformOptions" placeholder="Type a platform or pick from suggestions">
+                  <datalist id="platformOptions">
+                    <option value="Amazon"></option>
+                    <option value="Flipkart"></option>
+                    <option value="Myntra"></option>
+                    <option value="Meesho"></option>
+                    <option value="Ajio"></option>
+                    <option value="Nykaa"></option>
+                    <option value="Snapdeal"></option>
+                    <option value="Alibaba"></option>
+                    <option value="AliExpress"></option>
+                    <option value="eBay"></option>
+                    <option value="Shopify"></option>
+                    <option value="Etsy"></option>
+                    <option value="Tata Cliq"></option>
+                    <option value="JioMart"></option>
+                    <option value="Paytm Mall"></option>
+                  </datalist>
+                </div>
+                <div class="field">
+                  <label for="singleRating">Rating</label>
+                  <input id="singleRating" name="rating" type="number" min="1" max="5" step="1" placeholder="1-5">
+                </div>
+                <div class="field">
+                  <label for="singleBrand">Brand</label>
+                  <input id="singleBrand" name="brand" type="text" placeholder="Optional brand name">
+                </div>
+              </div>
+              <div class="inline-actions single-actions">
+                <button class="ghost-btn" id="singleRandomReviewButton" type="button">Load Random Review</button>
+                <button class="action-btn" id="singlePredictButton" type="submit">Predict Sentiment</button>
+              </div>
+              <p class="single-helper">Review text is required. Language is auto-detected and normalized before scoring. Aspect analysis and rating mismatch are checked automatically.</p>
+            </form>
+
+            <section class="result-shell is-empty" id="singleResultShell" aria-live="polite">
+              <div class="sentiment-badge sentiment-neutral" id="singleSentimentBadge">Standby</div>
+              <p class="result-empty-copy" id="singleResultIntro">Run a prediction to inspect sentiment, confidence, aspect signals, and rating alignment.</p>
+              <div class="progress-shell">
+                <div class="progress-meta">
+                  <span>Confidence Meter</span>
+                  <strong id="singleConfidenceText">Unavailable</strong>
+                </div>
+                <div class="progress-bar">
+                  <span id="singleConfidenceBar"></span>
+                </div>
+              </div>
+              <div class="warning-panel" id="ratingWarning"></div>
+              <section class="single-aspect-panel hidden" id="singleAspectPanel" aria-live="polite">
+                <div class="single-aspect-head">
+                  <div>
+                    <span class="single-aspect-label">Aspect Analysis</span>
+                    <strong id="singleAspectTitle">Aspect Analysis</strong>
+                  </div>
+                  <span class="tag neutral" id="singleAspectPrimary">Waiting</span>
+                </div>
+                <p class="users-note" id="singleAspectSummary">Aspect signals will appear after prediction.</p>
+                <div class="review-drilldown-pillrow" id="singleAspectTags">
+                  <span>No aspect signal yet.</span>
+                </div>
+              </section>
+              <details class="json-panel">
+                <summary>Model Output</summary>
+                <pre id="singleTechnicalJson">{}</pre>
+              </details>
+            </section>
+            </div>
+          </section>
+
+          <section class="analysis-section">
+            <div class="analysis-section__head">
+              <div class="analytics-sub">STEP 2</div>
+            </div>
+
+            <div class="batch-layout batch-layout--solo" id="batchLayout">
+            <section class="surface form-shell" id="batchFormShell">
+              <form id="batchForm">
+                <div class="field">
+                  <label for="batchReviewText">Reviews, one per line</label>
+                  <textarea id="batchReviewText" placeholder="डिलीवरी बहुत लेट हुई और पैकेज डैमेज था।&#10;மிகவும் மோசம், ரிபண்ட் கிடைக்கவில்லை.&#10;చాలా చెడు, రిఫండ్ రాలేదు."></textarea>
+                </div>
+                <label class="checkline" for="saveToDataset">
+                  <input id="saveToDataset" type="checkbox">
+                  <span>Save batch results to dataset</span>
+                </label>
+                <div class="inline-actions">
+                  <button class="action-btn" id="batchRunButton" type="submit">Run Batch</button>
+                  <span class="signal-note">Hindi, Tamil, and Telugu sample reviews are shown here. Enter one review per line in any supported language.</span>
+                </div>
+              </form>
+            </section>
+
+            <aside class="batch-sidebar hidden" id="batchSidebar">
+              <section class="surface">
+                <div class="eyebrow">Processed Count</div>
+                <div class="processed-count" id="batchProcessedCount">0</div>
+                <p class="processed-label">Last batch run processed count.</p>
+              </section>
+              <section class="surface">
+                <div class="eyebrow">Average Confidence</div>
+                <div class="ring-gauge mini-ring" id="batchGauge">
+                  <div class="ring-gauge__inner">
+                    <span class="ring-gauge__eyebrow" data-gauge-label>Batch Confidence</span>
+                    <strong class="ring-gauge__value" data-gauge-number>0</strong>
+                    <span class="ring-gauge__suffix" data-gauge-suffix>%</span>
+                    <span class="ring-gauge__caption" data-gauge-caption>Waiting for batch response.</span>
+                  </div>
+                </div>
+              </section>
+            </aside>
+            </div>
+
+            <section class="table-shell analysis-results-table">
+            <table aria-label="Batch results preview">
+              <thead>
+                <tr>
+                  <th>Review ID</th>
+                  <th>Language</th>
+                  <th>Sentiment</th>
+                  <th>Confidence</th>
+                </tr>
+              </thead>
+              <tbody id="batchTableBody">
+                <tr>
+                  <td colspan="4" class="signal-note">No batch results available yet.</td>
+                </tr>
+              </tbody>
+            </table>
+            </section>
+
+            <details class="json-panel analysis-json-panel">
+              <summary>Model Output</summary>
+              <pre id="batchTechnicalJson">{}</pre>
+            </details>
+          </section>
+        </section>

@@ -28,6 +28,12 @@ def create_admin_blueprint(deps: dict) -> Blueprint:
     @require_auth
     @require_roles("admin")
     def admin_users():
+        def display_role(role_value: str) -> str:
+            normalized_role = str(role_value or "").strip().lower()
+            if normalized_role == "admin":
+                return "admin"
+            return normalize_public_role(normalized_role)
+
         current_email = str(current_user() or "").strip().lower()
         protected_admin = DASHBOARD_ADMIN_EMAIL.strip().lower()
         users = []
@@ -40,7 +46,7 @@ def create_admin_blueprint(deps: dict) -> Blueprint:
             users.append(
                 {
                     **serialized,
-                    "role": normalize_public_role(role),
+                    "role": display_role(role),
                     "is_self": email == current_email,
                     "is_protected": email == protected_admin or role == "admin",
                 }

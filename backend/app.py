@@ -1,16 +1,14 @@
 from __future__ import annotations
 
 from datetime import datetime, UTC
-from functools import wraps
-import json
 import os
 from pathlib import Path
-import re
 import sys
 
-from flask import Flask, jsonify, request, send_file, send_from_directory, session
+from flask import Flask, jsonify, render_template, request, send_file, send_from_directory, session
 from flask_cors import CORS
 import pandas as pd
+from werkzeug.exceptions import HTTPException
 from werkzeug.security import check_password_hash, generate_password_hash
 
 if __package__ is None or __package__ == "":
@@ -18,6 +16,7 @@ if __package__ is None or __package__ == "":
 
 from backend.brand_score import calculate_brand_score
 from backend.config import (
+    ALLOWED_CORS_ORIGINS,
     BRAND_REPUTATION_BY_BRAND_PATH,
     DASHBOARD_ADMIN_EMAIL,
     DASHBOARD_ADMIN_PASSWORD,
@@ -28,14 +27,18 @@ from backend.config import (
     MODEL_REPORT_PATH,
     PREDICTIONS_PATH,
     REALTIME_REVIEWS_PATH,
+    resolve_runtime_server_settings,
     SECRET_KEY,
+    SESSION_COOKIE_SECURE,
     USER_STORE_PATH,
     VECTORIZER_PATH,
+    is_insecure_admin_password,
 )
 from backend.database import mongo_enabled
-from backend import dashboard_data
+from backend import auth_support, dashboard_data
 from backend.admin_routes import create_admin_blueprint
 from backend.auth_routes import create_auth_blueprint
+from backend.core_routes import create_core_blueprint
 from backend.dashboard_routes import create_dashboard_blueprint
 from backend.feature_extraction import build_feature_dataset
 from backend.model_training import train_models
@@ -48,9 +51,22 @@ from backend.realtime_reviews import ingest_realtime_reviews, latest_realtime_re
 from backend.preprocessing import preprocess_reviews
 from backend.visualization import generate_visualizations
 
-app = Flask(__name__, static_folder=str(FRONTEND_DIR), static_url_path="")
-app.config["SECRET_KEY"] = SECRET_KEY
-CORS(app, supports_credentials=True)
+app = Flask(
+    __name__,
+    static_folder=str(FRONTEND_DIR),
+    static_url_path="",
+    template_folder=str(FRONTEND_DIR),
+)
+app.config.update(
+    SECRET_KEY=SECRET_KEY,
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=SESSION_COOKIE_SECURE,
+    SEND_FILE_MAX_AGE_DEFAULT=0,
+)
+CORS(app, supports_credentials=True, origins=list(ALLOWED_CORS_ORIGINS))
+
+_USER_STORE_CACHE = auth_support.USER_STORE_CACHE
 
 API_DOCS = {
     "name": "BrandPulse AI",
@@ -233,7 +249,7 @@ API_DOCS = {
             {
                 "method": "POST",
                 "path": "/api/auth/register",
-                "summary": "Create a dashboard user account and start a session.",
+                "summary": "Create a dashboard user account. Sign in separately after registration.",
                 "request_body": {"name": "Aarav Singh", "email": "aarav@brandpulse.ai", "password": "secure123"},
                 "response": {"success": True, "message": "Account created", "user": "aarav@brandpulse.ai"},
                 "error_responses": [
@@ -361,9 +377,14 @@ def handle_value_error(error):
     return jsonify({"success": False, "error": str(error)}), 400
 
 
+@app.errorhandler(HTTPException)
+def handle_http_exception(error):
+    return jsonify({"success": False, "error": error.description}), error.code
+
+
 @app.errorhandler(Exception)
 def handle_unexpected_error(error):
-    return jsonify({"success": False, "error": str(error)}), 500
+    return jsonify({"success": False, "error": "Internal server error"}), 500
 
 
 def json_success(message: str, **data):
@@ -377,141 +398,90 @@ def json_error(message: str, status_code: int = 400):
 
 
 def session_user_email() -> str | None:
-    email = str(session.get("user_email", "")).strip().lower()
-    return email or None
+    return auth_support.session_user_email()
 
 
 def current_user() -> str | None:
-    user = current_user_record()
-    if not user:
-        return None
-    return str(user.get("email", "")).strip().lower() or None
+    return auth_support.current_user(current_user_record)
 
 
 def current_user_record() -> dict | None:
-    user_email = session_user_email()
-    if not user_email:
-        return None
-    user = find_user(user_email)
-    if user:
-        return user
-    session.pop("user_email", None)
-    return None
+    return auth_support.current_user_record(find_user)
 
 
 def current_user_role() -> str:
-    user = current_user_record()
-    if not user:
-        return ""
-    normalized = str(user.get("role", "")).strip().lower()
-    if normalized == "user":
-        return "analyst"
-    return normalized
+    return auth_support.current_user_role(current_user_record)
+
+
+def can_seed_dashboard_admin() -> bool:
+    return auth_support.can_seed_dashboard_admin(
+        DASHBOARD_ADMIN_EMAIL,
+        DASHBOARD_ADMIN_PASSWORD,
+        is_insecure_admin_password,
+        validate_password_strength,
+    )
+
+
+def user_store_signature() -> tuple[str, int, int]:
+    return auth_support.user_store_signature(USER_STORE_PATH)
+
+
+def _clone_users(users: list[dict]) -> list[dict]:
+    return auth_support.clone_users(users)
+
+
+def _user_index(users: list[dict]) -> dict[str, dict]:
+    return auth_support.user_index(users)
+
+
+def _update_user_store_cache(users: list[dict], signature: tuple[str, int, int] | None = None) -> None:
+    auth_support.update_user_store_cache(users, USER_STORE_PATH, signature)
+
+
+def _cached_user_store_snapshot(force_reload: bool = False) -> dict:
+    return auth_support.cached_user_store_snapshot(USER_STORE_PATH, force_reload=force_reload)
 
 
 def load_user_store() -> list[dict]:
-    users = []
-    if USER_STORE_PATH.exists():
-        users = json.loads(USER_STORE_PATH.read_text(encoding="utf-8"))
-
-    admin_email = DASHBOARD_ADMIN_EMAIL.strip().lower()
-    if admin_email and not any(str(user.get("email", "")).strip().lower() == admin_email for user in users):
-        users.append(
-            {
-                "name": "Administrator",
-                "email": admin_email,
-                "password_hash": generate_password_hash(DASHBOARD_ADMIN_PASSWORD),
-                "role": "admin",
-                "created_at": datetime.now(UTC).isoformat(),
-            }
-        )
-        save_user_store(users)
-    return users
+    return auth_support.load_user_store(
+        USER_STORE_PATH,
+        DASHBOARD_ADMIN_EMAIL,
+        DASHBOARD_ADMIN_PASSWORD,
+        generate_password_hash,
+        is_insecure_admin_password,
+        validate_password_strength,
+    )
 
 
 def save_user_store(users: list[dict]) -> None:
-    USER_STORE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    USER_STORE_PATH.write_text(json.dumps(users, indent=2), encoding="utf-8")
+    auth_support.save_user_store(users, USER_STORE_PATH)
 
 
 def find_user(email: str) -> dict | None:
-    email = email.strip().lower()
-    for user in load_user_store():
-        if str(user.get("email", "")).strip().lower() == email:
-            return user
-    return None
+    return auth_support.find_user(email, load_user_store)
 
 
 def serialize_user(user: dict | None) -> dict | None:
-    if not user:
-        return None
-    normalized_role = str(user.get("role", "")).strip().lower() or "analyst"
-    if normalized_role == "user":
-        normalized_role = "analyst"
-    return {
-        "name": str(user.get("name", "")).strip() or str(user.get("email", "")).strip(),
-        "email": str(user.get("email", "")).strip().lower(),
-        "role": normalized_role,
-    }
+    return auth_support.serialize_user(user)
 
 
 def normalize_public_role(role: str | None) -> str:
-    normalized = str(role or "").strip().lower()
-    if normalized == "marketing_staff":
-        return "marketing_staff"
-    if normalized in {"admin", "user"}:
-        return "analyst"
-    return "analyst"
+    return auth_support.normalize_public_role(role)
 
 
 def validate_password_strength(password: str) -> str | None:
-    if len(password) < 8:
-        return "Password must be at least 8 characters long"
-    if not re.search(r"[A-Z]", password):
-        return "Password must include at least one uppercase letter"
-    if not re.search(r"[a-z]", password):
-        return "Password must include at least one lowercase letter"
-    if not re.search(r"\d", password):
-        return "Password must include at least one number"
-    if not re.search(r"[^A-Za-z0-9]", password):
-        return "Password must include at least one special character"
-    return None
+    return auth_support.validate_password_strength(password)
 
 
-def require_auth(view_func):
-    @wraps(view_func)
-    def wrapped(*args, **kwargs):
-        if not current_user_record():
-            return json_error("Authentication required", 401)
-        return view_func(*args, **kwargs)
-
-    return wrapped
-
-
-def require_roles(*roles: str):
-    allowed_roles = {str(role).strip().lower() for role in roles if str(role).strip()}
-
-    def decorator(view_func):
-        @wraps(view_func)
-        def wrapped(*args, **kwargs):
-            if not current_user_record():
-                return json_error("Authentication required", 401)
-            active_role = current_user_role()
-            if active_role == "admin":
-                return view_func(*args, **kwargs)
-            if active_role not in allowed_roles:
-                return json_error("Access denied for this role", 403)
-            return view_func(*args, **kwargs)
-
-        return wrapped
-
-    return decorator
+require_auth = auth_support.build_require_auth(current_user_record, json_error)
+require_roles = auth_support.build_require_roles(current_user_record, current_user_role, json_error)
 
 
 app.register_blueprint(
     create_auth_blueprint(
         {
             "jsonify": jsonify,
+            "render_template": render_template,
             "request": request,
             "session": session,
             "UTC": UTC,
@@ -578,6 +548,8 @@ app.register_blueprint(
             "risk_profile": dashboard_data.risk_profile,
             "trend_counts_frame": dashboard_data.trend_counts_frame,
             "dashboard_keywords_payload": dashboard_data.dashboard_keywords_payload,
+            "dashboard_keyword_groups_payload": dashboard_data.dashboard_keyword_groups_payload,
+            "recent_activity_reviews": dashboard_data.recent_activity_reviews,
             "review_samples": dashboard_data.review_samples,
             "random_brand_review": dashboard_data.random_brand_review,
             "dashboard_data": dashboard_data,
@@ -588,190 +560,46 @@ app.register_blueprint(
     )
 )
 
-
-@app.route("/")
-def index():
-    return send_from_directory(app.static_folder, "index.html")
-
-
-@app.get("/api/health")
-def health():
-    return jsonify(
+app.register_blueprint(
+    create_core_blueprint(
         {
-            "status": "ok",
-            "model_exists": MODEL_PATH.exists(),
-            "vectorizer_exists": VECTORIZER_PATH.exists(),
-            "predictions_exist": PREDICTIONS_PATH.exists(),
-            "report_exists": MODEL_REPORT_PATH.exists(),
-            "realtime_reviews_exist": REALTIME_REVIEWS_PATH.exists(),
-            "user_store_exists": USER_STORE_PATH.exists(),
-            "login_illustration_exists": LOGIN_ILLUSTRATION_PATH.exists(),
-            "mongo_configured": mongo_enabled(),
+            "jsonify": jsonify,
+            "render_template": render_template,
+            "request": request,
+            "send_file": send_file,
+            "pd": pd,
+            "API_DOCS": API_DOCS,
+            "MODEL_PATH": MODEL_PATH,
+            "VECTORIZER_PATH": VECTORIZER_PATH,
+            "PREDICTIONS_PATH": PREDICTIONS_PATH,
+            "MODEL_REPORT_PATH": MODEL_REPORT_PATH,
+            "REALTIME_REVIEWS_PATH": REALTIME_REVIEWS_PATH,
+            "USER_STORE_PATH": USER_STORE_PATH,
+            "LOGIN_ILLUSTRATION_PATH": LOGIN_ILLUSTRATION_PATH,
+            "mongo_enabled": mongo_enabled,
+            "json_success": json_success,
+            "json_error": json_error,
+            "require_auth": require_auth,
+            "require_roles": require_roles,
+            "preprocess_reviews": preprocess_reviews,
+            "build_feature_dataset": build_feature_dataset,
+            "train_models": train_models,
+            "parse_predict_payload": parse_predict_payload,
+            "predict_single_review": predict_single_review,
+            "predict_batch_reviews": predict_batch_reviews,
+            "load_model_artifacts": load_model_artifacts,
+            "predict_dataset": predict_dataset,
+            "calculate_brand_score": calculate_brand_score,
+            "ingest_realtime_reviews": ingest_realtime_reviews,
+            "realtime_review_summary": realtime_review_summary,
+            "list_connectors": list_connectors,
+            "poll_connector": poll_connector,
+            "scheduler_status": scheduler_status,
+            "update_scheduler_config": update_scheduler_config,
+            "start_background_services": lambda debug_enabled: start_background_services(debug_enabled),
         }
     )
-
-
-@app.get("/api/assets/login-illustration")
-def login_illustration():
-    if not LOGIN_ILLUSTRATION_PATH.exists():
-        raise FileNotFoundError("Login illustration not found.")
-    return send_file(LOGIN_ILLUSTRATION_PATH)
-
-
-@app.get("/api/docs")
-def api_docs():
-    return jsonify(API_DOCS)
-
-
-@app.get("/api/openapi.json")
-def api_openapi():
-    return jsonify(API_DOCS)
-
-
-@app.post("/api/preprocess")
-@require_auth
-@require_roles("admin", "analyst")
-def preprocess_endpoint():
-    df = preprocess_reviews()
-    return json_success("Preprocessing completed", rows=int(len(df)))
-
-
-@app.post("/api/features")
-@require_auth
-@require_roles("admin", "analyst")
-def feature_extraction_endpoint():
-    df = build_feature_dataset()
-
-    return json_success("Feature extraction completed", rows=int(len(df)))
-
-
-@app.post("/api/train")
-@require_auth
-@require_roles("admin", "analyst")
-def train_endpoint():
-    metrics = train_models()
-    return json_success("Training completed", models=metrics.to_dict(orient="records"))
-
-
-@app.post("/api/predict")
-@require_auth
-@require_roles("admin", "analyst")
-def predict_single():
-    payload = request.get_json(force=True, silent=False) or {}
-    request_data = parse_predict_payload(payload)
-    response_payload = predict_single_review(request_data, load_model_artifacts)
-    return jsonify({"success": True, **response_payload})
-
-
-@app.post("/api/predict/batch")
-@require_auth
-@require_roles("admin", "analyst")
-def predict_batch():
-    payload = request.get_json(force=True, silent=False) or {}
-    reviews = payload.get("reviews") or []
-    save_to_dataset = bool(payload.get("save_to_dataset"))
-
-    # Fast path: predict only submitted batch rows from UI text input.
-    if isinstance(reviews, list) and reviews and not save_to_dataset:
-        response_payload = predict_batch_reviews(reviews, load_model_artifacts)
-        return jsonify({"success": True, **response_payload})
-
-    # Full refresh path: expensive dataset-wide rebuild (used when save_to_dataset is enabled).
-    df = predict_dataset()
-    score = calculate_brand_score()
-    return json_success("Batch prediction completed", rows=int(len(df)), brand_score=score)
-
-
-@app.post("/api/brand-score")
-@require_auth
-@require_roles("admin", "analyst")
-def brand_score_endpoint():
-    payload = calculate_brand_score()
-    return json_success("Brand scoring completed", brand_score=payload)
-
-
-@app.post("/api/reviews/realtime")
-@require_auth
-@require_roles("admin", "analyst")
-def realtime_reviews_ingest():
-    payload = request.get_json(force=True, silent=False) or {}
-    reviews = payload.get("reviews")
-    if not isinstance(reviews, list) or not reviews:
-        single = payload if payload.get("review_text") else None
-        reviews = [single] if single else []
-    if not reviews:
-        return json_error("Provide reviews as a non-empty list or a single review_text payload")
-
-    df = ingest_realtime_reviews(reviews)
-    return jsonify(
-        {
-            "success": True,
-            "message": "Realtime reviews ingested",
-            "rows": int(len(df)),
-            "results": df.where(pd.notnull(df), None).to_dict(orient="records"),
-            "summary": realtime_review_summary(),
-        }
-    )
-
-
-@app.get("/api/connectors")
-@require_auth
-@require_roles("admin", "analyst")
-def connectors_list_endpoint():
-    return jsonify({"connectors": list_connectors()})
-
-
-@app.post("/api/connectors/poll")
-@require_auth
-@require_roles("admin", "analyst")
-def connectors_poll_endpoint():
-    payload = request.get_json(force=True, silent=False) or {}
-    connector_name = str(payload.get("connector", "")).strip()
-    if not connector_name:
-        return json_error("connector is required")
-
-    limit = max(1, min(int(payload.get("limit", 20) or 20), 100))
-    options = payload.get("options") if isinstance(payload.get("options"), dict) else {}
-    reset_cursor = bool(payload.get("reset_cursor"))
-
-    fetched = poll_connector(connector_name, limit=limit, options=options, reset_cursor=reset_cursor)
-    reviews = fetched.get("reviews", [])
-    if not reviews:
-        return jsonify({"success": True, "message": "Connector poll completed with no new reviews", **fetched})
-
-    ingested_df = ingest_realtime_reviews(reviews)
-    return jsonify(
-        {
-            "success": True,
-            "message": "Connector poll completed",
-            **fetched,
-            "ingested_rows": int(len(ingested_df)),
-            "summary": realtime_review_summary(),
-        }
-    )
-
-
-@app.get("/api/connectors/scheduler")
-@require_auth
-@require_roles("admin", "analyst")
-def connector_scheduler_status_endpoint():
-    start_background_services(app.debug)
-    return jsonify(scheduler_status())
-
-
-@app.post("/api/connectors/scheduler")
-@require_auth
-@require_roles("admin", "analyst")
-def connector_scheduler_update_endpoint():
-    start_background_services(app.debug)
-    payload = request.get_json(force=True, silent=False) or {}
-    return jsonify(
-        {
-            "success": True,
-            "message": "Connector scheduler updated",
-            **update_scheduler_config(payload),
-        }
-    )
+)
 
 
 def should_start_scheduler(debug_enabled: bool) -> bool:
@@ -786,6 +614,11 @@ def start_background_services(debug_enabled: bool) -> None:
 
 
 if __name__ == "__main__":
-    debug_mode = True
+    server_settings = resolve_runtime_server_settings()
+    debug_mode = bool(server_settings["debug"])
     start_background_services(debug_mode)
-    app.run(host="127.0.0.1", port=5000, debug=debug_mode)
+    app.run(
+        host=str(server_settings["host"]),
+        port=int(server_settings["port"]),
+        debug=debug_mode,
+    )

@@ -1,0 +1,314 @@
+        <section class="view is-active" id="view-dashboard">
+          <div class="view-head">
+            <div>
+              <div class="eyebrow">Mission Overview</div>
+              <h1 class="view-title">BrandPulse Control Room</h1>
+              <p class="view-copy">Core score, live intake, and risk in one executive view.</p>
+            </div>
+            <div class="inline-actions dashboard-inline-actions">
+              <button class="ghost-btn" id="dashboardSyncButton" type="button">Sync</button>
+              <button class="action-btn" id="refreshScoreButton" type="button">Refresh</button>
+              <span class="dashboard-sync-status" id="dashboardSyncStatus" aria-live="polite">Quick sync updates live data. Refresh rebuilds analytics.</span>
+            </div>
+          </div>
+
+          <section class="dashboard-command-strip hidden" id="dashboardCommandStrip" aria-label="Dashboard quick status">
+            <article class="dashboard-status-pill">
+              <span class="dashboard-status-pill__label">Role</span>
+              <strong id="dashboardRoleLabel">Analyst Workspace</strong>
+              <span class="dashboard-status-pill__meta" id="dashboardRoleMeta">Trend and complaint monitoring mode.</span>
+            </article>
+            <article class="dashboard-status-pill">
+              <span class="dashboard-status-pill__label">Multi Lingual</span>
+              <strong id="dashboardSourceBadge">11 Languages</strong>
+              <span class="dashboard-status-pill__meta" id="dashboardSourceMeta">English plus 10 supported Indian languages.</span>
+            </article>
+            <article class="dashboard-status-pill">
+              <span class="dashboard-status-pill__label">Live Feed</span>
+              <strong id="dashboardLiveBadge">0 reviews</strong>
+              <span class="dashboard-status-pill__meta" id="dashboardLiveMeta">No realtime activity yet.</span>
+            </article>
+            <article class="dashboard-status-pill dashboard-status-pill--spotlight is-waiting" id="dashboardRiskPill">
+              <span class="dashboard-status-pill__label" id="dashboardRiskLabel">Status Snapshot</span>
+              <strong id="dashboardRiskBadge">Standby</strong>
+              <span class="dashboard-status-pill__meta" id="dashboardRiskMeta">Waiting for dashboard data.</span>
+            </article>
+          </section>
+
+          <section class="surface role-dashboard-panel hidden" id="roleDashboardPanel">
+            <div class="role-dashboard-head">
+              <div class="analytics-sub" id="roleDashboardEyebrow">Snapshot</div>
+              <strong id="roleDashboardTitle">Snapshot</strong>
+              <p id="roleDashboardCopy">Key role metrics will appear here.</p>
+            </div>
+            <div class="role-dashboard-cards" id="roleDashboardCards"></div>
+          </section>
+
+          <details class="dashboard-disclosure hidden" id="dashboardDisclosure">
+            <summary>
+              <div>
+                <span class="dashboard-disclosure__eyebrow" id="dashboardDisclosureEyebrow">Detailed View</span>
+                <strong id="dashboardDisclosureTitle">Diagnostics and supporting signals</strong>
+              </div>
+              <span class="dashboard-disclosure__hint" id="dashboardDisclosureHint">Open</span>
+            </summary>
+            <div class="dashboard-disclosure__body">
+          <section class="analyst-focus-grid hidden" id="analystFocusSection">
+            <article class="analyst-focus-card">
+              <div class="analytics-sub">Live Analysis Focus</div>
+              <strong id="analystFocusTitle">Trend movement is ready for review.</strong>
+              <div class="analyst-focus-metric" id="analystFocusMetric">0</div>
+              <p class="analyst-focus-copy" id="analystFocusCopy">Load analytics to reveal the dominant shift in review behaviour.</p>
+              <div class="analyst-focus-tags">
+                <span class="analyst-focus-tag" id="analystFocusTagA">Trend</span>
+                <span class="analyst-focus-tag" id="analystFocusTagB">Keyword</span>
+                <span class="analyst-focus-tag" id="analystFocusTagC">Complaint</span>
+              </div>
+            </article>
+            <article class="analyst-focus-card">
+              <div class="analytics-sub">Keyword Spotlight</div>
+              <strong id="analystKeywordSpotlight">Waiting</strong>
+              <p class="analyst-focus-copy" id="analystKeywordSpotlightCopy">Top keyword signal will appear here.</p>
+            </article>
+            <article class="analyst-focus-card">
+              <div class="analytics-sub">Complaint Watch</div>
+              <strong id="analystComplaintSpotlight">Waiting</strong>
+              <p class="analyst-focus-copy" id="analystComplaintSpotlightCopy">Top complaint theme will appear here.</p>
+            </article>
+            <article class="analyst-focus-card" style="grid-column: 1 / -1;">
+              <div class="analytics-sub">Quick Actions</div>
+              <div class="analyst-focus-actions">
+                <button class="analyst-focus-btn" type="button" data-analyst-view="review-trends">Open Review Trends</button>
+                <button class="analyst-focus-btn" type="button" data-analyst-view="sentiment-distribution">Open Sentiment Insights</button>
+                <button class="analyst-focus-btn" type="button" data-analyst-view="customer-intelligence">Open Customer Voice</button>
+              </div>
+            </article>
+          </section>
+
+          <section class="surface hidden" id="dashboardBrandSection" style="margin-bottom: 18px;">
+              <div class="split-head">
+                <div>
+                <div class="analytics-sub" id="dashboardBrandEyebrow">Portfolio Directory</div>
+                <strong id="dashboardBrandTitle">Available brands</strong>
+              </div>
+            </div>
+              <div class="brand-quick-list" id="brandQuickList">
+                <div class="mini-note" id="dashboardBrandNote">Brand directory will appear after analytics data loads.</div>
+              </div>
+          </section>
+
+          <section class="surface hidden" id="marketingSignalSection" style="margin-bottom: 18px;">
+            <div class="analytics-sub">Marketing Signals</div>
+            <div class="dashboard-summary-grid" style="margin-top: 10px;">
+              <section class="surface">
+                <div class="analytics-sub">Brand Leaderboard</div>
+                <strong id="marketingLeaderboardTitle">Top performers</strong>
+                <div class="review-drilldown-list" id="marketingLeaderboardList">
+                  <div class="mini-note">Leaderboard will appear after analytics data loads.</div>
+                </div>
+              </section>
+              <section class="surface">
+                <div class="analytics-sub">Early Warning Alerts</div>
+                <strong id="marketingWarningTitle">No active warning</strong>
+                <p class="users-note" id="marketingWarningCopy">Brand-level warning will appear after analytics data loads.</p>
+              </section>
+            </div>
+          </section>
+
+          <section class="admin-control-grid hidden" id="adminControlHub">
+            <section class="dashboard-block dashboard-block--health">
+                <div class="dashboard-block__head">
+                  <div class="analytics-sub">Platform Health</div>
+                  <strong>Model, training, and pipeline readiness</strong>
+                  <p>Model quality, last training event, and current pipeline health.</p>
+                </div>
+                <div class="dashboard-block__cards dashboard-block__cards--hero">
+                <article class="admin-control-card admin-control-card--hero">
+                  <b>Model</b>
+                  <strong id="adminModelAccuracy">Waiting</strong>
+                  <span>Latest accuracy</span>
+                  <p id="adminModelName">Model metrics pending.</p>
+                </article>
+                <article class="admin-control-card admin-control-card--hero">
+                  <b>Training</b>
+                  <strong id="adminTrainingTime">Waiting</strong>
+                  <span>Last training run</span>
+                  <p>Latest saved training timestamp from the model metrics artifact.</p>
+                </article>
+                <article class="admin-control-card admin-control-card--hero">
+                  <b>Status</b>
+                  <strong id="adminPipelineStatus">Ready</strong>
+                  <span>Pipeline health</span>
+                  <p id="adminPipelineCopy">Pipeline status is inferred from model metrics and current dashboard health.</p>
+                </article>
+              </div>
+            </section>
+            <section class="dashboard-block dashboard-block--coverage">
+                <div class="dashboard-block__head">
+                  <div class="analytics-sub">Workspace Coverage</div>
+                  <strong>User Access, Brand Coverage, and Role Support</strong>
+                  <p>A consolidated view of active users, tracked brands, and supported workspace roles.</p>
+                </div>
+                <div class="dashboard-block__cards">
+                <article class="admin-control-card">
+                  <b>Access</b>
+                  <strong id="adminUsersCount">0</strong>
+                  <span>Active users</span>
+                  <p>Accounts currently available inside the system workspace.</p>
+                </article>
+                <article class="admin-control-card">
+                  <b>Coverage</b>
+                  <strong id="adminBrandsCount">0</strong>
+                  <span>Tracked brands</span>
+                  <p>Brands available across the current monitored dataset.</p>
+                </article>
+                <article class="admin-control-card">
+                  <b>Roles</b>
+                  <strong id="adminRoleSupportCount">3</strong>
+                  <span>Workspace roles</span>
+                  <p>Admin, Analyst, and Marketing Staff are supported across the control room.</p>
+                </article>
+              </div>
+            </section>
+          </section>
+            </div>
+          </details>
+
+          <div class="dashboard-layout" id="dashboardLayout">
+            <section class="surface gauge-chamber" id="dashboardGaugeSection">
+              <div class="ring-gauge" id="brandGauge">
+                <div class="ring-gauge__inner">
+                  <span class="ring-gauge__eyebrow" data-gauge-label>Brand Reputation</span>
+                  <strong class="ring-gauge__value" data-gauge-number>0.0</strong>
+                  <span class="ring-gauge__suffix" data-gauge-suffix>/100 score</span>
+                  <span class="ring-gauge__caption" data-gauge-caption>Waiting for score data.</span>
+                </div>
+              </div>
+              <div class="gauge-stack">
+                <div class="summary-ribbon summary-ribbon--hero">
+                  <div class="summary-ribbon__content">
+                    <span class="summary-ribbon__label" id="dashboardNarrativeLabel">Executive Insight</span>
+                    <strong id="dashboardNarrative">Telemetry standby</strong>
+                    <p class="summary-ribbon__copy" id="dashboardNarrativeCopy">Refresh to load score metrics.</p>
+                  </div>
+                  <span class="score-chip risk-medium" id="dashboardRiskChip">Standby</span>
+                </div>
+                <div class="dashboard-quick-grid">
+                  <article class="dashboard-quick-stat">
+                    <span class="dashboard-quick-stat__label" id="dashboardQuickRiskLabel">Risk</span>
+                    <strong id="dashboardQuickRisk">Standby</strong>
+                    <span class="dashboard-quick-stat__meta" id="dashboardQuickRiskMeta">Current complaint pressure will appear here after the first sync.</span>
+                  </article>
+                  <article class="dashboard-quick-stat">
+                    <span class="dashboard-quick-stat__label" id="dashboardQuickTotalReviewsLabel">Total Reviews</span>
+                    <strong id="dashboardQuickTotalReviews">0</strong>
+                    <span class="dashboard-quick-stat__meta" id="dashboardQuickTotalReviewsMeta">Reviews currently included in the active dashboard snapshot.</span>
+                  </article>
+                  <article class="dashboard-quick-stat">
+                    <span class="dashboard-quick-stat__label" id="dashboardQuickPipelineLabel">Pipeline</span>
+                    <strong id="dashboardQuickPipeline">Standby</strong>
+                    <span class="dashboard-quick-stat__meta" id="dashboardQuickPipelineMeta">No ingest activity detected yet.</span>
+                  </article>
+                  <article class="dashboard-quick-stat">
+                    <span class="dashboard-quick-stat__label" id="dashboardQuickAlertsLabel">Alerts</span>
+                    <strong id="dashboardQuickAlerts">Clear</strong>
+                    <span class="dashboard-quick-stat__meta" id="dashboardQuickAlertsMeta">No active alerts in the current admin snapshot.</span>
+                  </article>
+                </div>
+                <div class="summary-ribbon summary-ribbon--meta hidden">
+                  <div>
+                      <strong>Mode</strong>
+                    <span id="dashboardModeLabel">Live reputation sync.</span>
+                  </div>
+                  <div>
+                      <strong>Sync</strong>
+                    <span id="dashboardSource">Waiting</span>
+                  </div>
+                  <div>
+                    <strong>Latest Ingest</strong>
+                    <span id="dashboardLiveUpdate">Waiting</span>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <aside class="stats-strip stats-strip--dashboard hidden" id="dashboardStatsSection">
+              <section class="stats-cluster stats-cluster--primary">
+                <div class="stats-cluster__head">
+                  <div class="analytics-sub">Portfolio Metrics</div>
+                  <strong>Sentiment balance snapshot</strong>
+                  <p>Margin, review coverage, and sentiment mix at a glance.</p>
+                </div>
+                <article class="metric-card metric-card--hero">
+                  <span class="metric-label">Sentiment Margin</span>
+                  <div class="metric-value"><span id="statSentimentMargin">0.0</span><small>pts</small></div>
+                  <p class="metric-meta">Positive share minus negative share across the active portfolio.</p>
+                </article>
+                <div class="stats-cluster__subgrid">
+                  <article class="metric-card">
+                    <span class="metric-label">Coverage Rows</span>
+                    <div class="metric-value"><span id="statTotalReviews">0</span></div>
+                    <p class="metric-meta">Total number of reviews currently included in analysis.</p>
+                  </article>
+                  <article class="metric-card">
+                    <span class="metric-label">Positive Share</span>
+                    <div class="metric-value"><span id="statPositivePct">0%</span></div>
+                    <p class="metric-meta">Percentage of reviews classified as positive.</p>
+                  </article>
+                  <article class="metric-card">
+                    <span class="metric-label">Negative Share</span>
+                    <div class="metric-value"><span id="statNegativePct">0%</span></div>
+                    <p class="metric-meta">Percentage of reviews classified as negative.</p>
+                  </article>
+                </div>
+              </section>
+              <section class="stats-cluster stats-cluster--live">
+                <div class="stats-cluster__head">
+                  <div class="analytics-sub">Ingestion Monitor</div>
+                  <strong>Realtime pipeline status</strong>
+                  <p>Buffered review count and the latest captured ingest activity.</p>
+                </div>
+                <div class="stats-cluster__note">
+                  <span class="stats-cluster__note-label">Pipeline view</span>
+                  <p>Updates after connector polls, scheduler runs, or manual ingest.</p>
+                </div>
+                <div class="stats-cluster__subgrid stats-cluster__subgrid--live">
+                  <article class="metric-card metric-card--live">
+                    <span class="metric-label">Realtime Buffer</span>
+                    <div class="metric-value"><span id="statRealtimeReviews">0</span></div>
+                    <p class="metric-meta">Number of reviews stored from realtime sources.</p>
+                  </article>
+                  <article class="metric-card metric-card--live">
+                    <span class="metric-label">Latest Ingest</span>
+                    <div class="metric-value metric-value--timestamp"><span id="statRealtimeUpdated">Waiting</span></div>
+                    <p class="metric-meta">Most recent timestamp when a live review was ingested.</p>
+                  </article>
+                </div>
+              </section>
+            </aside>
+          </div>
+
+          <div class="dashboard-summary-grid hidden" id="dashboardSummarySection">
+            <section class="surface">
+              <div class="analytics-sub" id="dashboardAlertEyebrow">Executive Note</div>
+              <strong id="dashboardAlertTitle">Monitoring</strong>
+              <p class="users-note" id="dashboardAlertCopy">Alert updates after refresh.</p>
+            </section>
+            <section class="surface hidden" id="dashboardInsightCard">
+              <div class="analytics-sub">Insight</div>
+              <strong id="dashboardInsightTitle">Insight standby</strong>
+              <p class="users-note" id="dashboardInsightCopy">Insight updates after analytics load.</p>
+            </section>
+            <section class="surface" id="dashboardActivityCard" style="grid-column: 1 / -1;">
+              <div class="split-head">
+                <div>
+                  <div class="analytics-sub" id="dashboardActivityEyebrow">Recent Activity</div>
+                  <strong id="dashboardActivityTitle">Latest live reviews</strong>
+                </div>
+              </div>
+              <div class="review-drilldown-list" id="dashboardRealtimeReviewList">
+                <div class="mini-note">Realtime reviews will appear here after the first live ingest.</div>
+              </div>
+            </section>
+          </div>
+        </section>
