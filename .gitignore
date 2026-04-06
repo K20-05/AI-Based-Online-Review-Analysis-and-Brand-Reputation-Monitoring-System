@@ -1,6 +1,7 @@
 __pycache__/
 *.pyc
 .venv/
+.tmp/
 .vscode/
 .env
 .flask-session-secret
