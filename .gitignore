@@ -10,8 +10,11 @@ tests/_tmp_*
 debug.log
 generated/
 
-# Legacy root dataset output is no longer used. Canonical data lives in backend/dataset/.
-dataset/
+# Local dataset inputs and runtime artifacts should stay out of git.
+backend/dataset/raw/
+backend/dataset/csv/
+backend/dataset/*.csv
+backend/dataset/*.json
 
 backend/dataset/processed/
 backend/dataset/models/

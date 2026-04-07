@@ -27,4 +27,5 @@ These legacy TF-IDF artifacts are intentionally kept for compatibility. `backend
 ## Cleanup Guidance
 
 - Safe cleanup targets are temporary caches regenerated from processed data.
-- Raw CSVs, active model artifacts, reports, and runtime state should be kept unless you are doing a deliberate reset.
+- Raw CSVs and runtime artifacts in `backend/dataset/` are local-only project data and should not be committed to git.
+- Keep local raw CSVs, active model artifacts, reports, and runtime state unless you are doing a deliberate reset.

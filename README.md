@@ -90,6 +90,8 @@ Use `backend/dataset/` as the single canonical data root for all project data:
 
 See `docs/data-layout.md` for the maintained folder map and compatibility notes.
 
+Raw datasets and runtime artifacts under `backend/dataset/` are intended to stay local to your machine or deployment environment. They are ignored by git and should not be committed; use `tests/fixtures/` for lightweight repo-safe sample data.
+
 Generated files like predictions, metrics, trends, and realtime review logs are not treated as raw input.
 
 ### 4. Run the backend
@@ -187,6 +189,6 @@ Supported configuration:
 - MongoDB integration is optional.
 - `backend/dataset/` is the only canonical dataset folder for this project.
 - `backend/dataset/raw/`, `processed/`, `models/`, `reports/`, and `state/` now separate raw inputs from generated runtime artifacts.
-- Generated datasets and model artifacts are intentionally not committed when ignored by `.gitignore`.
+- Raw datasets, generated datasets, model artifacts, reports, and runtime state under `backend/dataset/` are intentionally local and should not be committed to git.
 - `frontend/styles.css` is still required because `frontend/premium-theme.css` imports it before the modular premium theme partials.
 - Current model performance and dashboard outputs depend on the datasets present in `backend/dataset/`.
