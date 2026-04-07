@@ -191,11 +191,6 @@ def resolve_runtime_server_settings() -> dict[str, str | int | bool]:
 DASHBOARD_ADMIN_EMAIL = os.getenv("DASHBOARD_ADMIN_EMAIL", "admin@brandpulse.ai")
 DASHBOARD_ADMIN_PASSWORD = os.getenv("DASHBOARD_ADMIN_PASSWORD", "").strip()
 
-ALLOWED_CORS_ORIGINS = _split_csv_env("ALLOWED_CORS_ORIGINS") or (
-    "http://127.0.0.1:5000",
-    "http://localhost:5000",
-    "http://127.0.0.1:5500",
-    "http://localhost:5500",
-)
+ALLOWED_CORS_ORIGINS = _split_csv_env("ALLOWED_CORS_ORIGINS") 
 
 SESSION_COOKIE_SECURE = _env_flag("SESSION_COOKIE_SECURE", False)
