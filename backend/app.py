@@ -614,11 +614,5 @@ def start_background_services(debug_enabled: bool) -> None:
 
 
 if __name__ == "__main__":
-    server_settings = resolve_runtime_server_settings()
-    debug_mode = bool(server_settings["debug"])
-    start_background_services(debug_mode)
-    app.run(
-        host=str(server_settings["host"]),
-        port=int(server_settings["port"]),
-        debug=debug_mode,
-    )
+    app.run(host="0.0.0.0", port=5000, debug=False)
+

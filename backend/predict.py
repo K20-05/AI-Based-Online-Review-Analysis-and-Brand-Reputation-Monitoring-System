@@ -106,6 +106,7 @@ def calibrate_prediction_confidence(
     elif token_count == 2:
         confidence -= 0.06 if translation_applied else 0.03
 
+
     if sentiment_adjustment_reason:
         confidence = max(confidence, 0.60)
         confidence = min(confidence, 0.78 if translation_applied else 0.82)
