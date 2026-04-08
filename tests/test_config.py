@@ -37,6 +37,7 @@ class ConfigTests(unittest.TestCase):
             "APP_DEBUG": "true",
             "APP_HOST": "0.0.0.0",
             "APP_PORT": "8001",
+            "PORT": "9000",
             "FLASK_DEBUG": "false",
             "FLASK_RUN_HOST": "127.0.0.1",
             "FLASK_RUN_PORT": "5000",
@@ -65,6 +66,33 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(settings["host"], "localhost")
         self.assertEqual(settings["port"], 7000)
         self.assertTrue(settings["debug"])
+
+    def test_runtime_server_settings_support_port_env_and_default_host(self):
+        env = {
+            "APP_DEBUG": "",
+            "APP_HOST": "",
+            "APP_PORT": "",
+            "PORT": "7100",
+            "FLASK_DEBUG": "",
+            "FLASK_RUN_HOST": "",
+            "FLASK_RUN_PORT": "",
+        }
+
+        with patch.dict(os.environ, env, clear=False):
+            settings = backend_config.resolve_runtime_server_settings()
+
+        self.assertEqual(settings["host"], "0.0.0.0")
+        self.assertEqual(settings["port"], 7100)
+        self.assertFalse(settings["debug"])
+
+    def test_resolve_allowed_cors_origins_falls_back_to_local_defaults(self):
+        with patch.dict(os.environ, {"ALLOWED_CORS_ORIGINS": ""}, clear=False):
+            origins = backend_config.resolve_allowed_cors_origins()
+
+        self.assertIn("http://127.0.0.1:5000", origins)
+        self.assertIn("http://localhost:5000", origins)
+        self.assertIn("http://127.0.0.1:5500", origins)
+        self.assertIn("http://localhost:5500", origins)
 
 
 if __name__ == "__main__":

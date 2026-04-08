@@ -1110,7 +1110,7 @@ function sameSessionRevision(revision) {
         || String(lastError.message || "").toLowerCase().includes("networkerror")
       );
       if (networkFailure) {
-        throw new Error("Cannot connect to backend API. Start Flask server at http://127.0.0.1:5000 and retry.");
+        throw new Error("Cannot connect to the backend API. Start the backend server or update the deployed API origin and retry.");
       }
       throw lastError;
     }

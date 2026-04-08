@@ -60,6 +60,13 @@ INSECURE_SECRET_KEY_VALUES = {
     "replace-with-a-long-random-secret",
 }
 
+DEFAULT_ALLOWED_CORS_ORIGINS = (
+    "http://127.0.0.1:5000",
+    "http://localhost:5000",
+    "http://127.0.0.1:5500",
+    "http://localhost:5500",
+)
+
 
 def is_insecure_admin_password(value: str) -> bool:
     normalized = str(value or "").strip().casefold()
@@ -179,8 +186,8 @@ SECRET_KEY = resolve_secret_key()
 
 
 def resolve_runtime_server_settings() -> dict[str, str | int | bool]:
-    host = _first_env("APP_HOST", "FLASK_RUN_HOST") or "127.0.0.1"
-    port = _env_int("APP_PORT", _env_int("FLASK_RUN_PORT", 5000))
+    host = _first_env("APP_HOST", "FLASK_RUN_HOST") or "0.0.0.0"
+    port = _env_int("APP_PORT", _env_int("PORT", _env_int("FLASK_RUN_PORT", 5000)))
     debug = _env_flag("APP_DEBUG", _env_flag("FLASK_DEBUG", False))
     return {
         "host": host,
@@ -188,9 +195,13 @@ def resolve_runtime_server_settings() -> dict[str, str | int | bool]:
         "debug": debug,
     }
 
+
+def resolve_allowed_cors_origins() -> tuple[str, ...]:
+    return _split_csv_env("ALLOWED_CORS_ORIGINS") or DEFAULT_ALLOWED_CORS_ORIGINS
+
 DASHBOARD_ADMIN_EMAIL = os.getenv("DASHBOARD_ADMIN_EMAIL", "admin@brandpulse.ai")
 DASHBOARD_ADMIN_PASSWORD = os.getenv("DASHBOARD_ADMIN_PASSWORD", "").strip()
 
-ALLOWED_CORS_ORIGINS = _split_csv_env("ALLOWED_CORS_ORIGINS") 
+ALLOWED_CORS_ORIGINS = resolve_allowed_cors_origins()
 
 SESSION_COOKIE_SECURE = _env_flag("SESSION_COOKIE_SECURE", False)

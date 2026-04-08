@@ -73,6 +73,8 @@ Important notes:
 
 - Set `SECRET_KEY` to a long random value before running shared or deployed environments.
 - Set `DASHBOARD_ADMIN_PASSWORD` to a strong password if you want the configured admin account to be auto-seeded on first run.
+- `APP_HOST` defaults to `0.0.0.0` so the app can bind correctly in deployed environments.
+- Port resolution is `APP_PORT`, then `PORT`, then `FLASK_RUN_PORT`, then `5000`.
 - `ALLOWED_CORS_ORIGINS` should list the frontend origins that are allowed to make credentialed requests.
 - `MONGO_URI` is optional. Leave it blank to run the project in CSV-only mode.
 - `POST /api/auth/register` creates an account only. Users sign in separately through `POST /api/auth/login`.
@@ -94,7 +96,7 @@ Raw datasets and runtime artifacts under `backend/dataset/` are intended to stay
 
 Generated files like predictions, metrics, trends, and realtime review logs are not treated as raw input.
 
-### 4. Run the backend
+### 4. Run the backend locally
 
 ```bash
 python backend/app.py
@@ -103,6 +105,22 @@ python backend/app.py
 Open the dashboard at:
 
 - `http://127.0.0.1:5000`
+
+## Deployment
+
+For production-style serving, use Waitress instead of Flask's built-in development server:
+
+```bash
+python -m backend.serve
+```
+
+Deployment notes:
+
+- `backend/serve.py` uses Waitress and the same shared runtime config as local development.
+- The app binds to `0.0.0.0` by default when no host is configured.
+- The runtime port honors `APP_PORT` first and `PORT` second, which fits common deployment platforms.
+- Set `SESSION_COOKIE_SECURE=1` when the app is behind HTTPS.
+- If the frontend is hosted on a different origin, set `ALLOWED_CORS_ORIGINS` to that public origin.
 
 ## End-to-End Pipeline
 
@@ -172,6 +190,9 @@ python -m unittest discover -s tests -v
 
 Supported configuration:
 
+- `APP_HOST`
+- `APP_PORT`
+- `PORT`
 - `SECRET_KEY`
 - `DASHBOARD_ADMIN_EMAIL`
 - `DASHBOARD_ADMIN_PASSWORD`

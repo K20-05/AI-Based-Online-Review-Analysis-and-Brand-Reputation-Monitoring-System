@@ -9,3 +9,4 @@ seaborn==0.13.2
 pymongo==4.16.0
 nltk==3.9.3
 kafka-python>=2.0,<3.0
+waitress==3.0.2
