@@ -1,0 +1,188 @@
+{
+  "Positive": [
+    {
+      "word": "easy",
+      "count": 66255,
+      "sentiment_share": 0.9481
+    },
+    {
+      "word": "love",
+      "count": 64421,
+      "sentiment_share": 0.933
+    },
+    {
+      "word": "great",
+      "count": 74706,
+      "sentiment_share": 0.9059
+    },
+    {
+      "word": "best",
+      "count": 35833,
+      "sentiment_share": 0.8941
+    },
+    {
+      "word": "excellent",
+      "count": 14022,
+      "sentiment_share": 0.9702
+    },
+    {
+      "word": "fast",
+      "count": 23837,
+      "sentiment_share": 0.9151
+    },
+    {
+      "word": "good",
+      "count": 110740,
+      "sentiment_share": 0.7854
+    },
+    {
+      "word": "amazing",
+      "count": 15059,
+      "sentiment_share": 0.9447
+    },
+    {
+      "word": "nice",
+      "count": 21806,
+      "sentiment_share": 0.8863
+    },
+    {
+      "word": "awesome",
+      "count": 10802,
+      "sentiment_share": 0.9494
+    },
+    {
+      "word": "affordable",
+      "count": 7207,
+      "sentiment_share": 0.9607
+    },
+    {
+      "word": "quick",
+      "count": 9713,
+      "sentiment_share": 0.9291
+    }
+  ],
+  "Neutral": [
+    {
+      "word": "dark",
+      "count": 776,
+      "sentiment_share": 0.3342
+    },
+    {
+      "word": "theme",
+      "count": 185,
+      "sentiment_share": 0.3822
+    },
+    {
+      "word": "okay",
+      "count": 685,
+      "sentiment_share": 0.2826
+    },
+    {
+      "word": "mode",
+      "count": 785,
+      "sentiment_share": 0.2744
+    },
+    {
+      "word": "wishlist",
+      "count": 738,
+      "sentiment_share": 0.2665
+    },
+    {
+      "word": "alright",
+      "count": 151,
+      "sentiment_share": 0.3424
+    },
+    {
+      "word": "font",
+      "count": 93,
+      "sentiment_share": 0.3735
+    },
+    {
+      "word": "example",
+      "count": 562,
+      "sentiment_share": 0.2665
+    },
+    {
+      "word": "stars",
+      "count": 2192,
+      "sentiment_share": 0.2142
+    },
+    {
+      "word": "lately",
+      "count": 593,
+      "sentiment_share": 0.257
+    },
+    {
+      "word": "improve",
+      "count": 978,
+      "sentiment_share": 0.2269
+    },
+    {
+      "word": "add",
+      "count": 2424,
+      "sentiment_share": 0.1932
+    }
+  ],
+  "Negative": [
+    {
+      "word": "worst",
+      "count": 44607,
+      "sentiment_share": 0.9931
+    },
+    {
+      "word": "refund",
+      "count": 33625,
+      "sentiment_share": 0.8685
+    },
+    {
+      "word": "cancelled",
+      "count": 12172,
+      "sentiment_share": 0.9561
+    },
+    {
+      "word": "account",
+      "count": 23301,
+      "sentiment_share": 0.8762
+    },
+    {
+      "word": "useless",
+      "count": 8753,
+      "sentiment_share": 0.9707
+    },
+    {
+      "word": "bad",
+      "count": 32710,
+      "sentiment_share": 0.8402
+    },
+    {
+      "word": "horrible",
+      "count": 7954,
+      "sentiment_share": 0.9719
+    },
+    {
+      "word": "waste",
+      "count": 8849,
+      "sentiment_share": 0.9589
+    },
+    {
+      "word": "fraud",
+      "count": 8653,
+      "sentiment_share": 0.9585
+    },
+    {
+      "word": "poor",
+      "count": 11476,
+      "sentiment_share": 0.9262
+    },
+    {
+      "word": "pathetic",
+      "count": 6269,
+      "sentiment_share": 0.9901
+    },
+    {
+      "word": "care",
+      "count": 19209,
+      "sentiment_share": 0.8766
+    }
+  ]
+}

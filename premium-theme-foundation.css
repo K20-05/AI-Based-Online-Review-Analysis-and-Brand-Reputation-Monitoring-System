@@ -1,0 +1,185 @@
+:root {
+  --bg: #eef4fb;
+  --bg-2: #f8fbff;
+  --panel: rgba(255, 255, 255, 0.82);
+  --panel-strong: rgba(255, 255, 255, 0.95);
+  --panel-solid: #ffffff;
+  --panel-alt: rgba(244, 249, 255, 0.9);
+  --panel-alt-2: rgba(236, 246, 255, 0.96);
+  --panel-muted: rgba(229, 239, 250, 0.9);
+  --field-bg: rgba(248, 251, 255, 0.94);
+  --rail-bg: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(241, 248, 255, 0.92));
+  --text: #173155;
+  --text-soft: #32507b;
+  --muted: #6782a7;
+  --line: rgba(115, 153, 198, 0.18);
+  --line-strong: rgba(49, 136, 242, 0.34);
+  --accent: #2693ff;
+  --accent-2: #17c7be;
+  --accent-3: #5fd3ff;
+  --positive: #14b786;
+  --neutral: #efad3d;
+  --negative: #ef6a8f;
+  --button-text: #ffffff;
+  --shadow-soft: 0 30px 80px rgba(81, 114, 156, 0.18);
+  --shadow-raise: 0 28px 60px rgba(80, 118, 164, 0.16);
+  --surface-glow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 24px 60px rgba(91, 120, 160, 0.14);
+  --font-body: "Sora", "Segoe UI", sans-serif;
+  --font-heading: "Syne", "Sora", sans-serif;
+  --font-side: "Orbitron", "Sora", sans-serif;
+  --font-brand: "Monoton", "Syne", sans-serif;
+  --label-shadow: 0 1px 0 rgba(255, 255, 255, 0.94), 0 8px 18px rgba(84, 127, 178, 0.14);
+  --brand-shadow: 0 1px 0 rgba(255, 255, 255, 0.96), 0 16px 32px rgba(80, 119, 164, 0.18);
+}
+
+@keyframes premiumAmbient {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(2%, -2%, 0) scale(1.04); }
+}
+
+@keyframes premiumBlob {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  33% { transform: translate3d(4%, -6%, 0) scale(1.08); }
+  66% { transform: translate3d(-4%, 5%, 0) scale(0.96); }
+}
+
+@keyframes premiumSweep {
+  0% { transform: translateX(-120%) skewX(-18deg); opacity: 0; }
+  30% { opacity: 0.72; }
+  100% { transform: translateX(120%) skewX(-18deg); opacity: 0; }
+}
+
+@keyframes premiumFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes premiumPulse {
+  0%, 100% { box-shadow: 0 14px 34px rgba(38, 147, 255, 0.18); }
+  50% { box-shadow: 0 20px 44px rgba(23, 199, 190, 0.22); }
+}
+
+@keyframes shimmerFlow {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 10% 12%, rgba(95, 211, 255, 0.28), transparent 22%),
+    radial-gradient(circle at 88% 14%, rgba(23, 199, 190, 0.18), transparent 24%),
+    radial-gradient(circle at 74% 78%, rgba(38, 147, 255, 0.12), transparent 28%),
+    linear-gradient(180deg, #f7fbff 0%, #eff5fb 54%, #eaf2fb 100%);
+  color: var(--text);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+body::before,
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+body::before {
+  background:
+    linear-gradient(rgba(73, 131, 205, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(73, 131, 205, 0.05) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 0.8), transparent 82%);
+  opacity: 0.5;
+}
+
+body::after {
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.65), transparent 68%);
+  opacity: 0.85;
+}
+
+.app {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.app-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.app-backdrop__mesh,
+.app-backdrop__grain,
+.app-backdrop__blob {
+  position: absolute;
+  inset: 0;
+}
+
+.app-backdrop__mesh {
+  background:
+    radial-gradient(circle at 18% 22%, rgba(255, 255, 255, 0.85) 0, transparent 22%),
+    radial-gradient(circle at 76% 20%, rgba(95, 211, 255, 0.18) 0, transparent 18%),
+    radial-gradient(circle at 68% 74%, rgba(23, 199, 190, 0.15) 0, transparent 22%);
+  animation: premiumAmbient 18s ease-in-out infinite;
+}
+
+.app-backdrop__grain {
+  opacity: 0.18;
+  background-image:
+    radial-gradient(circle at 18% 34%, rgba(23, 49, 85, 0.08) 0.6px, transparent 0.8px),
+    radial-gradient(circle at 78% 26%, rgba(23, 49, 85, 0.06) 0.6px, transparent 0.8px),
+    radial-gradient(circle at 54% 76%, rgba(23, 49, 85, 0.08) 0.6px, transparent 0.8px),
+    radial-gradient(circle at 28% 80%, rgba(23, 49, 85, 0.05) 0.6px, transparent 0.8px);
+  background-size: 180px 180px, 220px 220px, 200px 200px, 240px 240px;
+}
+
+.app-backdrop__blob {
+  filter: blur(24px);
+  opacity: 0.72;
+  animation: premiumBlob 16s ease-in-out infinite;
+}
+
+.app-backdrop__blob--one {
+  inset: auto auto 12% -8%;
+  width: 360px;
+  height: 360px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(95, 211, 255, 0.32), transparent 68%);
+}
+
+.app-backdrop__blob--two {
+  inset: -10% -6% auto auto;
+  width: 420px;
+  height: 420px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(23, 199, 190, 0.22), transparent 70%);
+  animation-delay: -4s;
+}
+
+.app-backdrop__blob--three {
+  inset: 34% auto auto 44%;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(38, 147, 255, 0.12), transparent 70%);
+  animation-delay: -9s;
+}
+

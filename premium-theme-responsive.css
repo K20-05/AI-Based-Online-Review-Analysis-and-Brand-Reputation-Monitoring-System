@@ -1,0 +1,181 @@
+@media (max-width: 1420px) {
+  .topbar-status-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .shell,
+  .shell.shell--dashboard-compact {
+    grid-template-columns: 232px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 1280px) {
+  .signal-panel {
+    display: none;
+  }
+
+  .signal-drawer-toggle {
+    display: inline-flex;
+  }
+
+  body.drawer-open .signal-panel {
+    position: fixed;
+    right: 20px;
+    top: 110px;
+    bottom: 20px;
+    width: min(360px, calc(100vw - 28px));
+    max-height: none;
+    display: grid !important;
+    z-index: 28;
+    box-shadow: 0 32px 72px rgba(92, 123, 162, 0.24);
+  }
+}
+
+@media (max-width: 1180px) {
+  .topbar {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar-status-strip,
+  .topbar-controls {
+    width: 100%;
+  }
+
+  .topbar-controls {
+    justify-content: space-between;
+  }
+
+  .dashboard-layout,
+  .gauge-chamber,
+  .dashboard-block__cards,
+  .role-dashboard-cards,
+  .dashboard-quick-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .gauge-chamber {
+    align-items: start;
+  }
+
+  .gauge-chamber > .ring-gauge {
+    grid-column: 1 / -1;
+  }
+
+  .dashboard-quick-grid > *:last-child:nth-child(odd),
+  .role-dashboard-cards > *:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 960px) {
+  .app {
+    padding: 16px;
+  }
+
+  .shell,
+  .shell.shell--dashboard-compact {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .sidebar-stack {
+    position: static;
+    gap: 0;
+  }
+
+  .topbar-status-strip--sidebar {
+    display: none;
+  }
+
+  .nav-rail,
+  .stage {
+    position: static;
+    max-height: none;
+  }
+
+  .nav-rail {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .nav-rail::before {
+    grid-column: 1 / -1;
+  }
+
+  .nav-group,
+  .nav-item {
+    grid-column: span 1;
+  }
+
+  .nav-group {
+    align-content: start;
+  }
+
+  .topbar-status-strip,
+  .dashboard-command-strip,
+  .analysis-step-strip,
+  .dashboard-summary-grid,
+  .dashboard-layout,
+  .dashboard-block__cards,
+  .role-dashboard-cards,
+  .dashboard-quick-grid,
+  .stats-strip,
+  .stats-cluster__subgrid,
+  .stats-cluster__subgrid--live,
+  .analytics-grid,
+  .insights-grid,
+  .about-simple-grid,
+  .batch-layout,
+  .form-grid,
+  .single-form-grid,
+  .trend-grid,
+  .users-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .about-summary-card--storyboard {
+    grid-template-columns: 1fr;
+  }
+
+  .about-summary-card__main > strong {
+    max-width: none;
+  }
+
+  .view-head {
+    padding: 24px 22px;
+  }
+
+  .view-head .inline-actions {
+    justify-content: flex-start;
+  }
+
+  .session-chip {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .topbar-chip strong,
+  .session-chip strong {
+    font-size: 16px;
+  }
+
+  .view-title {
+    font-size: clamp(30px, 11vw, 44px);
+  }
+
+  .action-btn,
+  .ghost-btn,
+  .signal-drawer-toggle {
+    width: 100%;
+  }
+
+  .topbar-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .nav-rail {
+    grid-template-columns: 1fr;
+  }
+}

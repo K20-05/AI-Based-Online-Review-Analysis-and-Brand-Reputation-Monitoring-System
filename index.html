@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BrandPulse Control Room</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Monoton&family=Orbitron:wght@500;700;800&family=Sora:wght@400;500;600;700;800&family=Syne:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/premium-theme.css?v=20260402a">
+
+</head>
+<body>
+  <div class="app">
+    <div class="app-backdrop" aria-hidden="true">
+      <span class="app-backdrop__mesh"></span>
+      <span class="app-backdrop__blob app-backdrop__blob--one"></span>
+      <span class="app-backdrop__blob app-backdrop__blob--two"></span>
+      <span class="app-backdrop__blob app-backdrop__blob--three"></span>
+      <span class="app-backdrop__grain"></span>
+    </div>
+    <header class="topbar">
+      <div class="brandmark" aria-label="BrandPulse">
+        <svg viewBox="0 0 64 64" role="img" aria-hidden="true">
+          <defs>
+            <linearGradient id="logoGrad" x1="0%" x2="100%" y1="0%" y2="100%">
+              <stop offset="0%" stop-color="#67d3ff"></stop>
+              <stop offset="100%" stop-color="#9ff3c7"></stop>
+            </linearGradient>
+          </defs>
+          <rect x="4" y="4" width="56" height="56" rx="16" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.12)"></rect>
+          <path d="M18 39c5-1 7-7 12-7s7 6 12 7 7-4 10-13" fill="none" stroke="url(#logoGrad)" stroke-width="5" stroke-linecap="round"></path>
+          <circle cx="18" cy="39" r="3" fill="#67d3ff"></circle>
+          <circle cx="30" cy="32" r="3" fill="#89e3e5"></circle>
+          <circle cx="42" cy="39" r="3" fill="#9ff3c7"></circle>
+        </svg>
+        <div class="brandmark-copy">
+          <span class="brandmark-title" data-text="BrandPulse">BrandPulse</span>
+          <small>Control Room</small>
+        </div>
+      </div>
+
+      <div class="topbar-controls">
+        <div class="session-chip hidden" id="sessionChip">
+          <div class="session-avatar" id="sessionAvatar" aria-hidden="true">--</div>
+          <div class="session-meta">
+            <span>Signed In</span>
+            <strong id="sessionUser">Offline</strong>
+            <div class="session-role" id="sessionRole">No session</div>
+          </div>
+        </div>
+        <button class="signal-drawer-toggle" id="signalDrawerToggle" type="button" aria-controls="signalPanel" aria-expanded="false">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 6h16"></path>
+            <path d="M4 12h10"></path>
+            <path d="M4 18h16"></path>
+          </svg>
+          Signals
+        </button>
+        <button class="ghost-btn hidden" id="logoutButton" type="button">Logout</button>
+      </div>
+    </header>
+
+    <div class="shell">
+      <aside class="sidebar-stack">
+        <div class="topbar-status-strip topbar-status-strip--sidebar" aria-label="Executive status">
+          <div class="topbar-chip topbar-chip--live topbar-chip--compact" id="executiveStatusChip">
+            <span class="topbar-chip__label">Platform</span>
+            <strong id="executiveStatusValue">Live operations</strong>
+            <span class="topbar-chip__meta" id="executiveStatusMeta">Awaiting refresh</span>
+          </div>
+        </div>
+
+        <nav class="nav-rail" id="navRail" aria-label="Primary">
+        <button class="nav-item is-active" type="button" data-view="dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 13h8V3H3z"></path>
+            <path d="M13 21h8v-6h-8z"></path>
+            <path d="M13 10h8V3h-8z"></path>
+            <path d="M3 21h8v-4H3z"></path>
+          </svg>
+          <span>Dashboard</span>
+        </button>
+        <button class="nav-item" type="button" data-view="single">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 20h9"></path>
+            <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5Z"></path>
+          </svg>
+          <span>Review Analysis</span>
+        </button>
+        <button class="nav-item" type="button" data-view="history">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 8v4l3 2"></path>
+            <path d="M3.1 12a8.9 8.9 0 1 0 2.6-6.3"></path>
+            <path d="M3 4v5h5"></path>
+          </svg>
+          <span>History</span>
+        </button>
+        <button class="nav-item" type="button" data-view="users">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+          <span>Users</span>
+        </button>
+        <button class="nav-item" type="button" data-view="model-performance">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 3v18h18"></path>
+            <path d="M7 14l3-3 3 2 4-6"></path>
+          </svg>
+          <span>Model</span>
+        </button>
+        <button class="nav-item" type="button" data-view="notifications">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M15 17h5l-1.4-1.4A2 2 0 0 1 18 14.2V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5"></path>
+            <path d="M9.5 20a2.5 2.5 0 0 0 5 0"></path>
+          </svg>
+          <span>Alerts</span>
+          <b class="nav-badge hidden" id="adminNotificationBadge">0</b>
+        </button>
+        <button class="nav-item" type="button" data-view="brand-insights">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 3v18h18"></path>
+            <path d="M7 15l3-3 3 2 4-6"></path>
+          </svg>
+          <span>Brand Intelligence</span>
+        </button>
+        <button class="nav-item" type="button" data-view="sentiment-distribution">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21.2 15a9 9 0 1 1-6.2-11.2"></path>
+            <path d="M12 12L20 8"></path>
+          </svg>
+          <span>Sentiment Insights</span>
+        </button>
+        <button class="nav-item" type="button" data-view="review-trends">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 17l6-6 4 4 8-8"></path>
+            <path d="M14 7h7v7"></path>
+          </svg>
+          <span>Review Trends</span>
+        </button>
+        <button class="nav-item" type="button" data-view="customer-intelligence">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            <path d="M8 9h8"></path>
+            <path d="M8 13h5"></path>
+          </svg>
+          <span>Customer Voice</span>
+        </button>
+        <button class="nav-item" type="button" data-view="analytics-summary">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 3v18h18"></path>
+            <rect x="7" y="11" width="3" height="6"></rect>
+            <rect x="12" y="8" width="3" height="9"></rect>
+            <rect x="17" y="5" width="3" height="12"></rect>
+          </svg>
+          <span>Summary</span>
+        </button>
+        <button class="nav-item" type="button" data-view="about">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="9"></circle>
+            <path d="M12 10v6"></path>
+            <path d="M12 7h.01"></path>
+          </svg>
+          <span>About</span>
+        </button>
+        </nav>
+      </aside>
+
+      <main class="stage" tabindex="-1">
+{% include "_partials/views/dashboard.html" %}
+{% include "_partials/views/intelligence.html" %}
+{% include "_partials/views/summary-workspace.html" %}
+{% include "_partials/views/admin-about.html" %}
+      </main>
+
+      <aside class="signal-panel" id="signalPanel" aria-label="Live Signal Panel">
+        <div class="signal-panel-head">
+          <h2>Live Signal Panel</h2>
+          <div class="signal-panel-meta">
+            <strong class="signal-panel-time" id="panelClock">--:--</strong>
+            <span class="signal-panel-status" id="panelStatusText">Signal standby</span>
+          </div>
+        </div>
+
+        <section class="signal-widget hidden" id="adminSideSummaryWidget">
+          <strong>Admin Status</strong>
+          <div class="signal-pills">
+            <span class="signal-pill"><i style="background: var(--accent);"></i><span id="adminSideAlertCount">0 alerts</span></span>
+            <span class="signal-pill"><i style="background: var(--positive);"></i><span id="adminSideUserCount">0 users</span></span>
+            <span class="signal-pill"><i style="background: var(--neutral);"></i><span id="adminSideBrandCount">0 brands</span></span>
+          </div>
+          <p class="signal-note" id="adminSideSummaryCopy">Control-side summary will appear after admin data loads.</p>
+        </section>
+
+        <section class="signal-widget hidden" id="adminSideActionsWidget">
+          <strong>Quick Actions</strong>
+          <div class="inline-actions">
+            <button class="ghost-btn" id="adminOpenAlertsButton" type="button">Open Alerts</button>
+            <button class="ghost-btn" id="adminOpenUsersButton" type="button">Open Users</button>
+            <button class="ghost-btn" id="adminOpenModelButton" type="button">Open Model</button>
+          </div>
+          <p class="signal-note">Jump directly into the main admin control views from the side panel.</p>
+        </section>
+
+        <section class="signal-widget signal-radar" id="signalRadarWidget">
+          <div class="signal-radar-grid"></div>
+          <div class="signal-radar-sweep"></div>
+          <div class="signal-radar-core">
+            <span class="signal-radar-chip" id="signalRadarLabel">Realtime Signal</span>
+            <strong class="signal-radar-score" id="signalRadarScore">0.0</strong>
+            <span class="signal-radar-copy" id="signalRadarCopy">Live panel summary will appear after analytics data loads.</span>
+          </div>
+        </section>
+
+        <section class="signal-widget" id="signalTrendVectorsWidget">
+          <strong>Trend Vectors</strong>
+          <div class="trend-grid">
+            <div class="trend-card">
+              <svg id="trendReputationIcon" viewBox="0 0 24 24" fill="none" stroke="var(--positive)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M6 15l5-5 3 3 4-6"></path>
+                <path d="M17 7h1v1"></path>
+              </svg>
+              <strong>Score</strong>
+              <span id="trendReputationText">Stable</span>
+            </div>
+            <div class="trend-card">
+              <svg id="trendPositiveIcon" viewBox="0 0 24 24" fill="none" stroke="var(--positive)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 19V5"></path>
+                <path d="M6 11l6-6 6 6"></path>
+              </svg>
+              <strong>Positive</strong>
+              <span id="trendPositiveText">Standby</span>
+            </div>
+            <div class="trend-card">
+              <svg id="trendNegativeIcon" viewBox="0 0 24 24" fill="none" stroke="var(--negative)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 5v14"></path>
+                <path d="M6 13l6 6 6-6"></path>
+              </svg>
+              <strong>Negative</strong>
+              <span id="trendNegativeText">Standby</span>
+            </div>
+          </div>
+        </section>
+
+      </aside>
+    </div>
+
+    <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
+    <div class="sr-only" id="srAnnouncements" aria-live="polite" aria-atomic="true"></div>
+  </div>
+
+  <div class="confirm-overlay hidden" id="confirmOverlay" aria-modal="true" role="dialog" aria-labelledby="confirmTitle">
+    <div class="confirm-card">
+      <h3 class="confirm-title" id="confirmTitle">Confirm Action</h3>
+      <p class="confirm-copy" id="confirmMessage">Are you sure?</p>
+      <div class="confirm-actions">
+        <button class="ghost-btn" id="confirmCancelButton" type="button">Cancel</button>
+        <button class="action-btn" id="confirmOkButton" type="button">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="auth-overlay hidden" id="authOverlay" aria-modal="true" role="dialog" aria-labelledby="authTitle">
+    <div class="auth-scene" aria-hidden="true">
+      <div class="auth-sweep"></div>
+      <div class="auth-radar"></div>
+      <div class="auth-radar-sweep"></div>
+      <div class="auth-grid-points">
+        <i></i><i></i><i></i><i></i><i></i>
+        <i></i><i></i><i></i><i></i><i></i>
+      </div>
+      <div class="auth-card-frame">
+        <div class="auth-corner tl"></div>
+        <div class="auth-corner tr"></div>
+        <div class="auth-corner bl"></div>
+        <div class="auth-corner br"></div>
+        <div class="auth-card-axis top">secure access node</div>
+        <div class="auth-card-axis right">telemetry grid</div>
+      </div>
+      <div class="auth-hud-label top-left">tfidf vector signal</div>
+      <div class="auth-hud-label top-right">classification matrix</div>
+      <div class="auth-hud-label bottom-left">api secure session</div>
+      <div class="auth-hud-label bottom-right">reputation monitor</div>
+      <div class="auth-column col-1"></div>
+      <div class="auth-column col-2"></div>
+      <div class="auth-column col-3"></div>
+      <div class="auth-column col-4"></div>
+      <div class="auth-telemetry">
+        <svg viewBox="0 0 1400 180" preserveAspectRatio="none">
+          <path d="M0 130 C120 130, 180 88, 280 92 S460 148, 560 110 S760 70, 880 94 S1080 144, 1200 118 S1320 76, 1400 86" stroke="rgba(103,211,255,0.55)" stroke-width="3"></path>
+          <path d="M0 138 C140 138, 220 118, 320 122 S520 150, 620 134 S820 106, 960 116 S1160 146, 1260 128 S1350 104, 1400 108" stroke="rgba(159,243,199,0.36)" stroke-width="2.5" style="animation-delay:1.2s;"></path>
+        </svg>
+      </div>
+      <div class="auth-status-rail">
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </div>
+    <div class="auth-card" id="authCard">
+      <div>
+        <div class="eyebrow">Session Required</div>
+        <h2 id="authTitle">Enter the Control Room</h2>
+      </div>
+      <p id="authMessage">Use the dashboard account configured in the backend to unlock protected API calls.</p>
+      <div class="auth-tabs" role="tablist" aria-label="Authentication mode">
+        <button class="auth-tab is-active" id="loginTab" type="button" role="tab" aria-selected="true">Login</button>
+        <button class="auth-tab" id="registerTab" type="button" role="tab" aria-selected="false">Create Account</button>
+      </div>
+
+      <form class="auth-panel is-active" id="loginForm">
+        <div class="field">
+          <label for="loginEmail">Email</label>
+          <input id="loginEmail" name="email" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Enter email">
+        </div>
+        <div class="field">
+          <label for="loginPassword">Password</label>
+          <div class="password-field">
+            <input id="loginPassword" name="password" type="password" autocomplete="current-password" placeholder="Enter password">
+            <button class="password-visibility-btn" id="toggleLoginPassword" type="button" aria-controls="loginPassword" aria-label="Show password" aria-pressed="false">Show</button>
+          </div>
+        </div>
+        <div class="auth-error" id="authError"></div>
+        <div class="inline-actions">
+          <button class="action-btn" id="loginButton" type="submit">Login</button>
+        </div>
+      </form>
+
+      <form class="auth-panel" id="registerForm">
+        <div class="field">
+          <label for="registerName">Name</label>
+          <input id="registerName" name="name" type="text" autocomplete="name" placeholder="Your full name">
+        </div>
+        <div class="field">
+          <label for="registerEmail">Email</label>
+          <input id="registerEmail" name="email" type="text" autocomplete="email" placeholder="you@example.com">
+        </div>
+        <div class="field">
+          <label for="registerPassword">Password</label>
+          <input id="registerPassword" name="password" type="password" autocomplete="new-password" placeholder="Create a strong password">
+        </div>
+        <div class="field">
+          <label for="registerRole">Role</label>
+          <select id="registerRole" name="role">
+            <option value="analyst">Analyst</option>
+            <option value="marketing_staff">Marketing Staff</option>
+            <option value="admin" disabled>Admin (Assigned by system admin only)</option>
+          </select>
+        </div>
+        <div class="password-rules">
+          <strong>Password Rules</strong>
+          <ul>
+            <li>At least 8 characters</li>
+            <li>At least one uppercase letter</li>
+            <li>At least one lowercase letter</li>
+            <li>At least one number</li>
+            <li>At least one special character</li>
+          </ul>
+        </div>
+        <div class="auth-error" id="registerError"></div>
+        <div class="inline-actions">
+          <button class="action-btn" id="registerButton" type="submit">Create Account</button>
+        </div>
+        <div class="auth-switch">
+          Already have an account?
+          <button class="auth-link" id="switchToLogin" type="button">Back to login</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/app-shared.js?v=20260401b"></script>
+  <script src="/app-history.js?v=20260331c"></script>
+  <script src="/app-admin.js?v=20260331c"></script>
+  <script src="/app-analysis.js?v=20260331c"></script>
+  <script src="/app-dashboard-fragments.js?v=20260403a"></script>
+  <script src="/app-dashboard-overview.js?v=20260403a"></script>
+  <script src="/app-dashboard-panels.js?v=20260403a"></script>
+  <script src="/app-dashboard.js?v=20260403a"></script>
+  <script src="/app-brand-workspace.js?v=20260402b"></script>
+  <script src="/app-runtime-keywords.js?v=20260403b"></script>
+  <script src="/app-runtime-customer-voice.js?v=20260403b"></script>
+  <script src="/app-runtime-signals.js?v=20260403b"></script>
+  <script src="/app-runtime-analytics.js?v=20260403b"></script>
+  <script src="/app.js?v=20260402c"></script>
+  <script src="/premium-ui.js?v=20260330k"></script>
+</body>
+</html>
