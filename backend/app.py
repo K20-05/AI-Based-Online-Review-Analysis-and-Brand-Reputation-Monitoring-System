@@ -5,7 +5,7 @@ import os
 from pathlib import Path
 import sys
 
-from flask import Flask, jsonify, render_template, request, send_file, send_from_directory, session
+from flask import Flask, jsonify, render_template, request, send_file, session
 from flask_cors import CORS
 import pandas as pd
 from werkzeug.exceptions import HTTPException
