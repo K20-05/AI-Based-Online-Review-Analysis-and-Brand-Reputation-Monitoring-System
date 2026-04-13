@@ -614,9 +614,16 @@ def start_background_services(debug_enabled: bool) -> None:
 
 
 if __name__ == "__main__":
+    from flask import cli
+    import logging
+
+    cli.show_server_banner = lambda *args, **kwargs: None
+    logging.getLogger("werkzeug").disabled = True
+
     server_settings = resolve_runtime_server_settings()
     debug_mode = bool(server_settings["debug"])
     start_background_services(debug_mode)
+    print(f"Running on http://{server_settings['host']}:{server_settings['port']}")
     app.run(
         host=str(server_settings["host"]),
         port=int(server_settings["port"]),
