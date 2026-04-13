@@ -9,7 +9,7 @@ import re
 import pandas as pd
 
 from backend.brand_score import calculate_brand_score, scoring_frame
-from backend.config import BRAND_SCORE_PATH, PREDICTIONS_PATH, REALTIME_REVIEWS_PATH
+from backend.paths import BRAND_SCORE_PATH, PREDICTIONS_PATH, REALTIME_REVIEWS_PATH
 
 TOKEN_RE = re.compile(r"\b[a-z]{3,}\b")
 KEYWORD_GROUPS_CACHE_PATH = PREDICTIONS_PATH.with_name(f"{PREDICTIONS_PATH.stem}_keyword_groups_cache.json")

@@ -4,7 +4,7 @@ from pathlib import Path
 
 import joblib
 
-from backend.config import MODEL_PATH, VECTORIZER_PATH
+from backend.paths import MODEL_PATH, VECTORIZER_PATH
 
 _ARTIFACT_CACHE = {
     "signature": None,

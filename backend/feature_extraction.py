@@ -11,7 +11,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from backend.config import FEATURE_DATASET_PATH, LEGACY_MATRIX_PATH, LEGACY_VECTORIZER_PATH, TRAINING_SAMPLE_LIMIT_PER_DATASET
+from backend.paths import FEATURE_DATASET_PATH, LEGACY_MATRIX_PATH, LEGACY_VECTORIZER_PATH, TRAINING_SAMPLE_LIMIT_PER_DATASET
 from backend.preprocessing import label_from_rating, load_cleaned_reviews, sample_reviews_per_dataset
 
 

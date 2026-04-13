@@ -10,7 +10,7 @@ import pandas as pd
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from backend.config import (
+from backend.paths import (
     CLEANED_DATA_PATH,
     DATASET_DIR,
     LEGACY_RAW_DATA_DIR,

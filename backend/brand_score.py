@@ -10,7 +10,7 @@ import pandas as pd
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from backend.config import (
+from backend.paths import (
     BRAND_REPUTATION_BY_BRAND_PATH,
     BRAND_SCORE_PATH,
     PLATFORM_SUMMARY_PATH,

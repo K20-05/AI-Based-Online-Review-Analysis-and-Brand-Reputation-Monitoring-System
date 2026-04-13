@@ -12,7 +12,7 @@ if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 from backend.aspect_analysis import analyze_review_aspects
-from backend.config import REALTIME_REVIEWS_PATH
+from backend.paths import REALTIME_REVIEWS_PATH
 from backend.database import append_realtime_reviews
 from backend.model_artifacts import load_model_artifacts
 from backend.multilingual import apply_multilingual_sentiment_guard, normalize_multilingual_text

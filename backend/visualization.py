@@ -11,7 +11,7 @@ import pandas as pd
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from backend.config import (
+from backend.paths import (
     KEYWORD_FREQUENCY_PATH,
     PLATFORM_DISTRIBUTION_PATH,
     PREDICTIONS_PATH,

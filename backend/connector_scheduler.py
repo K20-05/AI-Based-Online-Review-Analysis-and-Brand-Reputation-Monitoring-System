@@ -10,7 +10,7 @@ import time
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from backend.config import CONNECTOR_SCHEDULER_PATH
+from backend.paths import CONNECTOR_SCHEDULER_PATH, DATASET_CONNECTOR_FILE_NAMES
 from backend.connectors import dataset_csv_source_names, poll_connector
 from backend.realtime_reviews import ingest_realtime_reviews
 
@@ -22,20 +22,7 @@ DEFAULT_SCHEDULER_CONFIG = {
     "limit": 1,
     "reset_cursor_on_start": False,
     "options": {
-        "file_names": [
-            "Alibaba.csv",
-            "Aliexpress.csv",
-            "Amazon shopping.csv",
-            "Daraz Online Shopping App.csv",
-            "eBay online shopping & selling.csv",
-            "Flipkart.csv",
-            "Lazada.csv",
-            "Meesho.csv",
-            "Myntra.csv",
-            "Shein.csv",
-            "Snapdeal.csv",
-            "Walmart.csv",
-        ],
+        "file_names": list(DATASET_CONNECTOR_FILE_NAMES),
     },
 }
 

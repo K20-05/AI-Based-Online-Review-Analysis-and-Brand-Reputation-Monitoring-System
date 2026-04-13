@@ -18,7 +18,7 @@ from sklearn.model_selection import train_test_split
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from backend.config import (
+from backend.paths import (
     CALIBRATION_REPORT_PATH,
     CLEANED_DATA_PATH,
     LANGUAGE_EVALUATION_PATH,

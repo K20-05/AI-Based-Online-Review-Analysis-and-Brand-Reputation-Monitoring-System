@@ -9,7 +9,7 @@ import pandas as pd
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from backend.config import MODEL_PATH, PREDICTIONS_PATH, VECTORIZER_PATH
+from backend.paths import MODEL_PATH, PREDICTIONS_PATH, VECTORIZER_PATH
 from backend.database import write_predictions
 from backend.preprocessing import label_from_rating, load_cleaned_reviews
 from backend.visualization import generate_visualizations

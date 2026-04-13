@@ -15,7 +15,8 @@ except Exception:  # pragma: no cover
 if __package__ is None or __package__ == "":
     sys.path.append(str(Path(__file__).resolve().parent.parent))
 
-from backend.config import CONNECTOR_STATE_PATH, DATASET_DIR, LEGACY_RAW_DATA_DIR, RAW_DATA_DIR, RAW_DATA_EXCLUSIONS
+from backend.config import DEFAULT_KAFKA_BOOTSTRAP_SERVERS
+from backend.paths import CONNECTOR_STATE_PATH, DATASET_DIR, LEGACY_RAW_DATA_DIR, RAW_DATA_DIR, RAW_DATA_EXCLUSIONS
 from backend.preprocessing import normalize_frame, parse_review_date
 
 
@@ -149,7 +150,7 @@ class KafkaTopicConnector(BaseConnector):
             raise ImportError("Kafka support is not available. Install dependencies from requirements.txt.")
 
         topic = str(options.get("topic", "")).strip()
-        bootstrap_servers = options.get("bootstrap_servers", "localhost:9092")
+        bootstrap_servers = options.get("bootstrap_servers", DEFAULT_KAFKA_BOOTSTRAP_SERVERS)
         if isinstance(bootstrap_servers, str):
             bootstrap_servers = [item.strip() for item in bootstrap_servers.split(",") if item.strip()]
         if not bootstrap_servers:

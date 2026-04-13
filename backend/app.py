@@ -17,9 +17,16 @@ if __package__ is None or __package__ == "":
 from backend.brand_score import calculate_brand_score
 from backend.config import (
     ALLOWED_CORS_ORIGINS,
-    BRAND_REPUTATION_BY_BRAND_PATH,
     DASHBOARD_ADMIN_EMAIL,
     DASHBOARD_ADMIN_PASSWORD,
+    DEFAULT_KAFKA_BOOTSTRAP_SERVERS,
+    resolve_runtime_server_settings,
+    SECRET_KEY,
+    SESSION_COOKIE_SECURE,
+    is_insecure_admin_password,
+)
+from backend.paths import (
+    BRAND_REPUTATION_BY_BRAND_PATH,
     FRONTEND_DIR,
     LOGIN_ILLUSTRATION_PATH,
     MODEL_METRICS_PATH,
@@ -27,12 +34,8 @@ from backend.config import (
     MODEL_REPORT_PATH,
     PREDICTIONS_PATH,
     REALTIME_REVIEWS_PATH,
-    resolve_runtime_server_settings,
-    SECRET_KEY,
-    SESSION_COOKIE_SECURE,
     USER_STORE_PATH,
     VECTORIZER_PATH,
-    is_insecure_admin_password,
 )
 from backend.database import mongo_enabled
 from backend import auth_support, dashboard_data
@@ -295,7 +298,7 @@ API_DOCS = {
                 "path": "/api/auth/session",
                 "summary": "Read the current dashboard session state.",
                 "auth_required": False,
-                "response": {"authenticated": True, "user": "admin@brandpulse.ai"},
+                "response": {"authenticated": True, "user": DASHBOARD_ADMIN_EMAIL},
             },
             {"method": "GET", "path": "/api/docs", "summary": "Read API contract and examples."},
             {"method": "GET", "path": "/api/openapi.json", "summary": "Read API contract in machine-friendly JSON."},
@@ -339,7 +342,7 @@ API_DOCS = {
                     "limit": 10,
                     "reset_cursor": False,
                     "options": {
-                        "bootstrap_servers": "localhost:9092",
+                        "bootstrap_servers": DEFAULT_KAFKA_BOOTSTRAP_SERVERS,
                         "topic": "brandpulse.reviews",
                         "group_id": "brandpulse-realtime",
                         "platform": "Nykaa",
@@ -614,9 +617,16 @@ def start_background_services(debug_enabled: bool) -> None:
 
 
 if __name__ == "__main__":
+    from flask import cli
+    import logging
+
+    cli.show_server_banner = lambda *args, **kwargs: None
+    logging.getLogger("werkzeug").disabled = True
+
     server_settings = resolve_runtime_server_settings()
     debug_mode = bool(server_settings["debug"])
     start_background_services(debug_mode)
+    print(f"Running on http://{server_settings['host']}:{server_settings['port']}")
     app.run(
         host=str(server_settings["host"]),
         port=int(server_settings["port"]),
