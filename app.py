@@ -628,5 +628,6 @@ if __name__ == "__main__":
         host=str(server_settings["host"]),
         port=int(server_settings["port"]),
         debug=debug_mode,
+        load_dotenv=False,
     )
 
