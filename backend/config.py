@@ -98,6 +98,7 @@ DASHBOARD_ADMIN_EMAIL = _env("DASHBOARD_ADMIN_EMAIL", "admin@brandpulse.ai") or 
 DASHBOARD_ADMIN_PASSWORD = _env("DASHBOARD_ADMIN_PASSWORD", "")
 ALLOWED_CORS_ORIGINS = _split_csv_env("ALLOWED_CORS_ORIGINS") or DEFAULT_ALLOWED_CORS_ORIGINS
 SESSION_COOKIE_SECURE = _env_flag("SESSION_COOKIE_SECURE", False)
+FRONTEND_API_BASE_URL = _first_env("FRONTEND_API_BASE_URL", "API_BASE_URL").rstrip("/")
 
 
 def load_or_create_local_secret(path: Path) -> str:

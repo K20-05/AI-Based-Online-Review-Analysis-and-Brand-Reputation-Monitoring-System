@@ -438,7 +438,6 @@ async function refreshTrendView(brandOverride) {
     renderTrendMomentum();
     renderTrendMonthlyComparison();
     renderTrendReviewVolume();
-    prefetchTrendDrilldownSamples();
     if (state.trendDrilldownSentiment) loadTrendDrilldown(state.trendDrilldownSentiment);
     if (selectedBrand && !state.trends.length) {
       $("#trendCaption").textContent = "No monthly trend data for " + activeTrendBrandLabel() + ". Missing valid review dates for this brand.";

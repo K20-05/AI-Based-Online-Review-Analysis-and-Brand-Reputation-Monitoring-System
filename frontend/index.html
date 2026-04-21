@@ -386,6 +386,11 @@
   <script src="/app-runtime-customer-voice.js?v=20260403b"></script>
   <script src="/app-runtime-signals.js?v=20260403b"></script>
   <script src="/app-runtime-analytics.js?v=20260403b"></script>
+  <script>
+    window.__BRANDPULSE_CONFIG = Object.freeze({
+      apiBaseUrl: {{ (frontend_api_base_url or "")|tojson }}
+    });
+  </script>
   <script src="/app.js?v=20260402c"></script>
   <script src="/premium-ui.js?v=20260330k"></script>
 </body>

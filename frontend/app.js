@@ -906,6 +906,11 @@ function sameSessionRevision(revision) {
         : "Required. Paste one customer review here before prediction.";
     }
 
+    function configuredApiBaseUrl() {
+      const configured = window.__BRANDPULSE_CONFIG && window.__BRANDPULSE_CONFIG.apiBaseUrl;
+      return String(configured || "").trim().replace(/\/+$/, "");
+    }
+
     function getApiCandidates(path) {
       const normalized = path.startsWith("/") ? path : "/" + path;
       const urls = [];
@@ -919,6 +924,8 @@ function sameSessionRevision(revision) {
       const preferred = state.apiPreferredCandidates && state.apiPreferredCandidates[normalized];
       if (preferred && String(preferred).includes("/api/")) add(preferred);
       if (state.apiPreferredBaseUrl) addApiBase(state.apiPreferredBaseUrl);
+      const configuredApiBase = configuredApiBaseUrl();
+      if (configuredApiBase) addApiBase(configuredApiBase);
       const protocol = location.protocol === "https:" ? "https:" : "http:";
       const hostname = String(location.hostname || "").trim().toLowerCase();
       const isLoopbackHost = hostname === "localhost" || hostname === "127.0.0.1";

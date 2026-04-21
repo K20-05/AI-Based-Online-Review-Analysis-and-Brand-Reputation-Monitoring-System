@@ -76,6 +76,7 @@ Important notes:
 - `APP_HOST` defaults to `0.0.0.0` so the app can bind correctly in deployed environments.
 - Port resolution is `APP_PORT`, then `PORT`, then `FLASK_RUN_PORT`, then `5000`.
 - `ALLOWED_CORS_ORIGINS` should list the frontend origins that are allowed to make credentialed requests.
+- Set `FRONTEND_API_BASE_URL` when the dashboard UI and API are deployed on different origins.
 - `MONGO_URI` is optional. Leave it blank to run the project in CSV-only mode.
 - `POST /api/auth/register` creates an account only. Users sign in separately through `POST /api/auth/login`.
 
@@ -121,6 +122,7 @@ Deployment notes:
 - The runtime port honors `APP_PORT` first and `PORT` second, which fits common deployment platforms.
 - Set `SESSION_COOKIE_SECURE=1` when the app is behind HTTPS.
 - If the frontend is hosted on a different origin, set `ALLOWED_CORS_ORIGINS` to that public origin.
+- If the frontend and API are on different origins, set `FRONTEND_API_BASE_URL` to the backend public origin (for example `https://api.example.com`).
 
 ## End-to-End Pipeline
 
@@ -198,6 +200,7 @@ Supported configuration:
 - `DASHBOARD_ADMIN_PASSWORD`
 - `ALLOWED_CORS_ORIGINS`
 - `SESSION_COOKIE_SECURE`
+- `FRONTEND_API_BASE_URL`
 - `MONGO_URI`
 - `MONGO_DB_NAME`
 - `MONGO_REVIEWS_COLLECTION`

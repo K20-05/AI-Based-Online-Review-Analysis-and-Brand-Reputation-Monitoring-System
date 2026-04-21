@@ -210,8 +210,21 @@
       } catch (error) {
         if (!sameSessionRevision(sessionRevision)) return;
         if (handleAuthError(error)) return;
-        copy.textContent = "Unable to load review samples: " + (error.message || "request failed") + ".";
-        host.innerHTML = '<div class="mini-note">Review drill-down is unavailable right now.</div>';
+        const rawMessage = String(error && error.message ? error.message : "request failed");
+        const timeoutDetected = rawMessage.toLowerCase().includes("timeout");
+        copy.textContent = timeoutDetected
+          ? "Server is taking longer than expected. You can retry loading review samples."
+          : "Unable to load review samples: " + rawMessage + ".";
+        host.innerHTML = [
+          '<div class="mini-note">Review drill-down is unavailable right now.</div>',
+          '<button class="ghost-btn" id="trendDrilldownRetryButton" type="button">Retry</button>'
+        ].join("");
+        const retryButton = $("#trendDrilldownRetryButton");
+        if (retryButton) {
+          retryButton.addEventListener("click", () => {
+            loadTrendDrilldown(chosen);
+          }, { once: true });
+        }
       }
     }
 

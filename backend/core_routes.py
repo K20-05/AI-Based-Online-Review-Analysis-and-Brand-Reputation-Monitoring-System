@@ -42,9 +42,10 @@ def create_core_blueprint(deps: dict) -> Blueprint:
     scheduler_status = deps["scheduler_status"]
     update_scheduler_config = deps["update_scheduler_config"]
     start_background_services = deps["start_background_services"]
+    frontend_api_base_url = str(deps.get("FRONTEND_API_BASE_URL", "") or "").strip().rstrip("/")
 
     def index_response():
-        response = make_response(render_template("index.html"))
+        response = make_response(render_template("index.html", frontend_api_base_url=frontend_api_base_url))
         response.cache_control.no_store = True
         response.cache_control.max_age = 0
         return response

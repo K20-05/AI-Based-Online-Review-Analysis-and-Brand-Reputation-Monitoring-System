@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from datetime import datetime, UTC
+from time import perf_counter
+import logging
 import os
 from pathlib import Path
 import sys
+from uuid import uuid4
 
 from flask import Flask, jsonify, render_template, request, send_file, session
 from flask_cors import CORS
@@ -23,6 +26,7 @@ from backend.config import (
     resolve_runtime_server_settings,
     SECRET_KEY,
     SESSION_COOKIE_SECURE,
+    FRONTEND_API_BASE_URL,
     is_insecure_admin_password,
 )
 from backend.paths import (
@@ -68,6 +72,7 @@ app.config.update(
     SEND_FILE_MAX_AGE_DEFAULT=0,
 )
 CORS(app, supports_credentials=True, origins=list(ALLOWED_CORS_ORIGINS))
+logger = logging.getLogger("brandpulse.api")
 
 _USER_STORE_CACHE = auth_support.USER_STORE_CACHE
 
@@ -370,6 +375,45 @@ API_DOCS = {
     },
 }
 
+
+@app.before_request
+def begin_request_timer() -> None:
+    request.environ["brandpulse.request_start"] = perf_counter()
+    request.environ["brandpulse.request_id"] = request.headers.get("X-Request-ID") or str(uuid4())
+
+
+@app.after_request
+def log_request_latency(response):
+    request_id = str(request.environ.get("brandpulse.request_id") or "")
+    if request_id:
+        response.headers["X-Request-ID"] = request_id
+
+    started_at = request.environ.get("brandpulse.request_start")
+    duration_ms = ((perf_counter() - started_at) * 1000.0) if isinstance(started_at, (int, float)) else -1.0
+    path = request.path or ""
+    if path.startswith("/api/"):
+        logger.info(
+            "request_id=%s method=%s path=%s status=%s duration_ms=%.2f",
+            request_id or "-",
+            request.method,
+            path,
+            response.status_code,
+            duration_ms,
+        )
+        slow_dashboard_paths = {
+            "/api/dashboard/summary",
+            "/api/dashboard/trends",
+            "/api/dashboard/reviews",
+        }
+        if path in slow_dashboard_paths and duration_ms >= 800.0:
+            logger.warning(
+                "slow_dashboard_endpoint request_id=%s path=%s duration_ms=%.2f",
+                request_id or "-",
+                path,
+                duration_ms,
+            )
+    return response
+
 @app.errorhandler(FileNotFoundError)
 def handle_missing_file(error):
     return jsonify({"success": False, "error": str(error)}), 404
@@ -600,6 +644,7 @@ app.register_blueprint(
             "scheduler_status": scheduler_status,
             "update_scheduler_config": update_scheduler_config,
             "start_background_services": lambda debug_enabled: start_background_services(debug_enabled),
+            "FRONTEND_API_BASE_URL": FRONTEND_API_BASE_URL,
         }
     )
 )
@@ -611,14 +656,33 @@ def should_start_scheduler(debug_enabled: bool) -> bool:
     return os.getenv("WERKZEUG_RUN_MAIN") == "true"
 
 
+def log_runtime_security_warnings() -> None:
+    local_origins = {"http://localhost:5000", "http://127.0.0.1:5000", "http://localhost:5500", "http://127.0.0.1:5500"}
+    insecure_admin = is_insecure_admin_password(DASHBOARD_ADMIN_PASSWORD)
+    insecure_session_cookie = not bool(SESSION_COOKIE_SECURE)
+    insecure_cors = any(origin in local_origins for origin in ALLOWED_CORS_ORIGINS)
+
+    if insecure_admin:
+        logger.warning("security_warning insecure dashboard admin password configured")
+    if insecure_session_cookie:
+        logger.warning("security_warning SESSION_COOKIE_SECURE is disabled")
+    if insecure_cors:
+        logger.warning(
+            "security_warning ALLOWED_CORS_ORIGINS includes localhost origins; tighten this list in production"
+        )
+    if not insecure_admin and not insecure_session_cookie and not insecure_cors:
+        logger.info("startup security checks passed for admin password, session cookie, and cors origins")
+
+
 def start_background_services(debug_enabled: bool) -> None:
     if should_start_scheduler(debug_enabled):
         ensure_scheduler_started()
+        log_runtime_security_warnings()
+    dashboard_data.prewarm_dashboard_caches()
 
 
 if __name__ == "__main__":
     from flask import cli
-    import logging
 
     cli.show_server_banner = lambda *args, **kwargs: None
     logging.getLogger("werkzeug").disabled = True
@@ -633,4 +697,3 @@ if __name__ == "__main__":
         debug=debug_mode,
         load_dotenv=False,
     )
-

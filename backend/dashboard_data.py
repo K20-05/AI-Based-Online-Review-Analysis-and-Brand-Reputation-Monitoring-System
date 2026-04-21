@@ -8,12 +8,11 @@ import re
 
 import pandas as pd
 
-from backend.brand_score import calculate_brand_score, scoring_frame
+from backend.brand_score import calculate_brand_score, load_base_predictions_frame, scoring_frame
 from backend.paths import BRAND_SCORE_PATH, PREDICTIONS_PATH, REALTIME_REVIEWS_PATH
 
 TOKEN_RE = re.compile(r"\b[a-z]{3,}\b")
 KEYWORD_GROUPS_CACHE_PATH = PREDICTIONS_PATH.with_name(f"{PREDICTIONS_PATH.stem}_keyword_groups_cache.json")
-REVIEW_SAMPLE_CACHE_PATH = PREDICTIONS_PATH.with_name(f"{PREDICTIONS_PATH.stem}_review_samples_cache.pkl")
 KEYWORD_EXCLUSION_WORDS = {
     "app",
     "apps",
@@ -71,6 +70,22 @@ def predictions_cache_key() -> tuple:
 
 def prediction_frame() -> pd.DataFrame:
     return _prediction_frame_cached(predictions_cache_key()).copy()
+
+
+def prediction_dataset_cache_key() -> tuple[str, int, int]:
+    if not PREDICTIONS_PATH.exists():
+        raise FileNotFoundError("Prediction dataset not found. Run prediction first.")
+    prediction_stats = PREDICTIONS_PATH.stat()
+    return (
+        str(PREDICTIONS_PATH.resolve()),
+        int(prediction_stats.st_mtime_ns),
+        int(prediction_stats.st_size),
+    )
+
+
+@lru_cache(maxsize=1)
+def _prediction_dataset_frame_cached(cache_key: tuple[str, int, int]) -> pd.DataFrame:
+    return load_base_predictions_frame()
 
 
 def brand_score_is_stale() -> bool:
@@ -139,19 +154,7 @@ def trend_brand_availability() -> dict[str, bool]:
 
 @lru_cache(maxsize=1)
 def _review_sample_source_frame_cached(cache_key: tuple[str, int, int]) -> pd.DataFrame:
-    if REVIEW_SAMPLE_CACHE_PATH.exists():
-        try:
-            cached_payload = pd.read_pickle(REVIEW_SAMPLE_CACHE_PATH)
-            if (
-                isinstance(cached_payload, dict)
-                and cached_payload.get("signature") == cache_key
-                and isinstance(cached_payload.get("frame"), pd.DataFrame)
-            ):
-                return cached_payload["frame"]
-        except Exception:
-            pass
-
-    df = _prediction_frame_cached(cache_key)
+    df = _prediction_dataset_frame_cached(cache_key)
     if "predicted_sentiment" not in df.columns:
         return pd.DataFrame(
             columns=[
@@ -195,15 +198,11 @@ def _review_sample_source_frame_cached(cache_key: tuple[str, int, int]) -> pd.Da
         }
     )
     filtered = prepared[prepared["display_review"] != ""].copy()
-    try:
-        pd.to_pickle({"signature": cache_key, "frame": filtered}, REVIEW_SAMPLE_CACHE_PATH)
-    except Exception:
-        pass
     return filtered
 
 
 def recent_activity_reviews(limit: int = 5, brand: str = "", platform: str = "") -> list[dict]:
-    source = _review_sample_source_frame_cached(predictions_cache_key())
+    source = _review_sample_source_frame_cached(prediction_dataset_cache_key())
     if source.empty:
         return []
 
@@ -264,8 +263,30 @@ def review_samples(
     sentiment_value = str(sentiment or "").strip()
     if not sentiment_value:
         return []
+    months_value = str(months or "all").strip().lower() or "all"
+    normalized_brand = normalize_brand_key(brand) if brand else ""
+    normalized_limit = max(1, min(int(limit or 5), 10))
+    return _review_samples_cached(
+        prediction_dataset_cache_key(),
+        sentiment_value,
+        normalized_brand,
+        months_value,
+        normalized_limit,
+    )
 
-    source = _review_sample_source_frame_cached(predictions_cache_key())
+
+@lru_cache(maxsize=128)
+def _review_samples_cached(
+    cache_key: tuple[str, int, int],
+    sentiment_value: str,
+    normalized_brand: str = "",
+    months_value: str = "all",
+    normalized_limit: int = 5,
+) -> list[dict]:
+    if not sentiment_value:
+        return []
+
+    source = _review_sample_source_frame_cached(cache_key)
     if source.empty:
         return []
 
@@ -273,13 +294,11 @@ def review_samples(
     if working.empty:
         return []
 
-    if brand:
-        brand_key = normalize_brand_key(brand)
-        working = working[working["brand_key"] == brand_key].copy()
+    if normalized_brand:
+        working = working[working["brand_key"] == normalized_brand].copy()
         if working.empty:
             return []
 
-    months_value = str(months or "all").strip().lower()
     parsed_dates = working["parsed_review_date"]
     if months_value != "all" and months_value.isdigit() and parsed_dates.notna().any():
         month_count = max(1, int(months_value))
@@ -289,7 +308,7 @@ def review_samples(
         if working.empty:
             return []
 
-    working = working.sort_values(by="parsed_review_date", ascending=False, na_position="last").head(limit)
+    working = working.sort_values(by="parsed_review_date", ascending=False, na_position="last").head(normalized_limit)
 
     return [
         {
@@ -302,6 +321,19 @@ def review_samples(
         }
         for _, row in working.iterrows()
     ]
+
+
+def prewarm_dashboard_caches() -> None:
+    try:
+        cache_key = prediction_dataset_cache_key()
+    except FileNotFoundError:
+        return
+    try:
+        _prediction_dataset_frame_cached(cache_key)
+        _review_sample_source_frame_cached(cache_key)
+        _review_samples_cached(cache_key, "Negative", "", "all", 5)
+    except Exception:
+        return
 
 
 def random_brand_review(brand: str = "") -> dict | None:
