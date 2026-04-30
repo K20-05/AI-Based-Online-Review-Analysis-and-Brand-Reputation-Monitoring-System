@@ -652,6 +652,26 @@
       return points.map((point, index) => (index ? "L" : "M") + point.x + " " + point.y).join(" ");
     }
 
+    function formatTrendPeriodLabel(period) {
+      const raw = String(period || "").trim();
+      if (!raw) return "";
+
+      const monthMatch = raw.match(/^(\d{4})-(\d{2})$/);
+      if (monthMatch) {
+        const year = monthMatch[1];
+        const month = Number(monthMatch[2]) - 1;
+        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        if (month >= 0 && month < monthNames.length) return monthNames[month] + " " + year.slice(-2);
+      }
+
+      const fullDate = new Date(raw);
+      if (!Number.isNaN(fullDate.getTime())) {
+        return fullDate.toLocaleDateString(undefined, { month: "short", year: "2-digit" });
+      }
+
+      return raw.length > 8 ? raw.slice(-8) : raw;
+    }
+
     function renderTrendChart(trends) {
       const grid = $("#trendGrid");
       const labels = $("#trendLabels");
@@ -687,7 +707,8 @@
       });
 
       const pointSet = { Positive: [], Neutral: [], Negative: [] };
-      const labelStep = trends.length > 10 ? 2 : 1;
+      const maxXAxisLabels = 6;
+      const labelStep = Math.max(1, Math.ceil(trends.length / maxXAxisLabels));
       trends.forEach((item, index) => {
         const x = padding.left + step * index;
         ["Positive", "Neutral", "Negative"].forEach((key) => {
@@ -703,7 +724,7 @@
         label.setAttribute("fill", "var(--muted)");
         label.setAttribute("font-size", "10");
         label.setAttribute("text-anchor", index === 0 ? "start" : index === trends.length - 1 ? "end" : "middle");
-        label.textContent = String(item.period || "").slice(2);
+        label.textContent = formatTrendPeriodLabel(item.period);
         labels.appendChild(label);
       });
 

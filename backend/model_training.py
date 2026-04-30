@@ -5,6 +5,8 @@ import sys
 import warnings
 
 import joblib
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 from sklearn.calibration import CalibratedClassifierCV

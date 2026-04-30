@@ -11,13 +11,24 @@ def build_language_evaluation_frame(
     y_pred,
     source_languages,
 ) -> pd.DataFrame:
+    # Ensure all inputs share positional alignment and never align on source indices.
+    # train_test_split preserves original indices for Series, while model predictions
+    # are 0..n-1; direct DataFrame construction can otherwise introduce <NA> rows.
+    y_true_series = pd.Series(y_true, dtype="string").reset_index(drop=True)
+    y_pred_series = pd.Series(y_pred, dtype="string").reset_index(drop=True)
+    language_series = pd.Series(source_languages, dtype="string").reset_index(drop=True).fillna("unknown")
+
     frame = pd.DataFrame(
         {
-            "source_language": pd.Series(source_languages, dtype="string").fillna("unknown"),
-            "y_true": pd.Series(y_true, dtype="string"),
-            "y_pred": pd.Series(y_pred, dtype="string"),
+            "source_language": language_series,
+            "y_true": y_true_series,
+            "y_pred": y_pred_series,
         }
     )
+    frame = frame.dropna(subset=["y_true", "y_pred"]).copy()
+    if not frame.empty:
+        frame["source_language"] = frame["source_language"].fillna("unknown")
+
     if frame.empty:
         return pd.DataFrame(
             columns=[
@@ -61,11 +72,14 @@ def expected_calibration_error(y_true, y_probabilities, labels, bins: int = 10) 
 
 def build_calibration_frame(y_true, y_probabilities, labels, bins: int = 10) -> pd.DataFrame:
     labels = [str(label) for label in labels]
-    y_true_series = pd.Series(y_true, dtype="string")
+    y_true_series = pd.Series(y_true, dtype="string").reset_index(drop=True)
     probability_frame = pd.DataFrame(y_probabilities, columns=labels)
     if probability_frame.empty:
         return pd.DataFrame(columns=["bin_index", "bin_start", "bin_end", "sample_count", "avg_confidence", "accuracy", "gap"])
 
+    # Predictions are always positional (0..n-1). Ensure y_true follows the same
+    # positional index to avoid label-alignment compare errors.
+    y_true_series = y_true_series.reindex(range(len(probability_frame))).fillna("unknown")
     predicted_labels = probability_frame.idxmax(axis=1)
     max_confidence = probability_frame.max(axis=1)
     correctness = (predicted_labels.astype("string") == y_true_series).astype(float)

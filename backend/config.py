@@ -47,6 +47,28 @@ from backend.paths import (
     CONNECTOR_SCHEDULER_PATH,
 )
 
+
+def _load_env_file(path: Path) -> None:
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return
+    for raw_line in lines:
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip()
+        if not key:
+            continue
+        value = value.strip().strip('"').strip("'")
+        # Keep explicit shell env values as highest priority.
+        os.environ.setdefault(key, value)
+
+
+_load_env_file(PROJECT_ROOT / ".env")
+
+
 def _env(name: str, default: str = "") -> str:
     return os.getenv(name, default).strip()
 
